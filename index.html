@@ -2344,15 +2344,15 @@
                 renderDonutDrillDown(regs, currentDonutView);
             }
 
-            // Commission per country (bar) — colored by region
+            // Commission per country (bar) — only Commission/QCPA events
             const countryComm = {};
             const countryRegions = {};
-            earnings.forEach(e => {
+            earnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').forEach(e => {
                 const user = database.registrations.find(u => u.userId === e.userId);
                 const cName = (user && user.country) ? user.country.name : 'Unknown';
                 const cCode = (user && user.country) ? user.country.code : '';
                 const cFlag = (user && user.country) ? user.country.flag : '🌐';
-                countryComm[cName] = (countryComm[cName] || 0) + e.amount;
+                countryComm[cName] = (countryComm[cName] || 0) + (e.commission_amount || e.amount || 0);
                 if (!countryRegions[cName]) countryRegions[cName] = { region: getRegion(cCode), flag: cFlag, code: cCode };
             });
 
