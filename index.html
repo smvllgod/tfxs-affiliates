@@ -1218,19 +1218,22 @@
                     flag: r.country.flag,
                     countryCode: r.country.code,
                     userId: r.userId,
-                    amount: r.firstDeposit
+                    amount: 0
                 });
             });
 
-            // Add commissions (only actual earnings, not $0 registrations)
+            // Add earnings — distinguish FTD vs Commission/QCPA by event type
             earnings.filter(e => e.amount > 0).forEach(e => {
                 let country = 'Unknown', flag = '🌍', countryCode = '';
                 if(database) {
                     const user = database.registrations.find(u => u.userId === e.userId);
                     if(user && user.country) { country = user.country.name; flag = user.country.flag; countryCode = user.country.code; }
                 }
+                // Use the actual event type from the data
+                const evType = (e.type === 'Commission' || e.type === 'QCPA') ? 'comm' : (e.type === 'FTD' ? 'ftd' : null);
+                if (!evType) return; // skip Registration-type earnings (already covered above)
                 events.push({
-                    type: 'comm',
+                    type: evType,
                     date: new Date(e.created),
                     country: country,
                     flag: flag,
@@ -1256,12 +1259,19 @@
                 li.className = 'flex gap-3 items-start';
 
                 const isComm = ev.type === 'comm';
-                const dotColor = isComm ? 'bg-brand-500 shadow-[0_0_8px_#ef4444]' : 'bg-blue-500 shadow-[0_0_8px_#3b82f6]';
-                const title = isComm ? `New Commission (${ev.country})` : `Registration (${ev.country})`;
+                const isFtd = ev.type === 'ftd';
+                const dotColor = isComm ? 'bg-brand-500 shadow-[0_0_8px_#ef4444]'
+                    : isFtd ? 'bg-green-500 shadow-[0_0_8px_#22c55e]'
+                    : 'bg-blue-500 shadow-[0_0_8px_#3b82f6]';
+                const title = isComm ? `New Commission (${ev.country})`
+                    : isFtd ? `New FTD (${ev.country})`
+                    : `Registration (${ev.country})`;
                 const fHTML = ev.flag || '🌍';
                 const desc = isComm
                     ? `${fHTML} Conversion from ${ev.userId}, payout: $${ev.amount.toFixed(2)}`
-                    : `${fHTML} New signup: ${ev.userId}${ev.amount > 0 ? ', FTD: $' + ev.amount.toFixed(2) : ''}`;
+                    : isFtd
+                    ? `${fHTML} Deposit from ${ev.userId}, amount: $${ev.amount.toFixed(2)}`
+                    : `${fHTML} New signup: ${ev.userId}`;
 
                 // Time ago
                 const diffMs = now - ev.date;
@@ -1351,7 +1361,8 @@
                 if (!buckets[key]) buckets[key] = { label: getBucketLabel(curr), comm: 0, reg: 0 };
                 curr.setDate(curr.getDate() + 1); safety++;
             }
-            earnings.forEach(e => { const k = getBucketKey(new Date(e.created)); if (buckets[k]) buckets[k].comm += e.amount; });
+            // Only count Commission/QCPA events for the commission line (not FTD deposits)
+            earnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').forEach(e => { const k = getBucketKey(new Date(e.created)); if (buckets[k]) buckets[k].comm += (e.commission_amount || e.amount || 0); });
             regs.forEach(r => { const k = getBucketKey(new Date(r.date)); if (buckets[k]) buckets[k].reg += 1; });
 
             let labels   = Object.values(buckets).map(d => d.label);
