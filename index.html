@@ -1078,10 +1078,10 @@
                         const lastMonth = b.last_month_earnings || 0;
                         const isSameMonth = b.same_month === true;
 
-                        // My Balance = current month + last month unpaid
-                        // "available" from backend = payable - paid - pending (covers last month minus what's been paid)
-                        // So: My Balance = available + currentMonth
-                        const myBalance = available + currentMonth;
+                        // My Balance: dynamic based on schedule type
+                        // Same-month: available already includes current month (payable = totalEarned)
+                        // Following-month: available = previous months unpaid, so add currentMonth
+                        const myBalance = isSameMonth ? available : (available + currentMonth);
 
                         document.getElementById('balance-display').textContent = formatCurrency(myBalance);
                         document.getElementById('popup-available').textContent = formatCurrency(available);
@@ -1095,10 +1095,15 @@
                         const availableSub = document.getElementById('popup-available-sub');
 
                         if (isSameMonth) {
-                            // Same-month: hide accruing row, change available subtitle
-                            if (accruingRow) accruingRow.style.display = 'none';
-                            if (accruingDivider) accruingDivider.style.display = 'none';
-                            if (availableSub) availableSub.textContent = 'All confirmed earnings';
+                            // Same-month: show current month in accruing row, available = everything minus paid
+                            if (accruingRow) accruingRow.style.display = '';
+                            if (accruingDivider) accruingDivider.style.display = '';
+                            if (accruingEl) accruingEl.textContent = formatCurrency(currentMonth);
+                            const accruingLabel = document.getElementById('popup-accruing-label');
+                            if (accruingLabel) accruingLabel.textContent = 'This Month Earned';
+                            const accruingSub = document.getElementById('popup-accruing-sub');
+                            if (accruingSub) accruingSub.textContent = 'Immediately payable';
+                            if (availableSub) availableSub.textContent = 'After withdrawals';
                         } else {
                             // Following-month: show current month accruing
                             if (accruingRow) accruingRow.style.display = '';
@@ -1111,7 +1116,7 @@
                             if (availableSub) availableSub.textContent = 'Last month (unpaid)';
                         }
 
-                        // Store payout-specific values (payout can only draw from 'available', not currentMonth)
+                        // Payout draws from 'available' (same-month: includes current; following: previous months only)
                         _payoutAvailable = available;
                         if (b.schedule) _payoutSchedule = b.schedule;
                         window._isSameMonthSchedule = isSameMonth;
@@ -1122,9 +1127,9 @@
                         const modalSubtitle = document.getElementById('payout-modal-subtitle');
                         const modalAvailSub = document.getElementById('payout-available-sub2');
                         if (isSameMonth) {
-                            if (balCardSub) balCardSub.textContent = 'all confirmed earnings';
+                            if (balCardSub) balCardSub.textContent = 'total earned minus withdrawals';
                             if (modalSubtitle) modalSubtitle.textContent = 'All confirmed commissions';
-                            if (modalAvailSub) modalAvailSub.textContent = 'All earnings';
+                            if (modalAvailSub) modalAvailSub.textContent = 'After withdrawals';
                         } else {
                             if (balCardSub) balCardSub.textContent = 'current + last month earnings';
                             if (modalSubtitle) modalSubtitle.textContent = 'Commissions from previous month(s)';
