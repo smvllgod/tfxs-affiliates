@@ -202,8 +202,13 @@
 
     tbody.innerHTML = events.slice(0, 20).map(ev => {
       const date = ev.occurred_at ? new Date(ev.occurred_at).toLocaleDateString() : "—";
-      const amount = ev.commission_amount ? `$${parseFloat(ev.commission_amount).toFixed(2)}` : "$0.00";
-      const type = (ev.event_type || "unknown").replace("_", " ").toUpperCase();
+      // Amount column: FTD shows deposit, commission/qftd shows commission, registration shows $0
+      const evType = (ev.event_type || "unknown");
+      let displayAmt = 0;
+      if (evType === "ftd") displayAmt = parseFloat(ev.deposit_amount) || 0;
+      else if (evType === "qualified_cpa" || evType === "commission") displayAmt = parseFloat(ev.commission_amount) || 0;
+      const amount = `$${displayAmt.toFixed(2)}`;
+      const type = evType.replace("_", " ").toUpperCase();
       const ctry = resolveCountry(ev.country);
       const country = `${ctry.flag} ${escapeHtml(ctry.name)}`;
       const userId = escapeHtml(ev.user_id || "—");
@@ -243,23 +248,43 @@
   function injectIntoDb(events) {
     if (!window.db) return;
 
-    // Convert API events into the same shape as mock data
-    // All events go into registrations (FTDs are regs with firstDeposit > 0)
-    const liveRegs = events.map((e, i) => ({
-        id: `live-${e.id || i}`,
-        country: resolveCountry(e.country),
-        userId: e.user_id || `user-${i}`,
-        date: e.occurred_at,
-        firstDeposit: parseFloat(e.deposit_amount) || 0,
-        commission: parseFloat(e.commission_amount) || 0,
-        status: "Active",
-        affiliate_code: e.affiliate_code || ""
-      }));
+    // ── Build ONE registration row per user_id ──
+    // Group all events by user_id, merge deposit + commission info
+    const userMap = {};
+    events.forEach(e => {
+      const uid = e.user_id || "unknown";
+      if (!userMap[uid]) {
+        userMap[uid] = {
+          id: `live-${e.id || uid}`,
+          country: resolveCountry(e.country),
+          userId: uid,
+          date: e.occurred_at,
+          firstDeposit: 0,
+          commission: 0,
+          status: "Active",
+          affiliate_code: e.affiliate_code || "",
+          event_type: e.event_type
+        };
+      }
+      const u = userMap[uid];
+      // Use earliest date (registration date)
+      if (e.event_type === "registration") u.date = e.occurred_at;
+      // FTD: set deposit amount
+      if (e.event_type === "ftd") u.firstDeposit = parseFloat(e.deposit_amount) || 0;
+      // Commission/QFTD: set commission
+      if (e.event_type === "qualified_cpa" || e.event_type === "commission") {
+        u.commission = parseFloat(e.commission_amount) || 0;
+      }
+    });
+    const liveRegs = Object.values(userMap);
 
+    // ── Earnings: ALL events (Recent Transactions needs all of them) ──
     const liveEarnings = events.map((e, i) => ({
         id: `live-earn-${e.id || i}`,
         userId: e.user_id || `user-${i}`,
-        amount: parseFloat(e.commission_amount) || 0,
+        amount: e.event_type === "ftd" ? parseFloat(e.deposit_amount) || 0 : parseFloat(e.commission_amount) || 0,
+        deposit_amount: parseFloat(e.deposit_amount) || 0,
+        commission_amount: parseFloat(e.commission_amount) || 0,
         type: e.event_type === "ftd" ? "FTD" : e.event_type === "qualified_cpa" ? "QCPA" : e.event_type === "commission" ? "Commission" : "Registration",
         created: e.occurred_at,
         country: resolveCountry(e.country),
@@ -272,8 +297,8 @@
     window.db.registrations = liveRegs;
     window.db.earnings = liveEarnings;
 
-    // Update balance from live data
-    const totalComm = liveEarnings.reduce((s, e) => s + e.amount, 0);
+    // Update balance from live data (only approved commissions)
+    const totalComm = events.filter(e => e.status === "approved").reduce((s, e) => s + (parseFloat(e.commission_amount) || 0), 0);
     window.db.user.balance = totalComm;
 
     // Trigger a re-render of the dashboard if the function exists

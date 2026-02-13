@@ -98,16 +98,34 @@
         afp: e.affiliate_code || ""
       }));
 
-    const liveRegs = events.map((e, i) => ({
-        id: `live-rpt-reg-${e.id || i}`,
-        country: resolveCountry(e.country),
-        userId: e.user_id || `user-${i}`,
-        date: e.occurred_at,
-        firstDeposit: parseFloat(e.deposit_amount) || 0,
-        commission: parseFloat(e.commission_amount) || 0,
-        status: "Active",
-        affiliate_code: e.affiliate_code || ""
-      }));
+    // ── Build ONE row per user_id for Registration Report ──
+    // Merge registration + FTD + commission events into a single row
+    const userMap = {};
+    events.forEach(e => {
+      const uid = e.user_id || "unknown";
+      if (!userMap[uid]) {
+        userMap[uid] = {
+          id: `live-rpt-reg-${e.id || uid}`,
+          country: resolveCountry(e.country),
+          userId: uid,
+          date: e.occurred_at,
+          firstDeposit: 0,
+          commission: 0,
+          status: "Active",
+          affiliate_code: e.affiliate_code || ""
+        };
+      }
+      const u = userMap[uid];
+      // Use registration date as the primary date
+      if (e.event_type === "registration") u.date = e.occurred_at;
+      // FTD: set deposit amount
+      if (e.event_type === "ftd") u.firstDeposit = parseFloat(e.deposit_amount) || 0;
+      // Commission/QFTD: set commission amount
+      if (e.event_type === "qualified_cpa" || e.event_type === "commission") {
+        u.commission = parseFloat(e.commission_amount) || 0;
+      }
+    });
+    const liveRegs = Object.values(userMap);
 
     // REPLACE mock data with live data
     window.db.registrations = liveRegs;

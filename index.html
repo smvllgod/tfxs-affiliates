@@ -1004,12 +1004,12 @@
                 return d >= startDate && d <= endDate;
             });
 
-            // Calculate KPIs
-            const totalCommission = filteredEarnings.reduce((acc, curr) => acc + curr.amount, 0);
+            // Calculate KPIs from live data (these are initial values, overwritten by backend)
+            const totalCommission = filteredEarnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').reduce((acc, curr) => acc + (curr.commission_amount || curr.amount || 0), 0);
             const totalRegs = filteredRegs.length;
-            const ftDs = filteredRegs.filter(r => r.firstDeposit > 0).length;
-            // Mock QFTD logic (e.g. deposit > $200)
-            const qftDs = filteredRegs.filter(r => r.firstDeposit > 200).length;
+            const ftDs = filteredEarnings.filter(e => e.type === 'FTD').length;
+            // QFTD: only count actual qualified_cpa events (not mock logic)
+            const qftDs = filteredEarnings.filter(e => e.type === 'QCPA').length;
             // ROI calculation using real deposit data + formula from backend
             const totalDeposit = filteredEarnings.reduce((acc, curr) => {
                 // Use firstDeposit from matching registration if available
@@ -1119,10 +1119,10 @@
                             if (modalAvailSub) modalAvailSub.textContent = 'Previous months';
                         }
 
-                        // ── Update Commission KPI to show available balance ──
+                        // ── Commission KPI shows total_earned from backend (NOT available balance) ──
                         const commKpi = document.getElementById('kpi-commission');
                         if (commKpi) {
-                            animateValue(commKpi, 0, available, 900, v => formatCurrency(v));
+                            animateValue(commKpi, 0, lifetime, 900, v => formatCurrency(v));
                         }
 
                         // Next payout date (affiliates only) / Active affiliates count (admins)
@@ -1636,6 +1636,17 @@
                       }
                  }
                  
+                 // Amount column logic:
+                 // - FTD: show deposit amount
+                 // - Commission/QCPA: show commission amount
+                 // - Registration: show $0.00
+                 let displayAmount = 0;
+                 if (tx.type === "FTD") {
+                     displayAmount = tx.deposit_amount || tx.amount || 0;
+                 } else if (tx.type === "Commission" || tx.type === "QCPA") {
+                     displayAmount = tx.commission_amount || tx.amount || 0;
+                 }
+
                  const rawStatus = tx.status || "pending";
                  const statusConfig = {
                      paid: { class: "bg-green-500/10 text-green-400 border-green-500/20", text: "Paid" },
@@ -1656,7 +1667,7 @@
                     <td class="px-6 py-4 text-gray-400 text-xs">
                          <span class="inline-flex items-center gap-1.5">${txFlagHTML} ${countryName}</span>
                     </td>
-                    <td class="px-6 py-4 font-bold text-white text-right text-xs">$${tx.amount.toFixed(2)}</td>
+                    <td class="px-6 py-4 font-bold text-white text-right text-xs">$${displayAmount.toFixed(2)}</td>
                     <td class="px-6 py-4 text-center">
                         <span class="px-2 py-1 rounded ${st.class} border text-[10px] font-bold uppercase">${st.text}</span>
                     </td>
