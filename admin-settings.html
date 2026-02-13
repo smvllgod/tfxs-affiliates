@@ -467,6 +467,31 @@
 
         <!-- ═══════ PAYOUTS TAB ═══════ -->
         <div id="tab-payouts" class="tab-content hidden">
+            <!-- Admin Contact Info -->
+            <div class="glass-panel rounded-xl p-5 mb-6 border border-white/5">
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    Contact Info
+                </h3>
+                <p class="text-[9px] text-gray-600 mb-4">Affiliates will see a "Contact Admin" button on their dashboard with these links.</p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                        <label class="text-[10px] text-gray-500 uppercase tracking-widest block mb-2">Email Address</label>
+                        <input type="email" id="contact-email-input" class="form-input w-full px-3 py-2.5 rounded-lg text-sm" placeholder="admin@example.com">
+                    </div>
+                    <div class="p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                        <label class="text-[10px] text-gray-500 uppercase tracking-widest block mb-2">Telegram Handle</label>
+                        <div class="flex items-center gap-1">
+                            <span class="text-sm text-gray-500">@</span>
+                            <input type="text" id="contact-telegram-input" class="form-input flex-1 px-3 py-2.5 rounded-lg text-sm" placeholder="username">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-4">
+                    <button onclick="saveContactSettings()" class="btn-gradient px-6 py-2.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider">Save Contact Info</button>
+                </div>
+            </div>
+
             <!-- Payout Schedule Settings -->
             <div class="glass-panel rounded-xl p-5 mb-6 border border-white/5" style="position:relative;z-index:100;overflow:visible;">
                 <h3 class="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">

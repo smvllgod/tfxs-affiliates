@@ -1926,6 +1926,35 @@ loadBrokers();
 loadPayoutScheduleSettings();
 
 // ── ROI Calculation Settings ────────────────────────────────────
+// ── Contact Info Settings ─────────────────────────────────────
+async function loadContactSettings() {
+  try {
+    const res = await api("/admin/contact-settings");
+    if (res.ok) {
+      const emailInput = $("contact-email-input");
+      const telegramInput = $("contact-telegram-input");
+      if (emailInput) emailInput.value = res.contact_email || "";
+      if (telegramInput) telegramInput.value = (res.contact_telegram || "").replace(/^@/, "");
+    }
+  } catch (_) {}
+}
+
+async function saveContactSettings() {
+  const email = ($("contact-email-input")?.value || "").trim();
+  const telegram = ($("contact-telegram-input")?.value || "").trim().replace(/^@/, "");
+  try {
+    await api("/admin/contact-settings", {
+      method: "PUT",
+      body: JSON.stringify({ contact_email: email, contact_telegram: telegram })
+    });
+    toast("Contact info saved", "success");
+  } catch (e) { toast(e.message || "Failed to save", "error"); }
+}
+
+// Load contact settings on init
+loadContactSettings();
+
+// ── ROI Formula Settings ──────────────────────────────────────
 const ROI_FORMULA_LABELS = {
   "deposit_div_commission": "Total Deposit ÷ Commission",
   "net_deposit_div_commission": "Net Deposit ÷ Commission",
