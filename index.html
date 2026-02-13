@@ -1133,6 +1133,9 @@
                             if (modalAvailSub) modalAvailSub.textContent = 'Last month (unpaid)';
                         }
 
+                        // Store lifetime total for globe modal
+                        window._lifetimeEarned = lifetime;
+
                         // ── Commission KPI shows total_earned from backend (NOT available balance) ──
                         const commKpi = document.getElementById('kpi-commission');
                         if (commKpi) {
@@ -2955,10 +2958,13 @@
                         <div><p class="text-white font-bold text-sm">$${latestEarn.amount.toFixed(2)} ${latestEarn.type}</p>
                         <p class="text-[10px] text-gray-400">${c.name || cc} • ${agoStr2}</p></div>`;
                 }
-                // Lifetime Earnings
-                const total = d.earnings.reduce((s, e) => s + e.amount, 0);
+                // Lifetime Earnings — use backend total_earned (accurate), fallback to summing only commissions
+                const total = typeof window._lifetimeEarned === 'number'
+                    ? window._lifetimeEarned
+                    : d.earnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').reduce((s, e) => s + (e.commission_amount || e.amount || 0), 0);
+                const commCount = d.earnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').length;
                 document.getElementById('modal-total-amount').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits:2});
-                document.getElementById('modal-total-txns').textContent = d.earnings.length + ' commissions';
+                document.getElementById('modal-total-txns').textContent = commCount + ' commissions';
             }
 
             function toggleGlobeView() {
