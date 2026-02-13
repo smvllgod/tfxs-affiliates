@@ -1834,7 +1834,15 @@ const SCHEDULE_LABELS = {
   "1": "1st of each month",
   "15": "15th of each month",
   "weekly": "Weekly (every Monday)",
-  "end_of_month": "End of month"
+  "end_of_month": "End of month",
+  "end_of_month_26": "End of month (26th)",
+  "sm_daily": "Same Month — Daily",
+  "sm_weekly": "Same Month — Weekly",
+  "sm_biweekly": "Same Month — Biweekly",
+  "sm_1,15": "Same Month — 1st & 15th",
+  "sm_1": "Same Month — 1st",
+  "sm_15": "Same Month — 15th",
+  "sm_end_of_month_26": "Same Month — End of month (26th)"
 };
 
 async function loadPayoutScheduleSettings() {
@@ -1842,7 +1850,22 @@ async function loadPayoutScheduleSettings() {
     const res = await api("/admin/payout-schedule");
     if (res.ok) {
       const sel = $("payout-schedule-system");
-      if (sel) sel.value = res.system_schedule || "1,15";
+      const sysVal = res.system_schedule || "1,15";
+      if (sel) {
+        sel.value = sysVal;
+        // Update the custom-select label to match the loaded value
+        const wrap = sel.closest(".custom-select");
+        if (wrap) {
+          const label = wrap.querySelector("[data-cs-label]");
+          const opt = wrap.querySelector(`.custom-select-opt[data-value="${CSS.escape(sysVal)}"]`);
+          if (label && opt) label.textContent = opt.textContent;
+          // Update active highlight
+          wrap.querySelectorAll(".custom-select-opt").forEach(o => {
+            o.classList.toggle("bg-white/5", o.dataset.value === sysVal);
+            o.classList.toggle("font-medium", o.dataset.value === sysVal);
+          });
+        }
+      }
       renderScheduleOverrides(res.overrides || []);
     }
   } catch (_) {}

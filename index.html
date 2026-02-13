@@ -383,16 +383,16 @@
                                 <div class="flex-1">
                                     <p class="text-[10px] text-gray-500 uppercase tracking-wider" data-i18n="payout.available">Available for Payout</p>
                                     <p class="text-sm font-bold text-white font-mono" id="popup-available">$0.00</p>
-                                    <p class="text-[8px] text-gray-600">From previous month(s)</p>
+                                    <p class="text-[8px] text-gray-600" id="popup-available-sub">From previous month(s)</p>
                                 </div>
                             </div>
-                            <div class="h-[1px] bg-white/5"></div>
-                            <div class="flex items-center gap-3">
+                            <div class="h-[1px] bg-white/5" id="popup-accruing-divider"></div>
+                            <div class="flex items-center gap-3" id="popup-accruing-row">
                                 <div class="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
                                 <div class="flex-1">
-                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Accruing This Month</p>
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider" id="popup-accruing-label">Accruing This Month</p>
                                     <p class="text-sm font-bold text-amber-400 font-mono" id="popup-accruing">$0.00</p>
-                                    <p class="text-[8px] text-gray-600">Available next month</p>
+                                    <p class="text-[8px] text-gray-600" id="popup-accruing-sub">Available next month</p>
                                 </div>
                             </div>
                             <div class="h-[1px] bg-white/5"></div>
@@ -425,7 +425,7 @@
                 <div class="text-4xl font-bold font-mono text-white tracking-tight" id="balance-display">$0.00</div>
                 <div class="flex items-center gap-2 mt-4" id="balance-change-row">
                     <span class="text-xs font-bold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 inline-flex items-center gap-0.5" id="balance-change-badge"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17l9.2-9.2M17 17V7H7"/></svg> 0%</span>
-                    <span class="text-[10px] text-gray-500 uppercase tracking-wide" data-i18n="dash.vsLastPayout">from previous months</span>
+                    <span class="text-[10px] text-gray-500 uppercase tracking-wide" id="balance-card-sub" data-i18n="dash.vsLastPayout">from previous months</span>
                 </div>
                 <button id="request-payout-btn" onclick="openPayoutModal()" class="mt-4 w-full btn-gradient px-4 py-2.5 rounded-xl text-[11px] font-bold text-white uppercase tracking-wider hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20 transform active:scale-[0.97]">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -1075,13 +1075,49 @@
                         const paid = b.total_paid || 0;
                         const pending = b.pending || 0;
                         const accruing = b.current_month_earnings || 0;
+                        const isSameMonth = b.same_month === true;
 
                         document.getElementById('balance-display').textContent = formatCurrency(available);
                         document.getElementById('popup-available').textContent = formatCurrency(available);
                         document.getElementById('popup-lifetime').textContent = formatCurrency(lifetime);
                         document.getElementById('popup-paid').textContent = formatCurrency(paid);
+
+                        // Dynamic labels based on schedule mode
+                        const accruingRow = document.getElementById('popup-accruing-row');
+                        const accruingDivider = document.getElementById('popup-accruing-divider');
                         const accruingEl = document.getElementById('popup-accruing');
-                        if (accruingEl) accruingEl.textContent = formatCurrency(accruing);
+                        const availableSub = document.getElementById('popup-available-sub');
+
+                        if (isSameMonth) {
+                            // Same-month: hide accruing row, change available subtitle
+                            if (accruingRow) accruingRow.style.display = 'none';
+                            if (accruingDivider) accruingDivider.style.display = 'none';
+                            if (availableSub) availableSub.textContent = 'All confirmed earnings';
+                        } else {
+                            // Following-month: show accruing row, keep original labels
+                            if (accruingRow) accruingRow.style.display = '';
+                            if (accruingDivider) accruingDivider.style.display = '';
+                            if (accruingEl) accruingEl.textContent = formatCurrency(accruing);
+                            if (availableSub) availableSub.textContent = 'From previous month(s)';
+                        }
+
+                        // Store schedule info for payout modal
+                        if (b.schedule) _payoutSchedule = b.schedule;
+                        window._isSameMonthSchedule = isSameMonth;
+
+                        // Update balance card + payout modal dynamic labels
+                        const balCardSub = document.getElementById('balance-card-sub');
+                        const modalSubtitle = document.getElementById('payout-modal-subtitle');
+                        const modalAvailSub = document.getElementById('payout-available-sub2');
+                        if (isSameMonth) {
+                            if (balCardSub) balCardSub.textContent = 'all confirmed earnings';
+                            if (modalSubtitle) modalSubtitle.textContent = 'All confirmed commissions';
+                            if (modalAvailSub) modalAvailSub.textContent = 'All earnings';
+                        } else {
+                            if (balCardSub) balCardSub.textContent = 'from previous months';
+                            if (modalSubtitle) modalSubtitle.textContent = 'Commissions from previous month(s)';
+                            if (modalAvailSub) modalAvailSub.textContent = 'Previous months';
+                        }
 
                         // ── Update Commission KPI to show available balance ──
                         const commKpi = document.getElementById('kpi-commission');
@@ -1838,7 +1874,9 @@
             if (window.TFXS_API) {
                 loadContactInfo();
             } else {
-                document.addEventListener('DOMContentLoaded', () => setTimeout(loadContactInfo, 600));
+                // api.js loads at bottom — poll until ready
+                const _ci = setInterval(() => { if (window.TFXS_API) { clearInterval(_ci); loadContactInfo(); } }, 300);
+                setTimeout(() => clearInterval(_ci), 10000);
             }
         })();
 
@@ -2974,7 +3012,7 @@
                         </div>
                         <div>
                             <h2 class="text-sm font-bold text-white" data-i18n="payout.title">Request Payout</h2>
-                            <p class="text-[9px] text-gray-500 font-mono uppercase tracking-wider">Commissions from previous month(s)</p>
+                            <p class="text-[9px] text-gray-500 font-mono uppercase tracking-wider" id="payout-modal-subtitle">Commissions from previous month(s)</p>
                         </div>
                     </div>
                     <button onclick="closePayoutModal()" class="p-1.5 text-gray-500 hover:text-white transition rounded-lg hover:bg-white/5">
@@ -2990,7 +3028,7 @@
                         <div class="p-2.5 rounded-lg bg-green-500/5 border border-green-500/10">
                             <p class="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5" data-i18n="payout.available">Available</p>
                             <p class="text-base font-mono font-bold text-green-400" id="payout-available">$0.00</p>
-                            <p class="text-[7px] text-gray-600">Previous months</p>
+                            <p class="text-[7px] text-gray-600" id="payout-available-sub2">Previous months</p>
                         </div>
                         <div class="p-2.5 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
                             <p class="text-[8px] text-gray-500 uppercase tracking-widest mb-0.5" data-i18n="payout.pending">Pending</p>
@@ -3091,7 +3129,15 @@
       "1": "1st of each month",
       "15": "15th of each month",
       "weekly": "Weekly (every Monday)",
-      "end_of_month": "End of month"
+      "end_of_month": "End of month",
+      "end_of_month_26": "End of month (26th)",
+      "sm_daily": "Daily (same month)",
+      "sm_weekly": "Weekly (same month)",
+      "sm_biweekly": "Biweekly (same month)",
+      "sm_1,15": "1st & 15th (same month)",
+      "sm_1": "1st of each month (same month)",
+      "sm_15": "15th of each month (same month)",
+      "sm_end_of_month_26": "End of month — 26th (same month)"
     };
 
     const CRYPTO_DISPLAY = {
@@ -3249,24 +3295,42 @@
     // Returns { next: Date, current: Date|null }
     function getPayoutDates(schedule) {
         const s = schedule || _payoutSchedule || "1,15";
+        const isSM = s.startsWith("sm_");
+        const base = isSM ? s.replace(/^sm_/, "") : s;
         const now = new Date();
         const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
 
-        if (s === "weekly") {
+        if (base === "daily") {
+            // Daily: next payout is today (always open)
+            return { next: new Date(y, m, d), current: new Date(y, m, d) };
+        }
+
+        if (base === "weekly") {
             const dayOfWeek = now.getDay();
             const daysUntilMon = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 7 : (8 - dayOfWeek);
             const daysSinceLastMon = dayOfWeek === 1 ? 0 : dayOfWeek === 0 ? 6 : (dayOfWeek - 1);
             return { next: new Date(y, m, d + daysUntilMon), current: new Date(y, m, d - daysSinceLastMon) };
         }
-        if (s === "end_of_month") {
-            const lastDay = new Date(y, m + 1, 0).getDate();
-            if (d < lastDay) {
-                const prevLast = new Date(y, m, 0);
-                return { next: new Date(y, m + 1, 0), current: prevLast };
-            }
-            return { next: new Date(y, m + 2, 0), current: new Date(y, m + 1, 0) };
+
+        if (base === "biweekly") {
+            // Biweekly = 1st & 15th
+            if (d < 1) return { next: new Date(y, m, 1), current: new Date(y, m - 1, 15) };
+            if (d < 15) return { next: new Date(y, m, 15), current: new Date(y, m, 1) };
+            return { next: new Date(y, m + 1, 1), current: new Date(y, m, 15) };
         }
-        const days = s.split(",").map(Number).sort((a, b) => a - b);
+
+        if (base.startsWith("end_of_month")) {
+            const eomDay = parseInt(base.split("_").pop()) || 26;
+            if (d < eomDay) {
+                const prevMonth = m === 0 ? new Date(y - 1, 11, eomDay) : new Date(y, m - 1, eomDay);
+                return { next: new Date(y, m, eomDay), current: prevMonth };
+            }
+            return { next: new Date(y, m + 1, eomDay), current: new Date(y, m, eomDay) };
+        }
+
+        // Numeric day-based schedules (e.g. "1,15", "1", "15")
+        const days = base.split(",").map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+        if (days.length === 0) return { next: new Date(y, m + 1, 1), current: null };
         for (let i = 0; i < days.length; i++) {
             if (d < days[i]) {
                 const prev = i > 0 ? new Date(y, m, days[i - 1]) : new Date(y, m - 1, days[days.length - 1]);
@@ -3310,6 +3374,20 @@
             btn.classList.add('cursor-not-allowed');
             btn.style.cssText = 'background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.10) 100%); border: 1px solid rgba(245,158,11,0.25); box-shadow: 0 0 20px rgba(245,158,11,0.05);';
             btn.innerHTML = '<svg class="w-4 h-4 text-amber-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> <span class="text-amber-400">Payout Pending — Awaiting Admin Review</span>';
+            return;
+        }
+
+        const s = _payoutSchedule || "1,15";
+        const base = s.startsWith("sm_") ? s.replace(/^sm_/, "") : s;
+
+        // sm_daily = always open
+        if (base === "daily") {
+            btn.disabled = false;
+            btn.onclick = submitPayoutRequest;
+            btn.classList.add('btn-gradient');
+            btn.classList.remove('cursor-not-allowed');
+            btn.style.cssText = '';
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Submit Payout Request <span class="text-[9px] opacity-70 ml-1">(always available)</span>';
             return;
         }
 

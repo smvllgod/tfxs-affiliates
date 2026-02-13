@@ -508,13 +508,22 @@
                                     <span data-cs-label>1st &amp; 15th of each month</span>
                                     <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                 </button>
-                                <div data-cs-dd class="hidden absolute left-0 right-0 mt-1 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-xl z-[9999] overflow-hidden max-h-60 overflow-y-auto">
+                                <div data-cs-dd class="hidden absolute left-0 right-0 mt-1 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-xl z-[9999] overflow-hidden max-h-72 overflow-y-auto">
                                     <div data-cs-opts>
+                                        <div class="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest bg-white/[0.03] border-b border-white/5 select-none">Following Month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300 bg-white/5 font-medium" data-value="1,15">1st &amp; 15th of each month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="1">1st of each month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="15">15th of each month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="weekly">Weekly (every Monday)</div>
-                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="end_of_month">End of month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="end_of_month_26">End of month (26th)</div>
+                                        <div class="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest bg-white/[0.03] border-y border-white/5 select-none mt-1">Same Month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_daily">Daily</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_weekly">Weekly (every Monday)</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_biweekly">Biweekly (1st &amp; 15th)</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_1,15">1st &amp; 15th</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_1">1st of each month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_15">15th of each month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_end_of_month_26">End of month (26th)</div>
                                     </div>
                                 </div>
                                 <input type="hidden" id="payout-schedule-system" value="1,15">
@@ -540,13 +549,22 @@
                                     <span data-cs-label>1st &amp; 15th</span>
                                     <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                 </button>
-                                <div data-cs-dd class="hidden absolute left-0 right-0 mt-1 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-xl z-[9999] overflow-hidden max-h-60 overflow-y-auto">
+                                <div data-cs-dd class="hidden absolute left-0 right-0 mt-1 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-xl z-[9999] overflow-hidden max-h-72 overflow-y-auto">
                                     <div data-cs-opts>
+                                        <div class="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest bg-white/[0.03] border-b border-white/5 select-none">Following Month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300 bg-white/5 font-medium" data-value="1,15">1st &amp; 15th</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="1">1st of month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="15">15th of month</div>
                                         <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="weekly">Weekly</div>
-                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="end_of_month">End of month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="end_of_month_26">End of month (26th)</div>
+                                        <div class="px-3 py-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest bg-white/[0.03] border-y border-white/5 select-none mt-1">Same Month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_daily">Daily</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_weekly">Weekly</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_biweekly">Biweekly</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_1,15">1st &amp; 15th</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_1">1st of month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_15">15th of month</div>
+                                        <div class="custom-select-opt px-3 py-2 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="sm_end_of_month_26">End of month (26th)</div>
                                     </div>
                                 </div>
                                 <input type="hidden" id="payout-schedule-affiliate" value="1,15">
