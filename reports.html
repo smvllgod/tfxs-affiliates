@@ -185,6 +185,12 @@
             color: white;
             border-color: #ef4444;
         }
+        /* ── Mobile table fixes: prevent cell overlap ── */
+        @media (max-width: 768px) {
+            table th, table td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .overflow-x-auto table { min-width: 600px; }
+            .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+        }
     </style>
 </head>
 <body class="antialiased font-sans min-h-screen relative overflow-x-hidden selection:bg-brand-500 selection:text-white pb-20">

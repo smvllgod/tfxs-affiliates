@@ -276,30 +276,134 @@ async function loadStats() {
 
 function renderKpiChart(ts) {
   const el = $("kpi-chart");
-  if (!el || typeof ApexCharts === "undefined") return;
+  if (!el || typeof Highcharts === "undefined") return;
 
-  const categories = ts.map(t => t.date);
+  const isLt = document.documentElement.classList.contains('light-theme');
+  const categories = ts.map(t => {
+    const d = new Date(t.date);
+    return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+  });
+
+  const regData = ts.map(t => t.registrations || 0);
+  const ftdData = ts.map(t => t.ftd || 0);
+  const commData = ts.map(t => Math.round(t.commission || 0));
+
+  const maxReg = Math.max(...regData, ...ftdData, 1);
+  const regTick = maxReg <= 5 ? 1 : maxReg <= 20 ? 2 : maxReg <= 50 ? 5 : 10;
+
+  Highcharts.setOptions({
+    chart: { style: { fontFamily: 'JetBrains Mono, Inter, system-ui, sans-serif' } },
+    credits: { enabled: false },
+    exporting: { enabled: false }
+  });
+
   const opts = {
-    chart: { type: "area", height: 220, background: "transparent", toolbar: { show: false }, zoom: { enabled: false },
-      fontFamily: "Inter, sans-serif" },
-    series: [
-      { name: "Registrations", data: ts.map(t => t.registrations) },
-      { name: "FTDs", data: ts.map(t => t.ftd) },
-      { name: "Commission $", data: ts.map(t => Math.round(t.commission)) },
+    chart: {
+      type: 'areaspline',
+      height: 240,
+      backgroundColor: 'transparent',
+      spacing: window.innerWidth < 640 ? [8, 4, 6, 4] : [4, 8, 0, 8],
+      animation: { duration: 300 },
+      reflow: true,
+      zooming: { type: 'x' },
+      resetZoomButton: {
+        theme: {
+          fill: isLt ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.08)',
+          stroke: isLt ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)',
+          style: { color: isLt ? '#6b7280' : '#a1a1aa', fontSize: '10px' },
+          r: 6,
+          states: { hover: { fill: isLt ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)' } }
+        },
+        position: { align: 'right', y: -4 }
+      }
+    },
+    title: { text: null },
+    legend: {
+      enabled: true,
+      align: 'right',
+      verticalAlign: 'top',
+      floating: true,
+      y: -5,
+      itemStyle: { color: isLt ? '#374151' : '#a1a1aa', fontSize: '10px', fontWeight: 500 },
+      itemHoverStyle: { color: isLt ? '#000' : '#fff' },
+      symbolHeight: 8, symbolWidth: 8, symbolRadius: 2
+    },
+    xAxis: {
+      categories,
+      crosshair: { width: 1, color: isLt ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)', dashStyle: 'ShortDash' },
+      labels: {
+        style: { color: isLt ? '#9ca3af' : '#71717a', fontSize: window.innerWidth < 640 ? '8px' : '10px' },
+        rotation: window.innerWidth < 640 ? -45 : 0,
+        step: ts.length > 30 ? 2 : (window.innerWidth < 640 ? 2 : 0),
+        overflow: 'allow', allowOverlap: false
+      },
+      lineColor: isLt ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)',
+      lineWidth: 1, tickLength: 0, gridLineWidth: 0
+    },
+    yAxis: [
+      { // Left — Commission $
+        title: { text: 'Commission ($)', style: { color: isLt ? 'rgba(220,38,38,0.7)' : 'rgba(229,57,53,0.7)', fontSize: '10px', fontWeight: '600' } },
+        labels: {
+          style: { color: isLt ? 'rgba(220,38,38,0.65)' : 'rgba(229,57,53,0.65)', fontSize: '10px' },
+          formatter: function() { return this.value >= 1000 ? '$' + (this.value / 1000).toFixed(1) + 'K' : '$' + Math.round(this.value); }
+        },
+        min: 0,
+        gridLineColor: isLt ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)',
+        gridLineDashStyle: 'Dot', gridLineWidth: 1,
+        lineWidth: 0, tickWidth: 0, opposite: false
+      },
+      { // Right — Registrations / FTDs
+        title: { text: 'Count', style: { color: isLt ? 'rgba(37,99,235,0.7)' : 'rgba(96,165,250,0.7)', fontSize: '10px', fontWeight: '600' } },
+        labels: { style: { color: isLt ? 'rgba(37,99,235,0.65)' : 'rgba(96,165,250,0.65)', fontSize: '10px' }, formatter: function() { return Math.round(this.value); } },
+        min: 0, allowDecimals: false,
+        tickInterval: regTick, max: Math.ceil(maxReg / regTick) * regTick + regTick,
+        gridLineWidth: 0, lineWidth: 0, tickWidth: 0, opposite: true
+      }
     ],
-    colors: ["#60a5fa", "#4ade80", "#ef4444"],
-    stroke: { curve: "smooth", width: 2 },
-    fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.05, stops: [0, 100] } },
-    dataLabels: { enabled: false },
-    xaxis: { categories, type: "category", labels: { style: { colors: "#52525b", fontSize: "9px" }, rotate: -45, rotateAlways: ts.length > 10, formatter: v => v ? v.substring(5) : "", maxHeight: 60 }, axisBorder: { show: false }, axisTicks: { show: false }, tickAmount: window.innerWidth < 640 ? Math.min(ts.length, 8) : undefined },
-    yaxis: { labels: { style: { colors: "#52525b", fontSize: "10px" }, formatter: v => v >= 1000 ? "$" + (v/1000).toFixed(1) + "k" : String(v) } },
-    grid: { borderColor: document.documentElement.classList.contains('light-theme') ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)', strokeDashArray: 3 },
-    legend: { position: "top", horizontalAlign: "right", labels: { colors: document.documentElement.classList.contains('light-theme') ? '#374151' : '#a1a1aa' }, fontSize: "10px", markers: { radius: 2 } },
-    tooltip: { theme: document.documentElement.classList.contains('light-theme') ? 'light' : 'dark', x: { show: true }, y: { formatter: (v, { seriesIndex }) => seriesIndex === 2 ? "$" + v.toLocaleString() : String(v) } },
+    tooltip: {
+      shared: true, useHTML: true, backgroundColor: 'transparent', borderWidth: 0, shadow: false, style: { padding: '0' },
+      formatter: function() {
+        const bg = isLt ? 'rgba(255,255,255,0.96)' : 'rgba(15,15,20,0.94)';
+        const border = isLt ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
+        const shadow = isLt ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.4)';
+        const hdrColor = isLt ? '#6b7280' : '#a1a1aa';
+        const valColor = isLt ? '#1d1d1f' : '#fff';
+        let rows = '';
+        this.points.forEach(p => {
+          const val = p.series.name === 'Commission $' ? '$' + p.y.toLocaleString() : p.y;
+          rows += `<div style="display:flex;align-items:center;gap:6px;margin:3px 0;"><span style="width:6px;height:6px;border-radius:50%;background:${p.color};display:inline-block;"></span><span style="color:${hdrColor};font-size:10px;">${p.series.name}:</span><span style="color:${valColor};font-weight:700;font-size:11px;">${val}</span></div>`;
+        });
+        return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 14px;box-shadow:${shadow};"><div style="color:${hdrColor};font-size:9px;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">${this.x}</div>${rows}</div>`;
+      }
+    },
+    plotOptions: {
+      areaspline: {
+        lineWidth: 2,
+        marker: { enabled: false, radius: 3, symbol: 'circle', states: { hover: { enabled: true, lineWidth: 0 } } },
+        states: { hover: { lineWidth: 2.5 } }
+      }
+    },
+    series: [
+      {
+        name: 'Registrations', data: regData, yAxis: 1,
+        color: '#60a5fa',
+        fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, 'rgba(96,165,250,0.25)'], [1, 'rgba(96,165,250,0)']] }
+      },
+      {
+        name: 'FTDs', data: ftdData, yAxis: 1,
+        color: '#4ade80',
+        fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, 'rgba(74,222,128,0.25)'], [1, 'rgba(74,222,128,0)']] }
+      },
+      {
+        name: 'Commission $', data: commData, yAxis: 0,
+        color: '#ef4444',
+        fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, 'rgba(239,68,68,0.2)'], [1, 'rgba(239,68,68,0)']] }
+      }
+    ]
   };
 
-  if (kpiChart) { kpiChart.updateOptions(opts); }
-  else { kpiChart = new ApexCharts(el, opts); kpiChart.render(); }
+  if (kpiChart) { kpiChart.destroy(); kpiChart = null; }
+  kpiChart = Highcharts.chart(el, opts);
 }
 
 function renderTopAffiliates(topAff) {
@@ -1141,6 +1245,9 @@ function updateConvBulkBar() {
   const count = selectedConvIds.size;
   $("conv-sel-count").textContent = count;
   bar.classList.toggle("hidden", count === 0);
+  // Add padding to page so bulk bar doesn't hide last rows on mobile
+  const tab = $("tab-conversions");
+  if (tab) tab.style.paddingBottom = count > 0 ? '80px' : '';
 }
 
 async function bulkConvAction(action) {
@@ -1335,6 +1442,9 @@ function updatePayBulkBar() {
   const count = selectedPayIds.size;
   $("pay-sel-count").textContent = count;
   bar.classList.toggle("hidden", count === 0);
+  // Add padding to page so bulk bar doesn't hide last rows on mobile
+  const tab = $("tab-payouts");
+  if (tab) tab.style.paddingBottom = count > 0 ? '80px' : '';
 }
 
 async function bulkPayAction(action) {
