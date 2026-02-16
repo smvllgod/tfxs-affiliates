@@ -990,7 +990,10 @@
             const endDate = dates[1] || new Date();
             endDate.setHours(23, 59, 59, 999);
 
-            // Filter Data
+            const fromStr = startDate.toISOString().substring(0, 10);
+            const toStr = endDate.toISOString().substring(0, 10);
+
+            // Filter local data for charts/table (local events are a subset)
             const filteredEarnings = database.earnings.filter(item => {
                 const d = new Date(item.created);
                 return d >= startDate && d <= endDate;
@@ -1000,15 +1003,55 @@
                 return d >= startDate && d <= endDate;
             });
 
-            // Calculate KPIs from live data (these are initial values, overwritten by backend)
-            const totalCommission = filteredEarnings.filter(e => e.type === 'Commission').reduce((acc, curr) => acc + (curr.commission_amount || curr.amount || 0), 0);
-            const totalRegs = filteredRegs.length;
-            const ftDs = filteredEarnings.filter(e => e.type === 'FTD').length;
-            // QFTD: only count actual qualified_cpa events (not mock logic)
-            const qftDs = filteredEarnings.filter(e => e.type === 'QCPA').length;
-            // ROI calculation using real deposit data + formula from backend
-            // Sum firstDeposit per unique user from registrations (not per earning event)
-            const totalDeposit = filteredRegs.reduce((acc, reg) => acc + (reg.firstDeposit || 0), 0);
+            // ── Fetch accurate KPIs from backend with date range ──
+            const API = window.TFXS_API;
+            let totalCommission = 0, totalRegs = 0, ftDs = 0, qftDs = 0, totalDeposit = 0;
+            let backendKPIs = false;
+            if (API && typeof API.fetchSummary === 'function') {
+                try {
+                    const affiliateId = API.getAffiliateId ? API.getAffiliateId() : null;
+                    const summaryRes = await API.fetchSummary(affiliateId, fromStr, toStr);
+                    if (summaryRes && summaryRes.ok && summaryRes.data) {
+                        const s = summaryRes.data;
+                        // Admin: commission KPI shows raw CellXpert revenue; affiliate: deal-based commission
+                        const isAdminView = localStorage.getItem('is_admin') === 'true';
+                        totalCommission = (isAdminView && s.raw_revenue !== undefined) ? s.raw_revenue : (s.total_commission || 0);
+                        totalRegs = s.registrations || 0;
+                        ftDs = s.ftd || 0;
+                        qftDs = s.qualified_cpa || 0;
+                        totalDeposit = s.total_deposit || 0;
+                        backendKPIs = true;
+
+                        // Admin business KPIs
+                        if (isAdminView && s.raw_revenue !== undefined) {
+                            const kpiRev = document.getElementById('kpi-revenue');
+                            const kpiCost = document.getElementById('kpi-aff-cost');
+                            const kpiProfit = document.getElementById('kpi-profit');
+                            const kpiMargin = document.getElementById('kpi-margin');
+                            if (kpiRev) animateValue(kpiRev, 0, s.raw_revenue, 700, v => formatCurrency(v));
+                            if (kpiCost) animateValue(kpiCost, 0, s.affiliate_cost, 700, v => formatCurrency(v));
+                            if (kpiProfit) {
+                                animateValue(kpiProfit, 0, s.profit, 700, v => formatCurrency(v));
+                                kpiProfit.className = kpiProfit.className.replace(/text-(red|green|white|emerald)-\d+/g, '');
+                                kpiProfit.classList.add(s.profit >= 0 ? 'text-emerald-400' : 'text-red-400');
+                            }
+                            if (kpiMargin) animateValue(kpiMargin, 0, s.margin, 700, v => v.toFixed(1) + '%');
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[TFXS] Backend KPI fetch failed, using local data:', e.message);
+                }
+            }
+
+            // Fallback: calculate from local data if backend failed
+            if (!backendKPIs) {
+                totalCommission = filteredEarnings.filter(e => e.type === 'Commission').reduce((acc, curr) => acc + (curr.commission_amount || curr.amount || 0), 0);
+                totalRegs = filteredRegs.length;
+                ftDs = filteredEarnings.filter(e => e.type === 'FTD').length;
+                qftDs = filteredEarnings.filter(e => e.type === 'QCPA').length;
+                totalDeposit = filteredRegs.reduce((acc, reg) => acc + (reg.firstDeposit || 0), 0);
+            }
+
             const roiFormula = window._tfxsRoiFormula || "deposit_div_commission";
             const roi = window.calculateROI ? window.calculateROI(roiFormula, totalDeposit, totalCommission) : (totalCommission > 0 ? (totalDeposit / totalCommission).toFixed(2) : "0.00");
 
@@ -1047,10 +1090,7 @@
             updateSparklines();
 
             // Fetch reports for accurate country chart data
-            const fromStr = startDate.toISOString().substring(0, 10);
-            const toStr = endDate.toISOString().substring(0, 10);
             let apiCountries = null;
-            const API = window.TFXS_API;
             if (API && typeof API.fetchReports === 'function') {
                 try {
                     const affiliateId = API.getAffiliateId ? API.getAffiliateId() : null;
