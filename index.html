@@ -1046,8 +1046,23 @@
             // Update Sparklines (7-day trailing from DB, not filtered)
             updateSparklines();
 
-            // Update Country Charts
-            updateCountryCharts(filteredRegs, filteredEarnings);
+            // Fetch reports for accurate country chart data
+            const fromStr = startDate.toISOString().substring(0, 10);
+            const toStr = endDate.toISOString().substring(0, 10);
+            let apiCountries = null;
+            const API = window.TFXS_API;
+            if (API && typeof API.fetchReports === 'function') {
+                try {
+                    const affiliateId = API.getAffiliateId ? API.getAffiliateId() : null;
+                    const reportsRes = await API.fetchReports(affiliateId, fromStr, toStr);
+                    if (reportsRes && reportsRes.ok && reportsRes.data && reportsRes.data.countries) {
+                        apiCountries = reportsRes.data.countries;
+                    }
+                } catch (e) { console.warn('[TFXS] Reports fetch for countries failed:', e.message); }
+            }
+
+            // Update Country Charts — use backend pre-aggregated data when available
+            updateCountryCharts(filteredRegs, filteredEarnings, apiCountries);
 
             // Populate country filter dropdown (once)
             populateCountryFilter();
@@ -1056,7 +1071,6 @@
             populateAmountFilter();
 
             // === BALANCE CALCULATION (from real API) ===
-            const API = window.TFXS_API;
             if (API) {
                 try {
                     const affiliateId = API.getAffiliateId();
@@ -1130,15 +1144,8 @@
                         // Store lifetime total for globe modal
                         window._lifetimeEarned = lifetime;
 
-                        // ── Commission KPI shows total_earned from backend (NOT available balance) ──
-                        // BUT: when a broker filter is active, keep the broker-filtered value from fetchSummary
-                        const activeBrokerFilter = API.getSelectedBroker ? API.getSelectedBroker() : '';
-                        if (!activeBrokerFilter) {
-                            const commKpi = document.getElementById('kpi-commission');
-                            if (commKpi) {
-                                animateValue(commKpi, 0, lifetime, 900, v => formatCurrency(v));
-                            }
-                        }
+                        // ── Commission KPI: already set from date-filtered local data above ──
+                        // Do NOT override with lifetime total_earned — that ignores date range
 
                         // Next payout date (affiliates only) / Active affiliates count (admins)
                         const isAdmin = localStorage.getItem('is_admin') === 'true';
@@ -2340,7 +2347,7 @@
             });
         });
 
-        function updateCountryCharts(regs, earnings) {
+        function updateCountryCharts(regs, earnings, apiCountries) {
             const database = window.db;
             if (!database) return;
 
@@ -2354,17 +2361,31 @@
                 renderDonutDrillDown(regs, currentDonutView);
             }
 
-            // Commission per country (bar) — only Commission/QCPA events
+            // Commission per country (bar chart)
             const countryComm = {};
             const countryRegions = {};
-            earnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').forEach(e => {
-                const user = database.registrations.find(u => u.userId === e.userId);
-                const cName = (user && user.country) ? user.country.name : 'Unknown';
-                const cCode = (user && user.country) ? user.country.code : '';
-                const cFlag = (user && user.country) ? user.country.flag : '🌐';
-                countryComm[cName] = (countryComm[cName] || 0) + (e.commission_amount || e.amount || 0);
-                if (!countryRegions[cName]) countryRegions[cName] = { region: getRegion(cCode), flag: cFlag, code: cCode };
-            });
+            const isAdmin = localStorage.getItem('is_admin') === 'true';
+
+            // Prefer backend pre-aggregated country data (covers ALL records, not just 50)
+            if (apiCountries && apiCountries.length > 0) {
+                const rc = window.TFXS_API && window.TFXS_API.resolveCountry ? window.TFXS_API.resolveCountry : (c => ({ name: c || 'Unknown', code: '', flag: '🌐' }));
+                apiCountries.forEach(c => {
+                    const resolved = rc(c.country);
+                    countryComm[resolved.name] = c.commission || 0;
+                    if (!countryRegions[resolved.name]) countryRegions[resolved.name] = { region: getRegion(resolved.code), flag: resolved.flag, code: resolved.code };
+                });
+            } else {
+                // Fallback: aggregate from local earnings (limited to 50 events)
+                earnings.filter(e => e.type === 'Commission' || e.type === 'QCPA').forEach(e => {
+                    const user = database.registrations.find(u => u.userId === e.userId);
+                    const cName = (user && user.country) ? user.country.name : 'Unknown';
+                    const cCode = (user && user.country) ? user.country.code : '';
+                    const cFlag = (user && user.country) ? user.country.flag : '🌐';
+                    const amt = isAdmin ? (e.raw_commission || e.commission_amount || e.amount || 0) : (e.commission_amount || e.amount || 0);
+                    countryComm[cName] = (countryComm[cName] || 0) + amt;
+                    if (!countryRegions[cName]) countryRegions[cName] = { region: getRegion(cCode), flag: cFlag, code: cCode };
+                });
+            }
 
             const barCategories = Object.keys(countryComm).sort((a, b) => countryComm[b] - countryComm[a]).slice(0, 10);
             const barData = barCategories.map(c => countryComm[c]);
@@ -2380,7 +2401,7 @@
             });
 
             const barOpts = {
-                series: [{ name: 'Commission', data: barData }],
+                series: [{ name: isAdmin ? 'Revenue' : 'Commission', data: barData }],
                 chart: { type: 'bar', height: isMobileBar ? 240 : 280, background: 'transparent', fontFamily: 'JetBrains Mono, monospace', toolbar: { show: false } },
                 colors: barColors,
                 plotOptions: {
@@ -2415,7 +2436,7 @@
 
             if (countryBarInstance) {
                 countryBarInstance.updateOptions({
-                    series: [{ name: 'Commission', data: barData }],
+                    series: [{ name: isAdmin ? 'Revenue' : 'Commission', data: barData }],
                     xaxis: { categories: barLabels },
                     colors: barColors
                 });
