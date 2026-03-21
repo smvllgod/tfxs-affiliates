@@ -1,15 +1,16 @@
 /* ═══════════════════════════════════════════════════════════════════
-   TFXS Admin Control Center — js/admin-settings.js  v2.0
+   Admin Control Center — js/admin-settings.js  v2.0
    Full CRUD, searchable dropdowns, server-side pagination,
    KPI timeseries charts, bulk endpoints. JWT Bearer auth.
    ═══════════════════════════════════════════════════════════════════ */
+const _LS_A = (k) => window.BRAND ? BRAND._lsKey(k) : `tfxs_${k}`;
 
 // ── Guard ─────────────────────────────────────────────
-if (localStorage.getItem("is_admin") !== "true") {
+if (localStorage.getItem(_LS_A("is_admin")) !== "true") {
   window.location.replace("/");
 }
 
-const API = window.TFXS_API?.API_BASE || "https://tfxs-affiliates-backend.onrender.com";
+const API = window.TFXS_API?.API_BASE || (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
 const PER_PAGE = 25;
 
 // ══════════════════════════════════════════════════════
@@ -35,8 +36,41 @@ function fmtTime(d) {
     dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
+// ── Multi-Currency Support ──
+let currencyRates = {};
+let activeCurrency = localStorage.getItem(_LS_A("currency")) || "USD";
+
+async function loadCurrencyRates() {
+  try {
+    const res = await fetch(API + "/api/currencies");
+    const data = await res.json();
+    if (data.ok && data.data) currencyRates = data.data.rates || {};
+  } catch (_) {}
+  // Restore saved currency
+  const sel = $("currency-select");
+  if (sel) sel.value = activeCurrency;
+}
+
+function setCurrency(code) {
+  activeCurrency = code;
+  localStorage.setItem(_LS_A("currency"), code);
+  // Re-render all money values
+  loadStats();
+  const active = document.querySelector(".admin-tab.active")?.dataset.tab;
+  if (active === "analytics") loadAnalytics();
+}
+
 function fmtMoney(n) {
-  return "$" + Number(n || 0).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const usd = Number(n || 0);
+  if (activeCurrency === "USD" || !currencyRates[activeCurrency]) {
+    return "$" + usd.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  const rate = currencyRates[activeCurrency] || 1;
+  const converted = usd * rate;
+  const symbols = { EUR: "€", GBP: "£", CAD: "C$", AUD: "A$", CHF: "CHF ", JPY: "¥", AED: "AED ", SAR: "SAR ", ZAR: "R", NGN: "₦", BRL: "R$", INR: "₹", TRY: "₺", MXN: "MX$", BTC: "₿", ETH: "Ξ", USDT: "₮" };
+  const sym = symbols[activeCurrency] || activeCurrency + " ";
+  const decimals = ["BTC", "ETH"].includes(activeCurrency) ? 6 : ["JPY", "NGN"].includes(activeCurrency) ? 0 : 2;
+  return sym + converted.toLocaleString("en", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function statusBadge(s) {
@@ -57,7 +91,7 @@ const CRYPTO_LABELS = {
 
 // ── API helper (JWT auth) ──────────────────────────────
 async function api(path, opts = {}) {
-  const jwt = localStorage.getItem("tfxs_jwt");
+  const jwt = localStorage.getItem(_LS_A("jwt"));
   const headers = { "Content-Type": "application/json", ...opts.headers };
   if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
   try {
@@ -236,11 +270,14 @@ async function loadActiveTab() {
   const active = document.querySelector(".admin-tab.active")?.dataset.tab;
   if (active === "affiliates") await loadAffiliates();
   else if (active === "deals") await loadDeals();
-  else if (active === "conversions") await loadConversions();
-  else if (active === "payouts") await loadPayouts();
+  else if (active === "conversions") { await loadConversions(); loadAutoApproveState(); }
+  else if (active === "payouts") { await loadPayouts(); loadAdminSelfBalance(); }
   else if (active === "kyc") await loadKycSubmissions();
   else if (active === "users") await loadUsers();
   else if (active === "audit") await loadAudit();
+  else if (active === "notifications") await loadNotificationSettings();
+  else if (active === "integrations") await loadIntegrations();
+  else if (active === "analytics") await loadAnalytics();
 }
 
 // ══════════════════════════════════════════════════════
@@ -255,16 +292,26 @@ async function loadStats() {
     const res = await api(`/admin/kpis?days=${chartDays}`);
     const d = res.data || {};
     const s = d.summary || {};
-    $("stat-affiliates").textContent = s.total_affiliates ?? "—";
+    // Row 1 — Operational KPIs
+    $("stat-commission").textContent = fmtMoney(s.total_commission);
     $("stat-regs").textContent = s.registrations ?? "—";
     $("stat-ftds").textContent = s.ftds ?? "—";
     if ($("stat-qftds")) $("stat-qftds").textContent = s.qftds ?? "—";
-    $("stat-pending").textContent = s.pending_conversions ?? "—";
-    $("stat-commission").textContent = fmtMoney(s.total_commission);
     if ($("stat-deposits")) $("stat-deposits").textContent = fmtMoney(s.total_deposit);
+    // Row 2 — Business Overview
+    if ($("stat-revenue")) $("stat-revenue").textContent = fmtMoney(s.raw_revenue);
+    if ($("stat-aff-cost")) $("stat-aff-cost").textContent = fmtMoney(s.affiliate_cost);
+    if ($("stat-profit")) {
+      $("stat-profit").textContent = fmtMoney(s.net_profit);
+      $("stat-profit").className = $("stat-profit").className.replace(/text-(red|green|white|emerald)-\d+/g, '');
+      $("stat-profit").classList.add(s.net_profit >= 0 ? "text-emerald-400" : "text-red-400");
+    }
+    if ($("stat-margin")) $("stat-margin").textContent = (s.margin ?? 0).toFixed(1) + "%";
+    // Secondary stats
+    $("stat-affiliates").textContent = s.total_affiliates ?? "—";
     $("stat-unpaid").textContent = fmtMoney(s.unpaid_commission);
     $("stat-paid").textContent = fmtMoney(s.paid_payouts);
-    $("stat-admins").textContent = s.admin_users ?? "—";
+    $("stat-pending").textContent = s.pending_conversions ?? "—";
 
     // Render timeseries chart
     renderKpiChart(d.timeseries || []);
@@ -480,13 +527,27 @@ function renderAffPage(page) {
     return '<span class="text-gray-700 text-[9px] uppercase">None</span>';
   };
 
+  const cFlag = (c) => c ? String.fromCodePoint(...[...c.toUpperCase()].map(l => 0x1F1E6 + l.charCodeAt(0) - 65)) : '';
+
   tbody.innerHTML = rows.map(r => {
     const st = r.status || "approved";
     const approveBtn = st === "pending" ? `<button onclick="approveAffiliate('${r.id}')" class="text-[10px] text-green-400 hover:text-green-300 transition font-bold uppercase mr-2">Approve</button><button onclick="rejectAffiliate('${r.id}')" class="text-[10px] text-red-400 hover:text-red-300 transition font-bold uppercase mr-2">Reject</button>` : "";
+    const countryFlag = r.country ? `<span title="${esc(r.country)}">${cFlag(r.country)}</span> ` : '';
+    // Application detail row for pending affiliates
+    let detailRow = '';
+    if (st === "pending" && (r.country || r.whatsapp || r.telegram || r.website || r.application_reason)) {
+      const chips = [];
+      if (r.country) chips.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 text-[10px]">${cFlag(r.country)} ${esc(r.country)}</span>`);
+      if (r.whatsapp) chips.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-500/10 text-green-400 text-[10px]"><svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.57.57a1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1.02l-2.2 2.2z"/></svg> ${esc(r.whatsapp)}</span>`);
+      if (r.telegram) chips.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px]"><svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg> @${esc(r.telegram).replace(/^@/,'')}</span>`);
+      if (r.website) chips.push(`<a href="${esc(r.website)}" target="_blank" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] hover:underline"><svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg> ${esc(r.website)}</a>`);
+      const reasonHtml = r.application_reason ? `<div class="mt-1.5 text-[11px] text-gray-400 leading-relaxed"><span class="text-gray-600 font-semibold uppercase text-[9px]">Reason:</span> ${esc(r.application_reason)}</div>` : '';
+      detailRow = `<tr class="border-0 bg-amber-500/[0.02]"><td colspan="8" class="px-4 pb-3 pt-0"><div class="flex flex-wrap gap-1.5">${chips.join('')}</div>${reasonHtml}</td></tr>`;
+    }
     return `
     <tr class="border-t border-white/5 hover:bg-white/[0.02] transition ${st === "pending" ? "bg-amber-500/[0.03]" : ""}">
       <td class="px-4 py-3 font-mono text-brand-500 font-bold">${esc(r.afp)}</td>
-      <td class="px-4 py-3 text-white">${esc(r.display_name || "—")}</td>
+      <td class="px-4 py-3 text-white">${countryFlag}${esc(r.display_name || "—")}</td>
       <td class="px-4 py-3 text-gray-400">${esc(r.email)}</td>
       <td class="px-4 py-3">${statusBadge(st)}</td>
       <td class="px-4 py-3">${kycBadge(r.kyc_status)}</td>
@@ -497,7 +558,7 @@ function renderAffPage(page) {
         <button onclick="openAffModal(${JSON.stringify(r).replace(/"/g, '&quot;')})" class="text-[10px] text-blue-400 hover:text-blue-300 transition font-bold uppercase mr-2">Edit</button>
         ${!r.is_admin ? `<button onclick="deleteAffiliate('${r.id}')" class="text-[10px] text-red-400 hover:text-red-300 transition font-bold uppercase">Del</button>` : ''}
       </td>
-    </tr>`;
+    </tr>${detailRow}`;
   }).join("");
 
   renderPagination("aff-pagination", affTotalCount, page, PER_PAGE, p => loadAffiliates(p));
@@ -550,6 +611,103 @@ async function toggleAffAutoPayoutLock() {
   } catch (e) { /* error already toasted by api() */ }
 }
 
+// ── Telegram Unlock (Admin per-affiliate) ────────────
+let _affTelegramUnlocked = false;
+let _affTelegramAffId = null;
+let _affTelegramAfp = null;
+
+function renderAffTelegramUnlock() {
+  const btn = $("aff-telegram-lock-btn");
+  const icon = $("aff-tg-lock-icon");
+  const label = $("aff-tg-lock-label");
+  if (!btn || !icon || !label) return;
+
+  if (_affTelegramUnlocked) {
+    btn.className = "flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/30";
+    icon.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>`;
+    label.textContent = "Telegram Enabled";
+  } else {
+    btn.className = "flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border bg-gray-600/20 border-gray-500/40 text-gray-400 hover:bg-gray-600/30";
+    icon.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    label.textContent = "Telegram Locked";
+  }
+}
+
+async function loadAffTelegramState(dbId, afpCode) {
+  _affTelegramAffId = dbId;
+  _affTelegramAfp = afpCode;
+  _affTelegramUnlocked = false;
+  try {
+    const res = await api(`/api/settings?affiliate_id=${afpCode}`);
+    if (res?.data?.telegram_unlocked === "true" || res?.data?.telegram_unlocked === true) _affTelegramUnlocked = true;
+  } catch (_) {}
+  renderAffTelegramUnlock();
+}
+
+async function toggleAffTelegramUnlock() {
+  if (!_affTelegramAffId) return;
+  const newUnlocked = !_affTelegramUnlocked;
+  try {
+    await api(`/admin/affiliates/${_affTelegramAffId}/telegram-unlock`, {
+      method: "PATCH",
+      body: JSON.stringify({ unlocked: newUnlocked })
+    });
+    _affTelegramUnlocked = newUnlocked;
+    renderAffTelegramUnlock();
+    toast(newUnlocked ? "Telegram enabled for affiliate" : "Telegram locked for affiliate", "ok");
+  } catch (e) { /* error already toasted by api() */ }
+}
+
+// ── Per-Affiliate Channel Unlock (Discord, Slack, WhatsApp, Email) ──
+let _affChannelStates = { discord: false, slack: false, whatsapp: false, email: false };
+
+function renderAffChannelUnlock(channel) {
+  const btn = $(`aff-${channel}-lock-btn`);
+  const icon = $(`aff-${channel}-lock-icon`);
+  const label = $(`aff-${channel}-lock-label`);
+  if (!btn || !icon || !label) return;
+  const unlocked = _affChannelStates[channel];
+  const colors = { discord: "indigo", slack: "green", whatsapp: "emerald", email: "amber" };
+  const col = colors[channel] || "gray";
+  const names = { discord: "Discord", slack: "Slack", whatsapp: "WhatsApp", email: "Email" };
+  if (unlocked) {
+    btn.className = `flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border bg-${col}-600/20 border-${col}-500/40 text-${col}-400 hover:bg-${col}-600/30`;
+    icon.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>`;
+    label.textContent = `${names[channel]} Enabled`;
+  } else {
+    btn.className = "flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border bg-gray-600/20 border-gray-500/40 text-gray-400 hover:bg-gray-600/30";
+    icon.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    label.textContent = `${names[channel]} Locked`;
+  }
+}
+
+async function loadAffChannelStates(afpCode) {
+  try {
+    const res = await api(`/api/settings?affiliate_id=${afpCode}`);
+    const d = res?.data || {};
+    _affChannelStates.discord = d.discord_unlocked === true || d.discord_unlocked === "true";
+    _affChannelStates.slack = d.slack_unlocked === true || d.slack_unlocked === "true";
+    _affChannelStates.whatsapp = d.whatsapp_unlocked === true || d.whatsapp_unlocked === "true";
+    _affChannelStates.email = d.email_unlocked === true || d.email_unlocked === "true";
+  } catch (_) {}
+  ["discord", "slack", "whatsapp", "email"].forEach(renderAffChannelUnlock);
+}
+
+async function toggleAffChannelUnlock(channel) {
+  if (!_affTelegramAffId) return;
+  const newVal = !_affChannelStates[channel];
+  try {
+    await api(`/admin/affiliates/${_affTelegramAffId}/channel-unlock`, {
+      method: "PATCH",
+      body: JSON.stringify({ channel, unlocked: newVal })
+    });
+    _affChannelStates[channel] = newVal;
+    renderAffChannelUnlock(channel);
+    const names = { discord: "Discord", slack: "Slack", whatsapp: "WhatsApp", email: "Email" };
+    toast(newVal ? `${names[channel]} enabled for affiliate` : `${names[channel]} locked for affiliate`, "ok");
+  } catch (e) { toast("Failed: " + (e.message || ""), "err"); }
+}
+
 function openAffModal(data) {
   affDealChips = [];
   if (data) {
@@ -567,6 +725,16 @@ function openAffModal(data) {
     const apRow = $("aff-autopayout-row");
     if (apRow) { apRow.classList.remove("hidden"); }
     loadAffAutoPayoutState(data.id, data.afp);
+    // Telegram unlock
+    const tgRow = $("aff-telegram-row");
+    if (tgRow) { tgRow.classList.remove("hidden"); }
+    loadAffTelegramState(data.id, data.afp);
+    // Other channel unlocks (Discord, Slack, WhatsApp, Email)
+    ["discord", "slack", "whatsapp", "email"].forEach(ch => {
+      const row = $(`aff-${ch}-row`);
+      if (row) row.classList.remove("hidden");
+    });
+    loadAffChannelStates(data.afp);
     // Payment settings
     const payRow = $("aff-payment-row");
     if (payRow) { payRow.classList.remove("hidden"); }
@@ -585,6 +753,9 @@ function openAffModal(data) {
     // Hide auto-payout lock for create mode
     const apRow = $("aff-autopayout-row");
     if (apRow) { apRow.classList.add("hidden"); }
+    // Hide telegram for create mode
+    const tgRow = $("aff-telegram-row");
+    if (tgRow) { tgRow.classList.add("hidden"); }
     // Hide payment settings for create mode
     const payRow = $("aff-payment-row");
     if (payRow) { payRow.classList.add("hidden"); }
@@ -930,12 +1101,45 @@ let allConversions = [];
 let selectedConvIds = new Set();
 let convTotalCount = 0;
 let convCurrentPage = 1;
+let convUnlinkedOnly = false;
+
+function toggleUnlinkedFilter() {
+  convUnlinkedOnly = !convUnlinkedOnly;
+  const btn = $("conv-unlinked-btn");
+  if (btn) {
+    if (convUnlinkedOnly) {
+      btn.className = "text-[10px] font-bold text-black uppercase tracking-wider border border-amber-400 rounded-lg px-3 py-2 bg-amber-400";
+    } else {
+      btn.className = "text-[10px] font-bold text-amber-400 hover:text-amber-300 transition uppercase tracking-wider border border-amber-500/20 rounded-lg px-3 py-2 hover:bg-amber-500/10";
+    }
+  }
+  loadConversions(1);
+}
+
+// ── Auto-Approve Toggle ──
+async function loadAutoApproveState() {
+  try {
+    const res = await api("/admin/auto-approve");
+    const toggle = $("auto-approve-toggle");
+    if (toggle) toggle.checked = res.enabled || false;
+  } catch (_) {}
+}
+async function toggleAutoApprove(enabled) {
+  try {
+    await api("/admin/auto-approve", { method: "PUT", body: JSON.stringify({ enabled }) });
+    toast(enabled ? "Auto-approve enabled — new conversions will be auto-approved" : "Auto-approve disabled — new conversions stay pending");
+  } catch (err) {
+    toast("Failed: " + err.message, "err");
+    const toggle = $("auto-approve-toggle");
+    if (toggle) toggle.checked = !enabled;
+  }
+}
 
 async function loadConversions(page) {
   page = page || 1;
   convCurrentPage = page;
   const params = new URLSearchParams();
-  const afp = $("conv-filter-afp-value")?.value || $("conv-filter-afp-input")?.value.trim() || "";
+  const afp = convUnlinkedOnly ? "__UNLINKED__" : ($("conv-filter-afp-value")?.value || $("conv-filter-afp-input")?.value.trim() || "");
   const status = $("conv-status").value;
   const type = $("conv-type").value;
   const from = $("conv-from").value;
@@ -962,7 +1166,7 @@ function renderConvPage(page) {
   const tbody = $("conv-tbody");
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="10" class="px-3 py-12 text-center text-gray-600">No conversions found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" class="px-3 py-12 text-center text-gray-600">No conversions found</td></tr>`;
     $("conv-pagination").innerHTML = "";
     return;
   }
@@ -975,19 +1179,24 @@ function renderConvPage(page) {
       actions += `<button onclick="convAction('${r.id}','approve')" class="text-green-400 hover:text-green-300 mr-1" title="Approve">✓</button>`;
       actions += `<button onclick="convAction('${r.id}','reject')" class="text-red-400 hover:text-red-300 mr-1" title="Reject">✗</button>`;
     }
-    actions += `<button onclick="openOverride('${r.id}', ${Number(r.commission_amount || 0)})" class="text-amber-400 hover:text-amber-300 mr-1" title="Override"><svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`;
+    actions += `<button onclick="openOverride('${r.id}', ${Number(r.raw_commission || r.commission_amount || 0)})" class="text-amber-400 hover:text-amber-300 mr-1" title="Override commission"><svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`;
     actions += `<button onclick="openConvModal(${JSON.stringify(r).replace(/"/g, '&quot;')})" class="text-blue-400 hover:text-blue-300 mr-1" title="Edit"><svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>`;
+    actions += `<button onclick="openTransferModal('${esc(r.user_id)}', '${esc(r.affiliate_code)}')" class="text-purple-400 hover:text-purple-300 mr-1" title="Transfer"><svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg></button>`;
     actions += `<button onclick="deleteConversion('${r.id}')" class="text-red-400 hover:text-red-300" title="Delete"><svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>`;
+    const srcBadge = r.source_platform ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">${esc(r.source_platform).toUpperCase()}</span>` : '<span class="text-gray-600">—</span>';
     return `
     <tr class="border-t border-white/5 hover:bg-white/[0.02] transition">
       <td class="px-2 py-2.5 text-center"><input type="checkbox" ${checked} onchange="toggleConvSelect('${r.id}', this.checked)" class="cursor-pointer"></td>
       <td class="px-3 py-2.5 text-gray-500">${fmtDate(r.occurred_at || r.created_at)}</td>
-      <td class="px-3 py-2.5 font-mono text-brand-500 text-[10px] font-bold">${esc(r.affiliate_code)}</td>
+      <td class="px-3 py-2.5 font-mono text-[10px] font-bold">${r.affiliate_code === "__UNLINKED__" ? '<span class="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-[9px]">⚠ NO AFP</span>' : '<span class="text-brand-500">' + esc(r.affiliate_code) + '</span>'}</td>
       <td class="px-3 py-2.5 text-gray-300">${esc(r.event_type)}</td>
-      <td class="px-3 py-2.5 text-white">${esc(r.user_id || "—")}</td>
+      <td class="px-3 py-2.5 text-white text-[10px]">${esc(r.user_id || "—")}</td>
+      <td class="px-3 py-2.5 text-gray-300 text-[10px]">${esc(r.customer_name || "—")}</td>
+      <td class="px-3 py-2.5 text-gray-400 text-[10px]">${esc(r.broker || "—")}</td>
       <td class="px-3 py-2.5 text-gray-400">${esc(r.country || "—")}</td>
       <td class="px-3 py-2.5 text-right font-mono text-gray-300">$${Number(r.deposit_amount || 0).toFixed(2)}</td>
-      <td class="px-3 py-2.5 text-right font-mono text-green-400 font-bold">$${Number(r.commission_amount || 0).toFixed(2)}</td>
+      <td class="px-3 py-2.5 text-right font-mono font-bold">${(() => { if (r.event_type === 'qualified_cpa') return '<span class="text-gray-500">$0.00</span>'; const rawC = Number(r.raw_commission || 0); const affC = Number(r.commission_amount || 0); if (rawC > 0 && rawC !== affC && affC > 0) return '<span class="text-green-400">$' + rawC.toFixed(2) + '</span><br><span class="text-[9px] text-amber-400/70" title="Affiliate cost">aff: $' + affC.toFixed(2) + '</span>'; return '<span class="text-green-400">$' + (rawC || affC).toFixed(2) + '</span>'; })()}</td>
+      <td class="px-3 py-2.5">${srcBadge}</td>
       <td class="px-3 py-2.5 text-center">${statusBadge(st)}</td>
       <td class="px-3 py-2.5 text-right whitespace-nowrap">${actions}</td>
     </tr>`;
@@ -1306,6 +1515,75 @@ async function submitOverride() {
   } catch (_) {}
 }
 
+// ── Transfer Client ────────────────────────────────────
+function openTransferModal(userId, currentAfp) {
+  $("transfer-user-id").value = userId;
+  $("transfer-uid-display").textContent = userId;
+  $("transfer-from-display").textContent = currentAfp === "__UNLINKED__" ? "⚠ UNLINKED" : currentAfp;
+  $("transfer-afp-input").value = "";
+  $("transfer-afp-value").value = "";
+  $("transfer-include-commissions").checked = false;
+  $("transfer-msg").classList.add("hidden");
+  openModal("transfer-modal");
+}
+
+function openBulkTransferModal() {
+  const ids = [...selectedConvIds];
+  if (!ids.length) return;
+  const first = allConversions.find(r => r.id === ids[0]);
+  if (!first) return;
+  openTransferModal(first.user_id, first.affiliate_code);
+}
+
+async function submitTransfer() {
+  const userId = $("transfer-user-id").value;
+  const newAfp = $("transfer-afp-value").value.trim() || $("transfer-afp-input").value.trim();
+  const includeComm = $("transfer-include-commissions").checked;
+  const msgEl = $("transfer-msg");
+
+  if (!userId) return;
+  if (!newAfp) {
+    msgEl.className = "text-[10px] px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400";
+    msgEl.textContent = "Please select a target affiliate.";
+    msgEl.classList.remove("hidden");
+    return;
+  }
+
+  const currentAfp = $("transfer-from-display").textContent;
+  if (newAfp === currentAfp) {
+    msgEl.className = "text-[10px] px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400";
+    msgEl.textContent = "Target affiliate is the same as current. Choose a different one.";
+    msgEl.classList.remove("hidden");
+    return;
+  }
+
+  const commNote = includeComm ? " (including commissions)" : " (commissions stay with original affiliate)";
+  if (!await tfxsConfirm(`Transfer client "${userId}" from ${currentAfp} to ${newAfp}?${commNote}`, {
+    title: "Confirm Transfer",
+    okText: "Transfer",
+    variant: "warning"
+  })) return;
+
+  try {
+    const res = await api("/admin/conversions/transfer", {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId, new_affiliate_code: newAfp, include_commissions: includeComm })
+    });
+    let msg = `Transferred ${res.transferred} record(s) → ${res.to_name || res.to}`;
+    if (res.commissions_kept > 0) msg += ` (${res.commissions_kept} commission(s) kept with original affiliate)`;
+    toast(msg, "success");
+    closeModal("transfer-modal");
+    selectedConvIds.clear();
+    updateConvBulkBar();
+    loadConversions(convCurrentPage);
+    loadStats();
+  } catch (err) {
+    msgEl.className = "text-[10px] px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400";
+    msgEl.textContent = err.message || "Transfer failed";
+    msgEl.classList.remove("hidden");
+  }
+}
+
 // ── Bulk selection (conversions) ───────────────────────
 function toggleConvSelect(id, checked) {
   if (checked) selectedConvIds.add(id); else selectedConvIds.delete(id);
@@ -1398,11 +1676,15 @@ function renderPayPage(page) {
       actions += `<button onclick="payoutAction('${r.id}','cancel')" class="text-red-400 hover:text-red-300 mr-1 text-[10px] font-bold uppercase">Cancel</button>`;
     }
     actions += `<button onclick="deletePayout('${r.id}')" class="text-gray-500 hover:text-red-400 text-[10px] font-bold uppercase">Del</button>`;
+    const isSelfW = r.wallet_address === "Admin self-withdrawal";
+    const afpDisplay = isSelfW
+      ? `<span class="text-emerald-400 font-bold">${esc(r.affiliate_id || r.affiliate_code)}</span> <span class="text-[8px] bg-emerald-500/15 text-emerald-400 px-1 py-0.5 rounded border border-emerald-500/20 ml-1">SELF</span>`
+      : `<span class="text-brand-500 font-bold">${esc(r.affiliate_id || r.affiliate_code)}</span>`;
     return `
-    <tr class="border-t border-white/5 hover:bg-white/[0.02] transition">
+    <tr class="border-t border-white/5 hover:bg-white/[0.02] transition ${isSelfW ? 'bg-emerald-500/[0.02]' : ''}">
       <td class="px-2 py-3 text-center"><input type="checkbox" ${checked} onchange="togglePaySelect('${r.id}', this.checked)" class="cursor-pointer"></td>
       <td class="px-4 py-3 text-gray-500">${fmtDate(r.requested_at || r.created_at)}</td>
-      <td class="px-4 py-3 font-mono text-brand-500 text-[10px] font-bold">${esc(r.affiliate_id || r.affiliate_code)}</td>
+      <td class="px-4 py-3 font-mono text-[10px]">${afpDisplay}</td>
       <td class="px-4 py-3 text-right font-mono text-white font-bold">${fmtMoney(r.amount)}</td>
       <td class="px-4 py-3 text-gray-400 whitespace-nowrap"><span class="text-[10px] font-bold text-white">${esc(CRYPTO_LABELS[r.payment_method] || r.payment_method || r.currency || "—")}</span></td>
       <td class="px-4 py-3 text-gray-500 font-mono text-[10px] truncate max-w-[160px]" title="${esc(r.wallet_address || '')}">${esc(r.wallet_address || "—")}</td>
@@ -1485,8 +1767,10 @@ async function payoutAction(id, action) {
   const label = action === "mark-paid" ? "mark as paid" : "cancel";
   const variant = action === "cancel" ? "danger" : "warning";
   if (!await tfxsConfirm(`Are you sure you want to ${label} this payout?`, { title: `${label.charAt(0).toUpperCase() + label.slice(1)} Payout`, okText: label.charAt(0).toUpperCase() + label.slice(1), variant })) return;
-  // Prompt for optional note
-  const adminNote = prompt("Add an optional note (leave blank to skip):", "") || "";
+  // Styled prompt for optional admin note
+  const noteResult = await tfxsConfirm("Add an optional note for this action.", { title: "Admin Note", okText: "Continue", variant: "warning", input: true, inputPlaceholder: "Optional note (leave blank to skip)" });
+  if (noteResult === false) return;
+  const adminNote = (typeof noteResult === "string") ? noteResult : "";
   try {
     await api(`/admin/payouts/${id}/${action}`, { method: "PATCH", body: JSON.stringify({ admin_note: adminNote || undefined }) });
     toast(`Payout ${action === "mark-paid" ? "paid" : "cancelled"}`);
@@ -1546,6 +1830,91 @@ async function bulkPayAction(action) {
   selectedPayIds.clear();
   updatePayBulkBar();
   loadPayouts(payCurrentPage); loadStats();
+}
+
+// ══════════════════════════════════════════════════════
+// ADMIN SELF-WITHDRAWAL
+// ══════════════════════════════════════════════════════
+
+let _adminSelfBalance = 0;
+let _adminSelfWithdrawn = 0;
+
+async function loadAdminSelfBalance() {
+  try {
+    const afp = localStorage.getItem(BRAND._lsKey("affiliate_id"));
+    if (!afp) return;
+    // Global admin view (no affiliate_id) → get net_profit = raw_revenue - affiliate_cost
+    const res = await api(`/api/payout/balance`);
+    if (res.ok) {
+      const s = res.data || res;
+      const netProfit = parseFloat(s.net_profit || 0);
+      // Admin's own self-withdrawals — fetch payouts for admin AFP
+      let adminWithdrawn = 0;
+      try {
+        const payRes = await api(`/api/payout/history?affiliate_id=${encodeURIComponent(afp)}`);
+        if (payRes.ok) {
+          (payRes.data || []).forEach(p => {
+            if (p.status === 'paid') adminWithdrawn += parseFloat(p.amount || 0);
+          });
+        }
+      } catch (_) {}
+      _adminSelfWithdrawn = adminWithdrawn;
+      _adminSelfBalance = Math.max(0, netProfit - adminWithdrawn);
+    }
+  } catch (_) {}
+  const balEl = $("admin-self-balance");
+  const wdEl = $("admin-self-withdrawn");
+  if (balEl) balEl.textContent = "$" + _adminSelfBalance.toFixed(2);
+  if (wdEl) wdEl.textContent = "$" + _adminSelfWithdrawn.toFixed(2);
+}
+
+function openAdminSelfWithdrawModal() {
+  const avEl = $("sw-available");
+  if (avEl) avEl.textContent = "$" + _adminSelfBalance.toFixed(2);
+  const amtEl = $("sw-amount");
+  if (amtEl) amtEl.value = "";
+  const noteEl = $("sw-note");
+  if (noteEl) noteEl.value = "";
+  setCustomSelectValue("sw-method", "CellXpert Withdrawal");
+  openModal("self-withdraw-modal");
+}
+
+async function submitAdminSelfWithdraw() {
+  const amount = parseFloat($("sw-amount")?.value);
+  if (!amount || amount <= 0) return toast("Enter a valid amount", "warn");
+  if (amount > _adminSelfBalance) return toast(`Insufficient balance. Available: $${_adminSelfBalance.toFixed(2)}`, "warn");
+
+  if (!await tfxsConfirm(`Mark withdrawal of $${amount.toFixed(2)} from your commissions?`, {
+    title: "Confirm Withdrawal",
+    okText: "Confirm",
+    variant: "warning"
+  })) return;
+
+  try {
+    const body = {
+      amount,
+      payment_method: $("sw-method")?.value || "CellXpert Withdrawal",
+      note: $("sw-note")?.value?.trim() || null
+    };
+    const res = await api("/admin/self-withdrawal", {
+      method: "POST",
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      toast("✅ Withdrawal recorded — balance updated", "ok");
+      closeModal("self-withdraw-modal");
+      _adminSelfBalance = parseFloat(res.available || 0);
+      _adminSelfWithdrawn += amount;
+      const balEl = $("admin-self-balance");
+      const wdEl = $("admin-self-withdrawn");
+      if (balEl) balEl.textContent = "$" + _adminSelfBalance.toFixed(2);
+      if (wdEl) wdEl.textContent = "$" + _adminSelfWithdrawn.toFixed(2);
+      loadPayouts();
+      loadStats();
+    }
+  } catch (e) {
+    toast(e.message || "Withdrawal failed", "warn");
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1764,8 +2133,14 @@ async function addBroker() {
   const logo_url = $("broker-logo-data")?.value || null;
   const theme_color = $("broker-color-text")?.value.trim() || null;
   const contact = $("broker-contact-input")?.value.trim() || null;
+  const data_source = $("broker-ds-source")?.value || "none";
+  const cx_url = $("broker-cx-url")?.value.trim() || null;
+  const cx_email = $("broker-cx-email")?.value.trim() || null;
+  const cx_password = $("broker-cx-password")?.value || null;
+  if (data_source === "cellxpert" && (!cx_url || !cx_email || !cx_password))
+    return toast("CellXpert requires URL, email, and password", "warn");
   try {
-    const res = await api("/admin/brokers", { method: "POST", body: JSON.stringify({ name, logo_url, theme_color, contact }) });
+    const res = await api("/admin/brokers", { method: "POST", body: JSON.stringify({ name, logo_url, theme_color, contact, data_source, cx_url, cx_email, cx_password }) });
     toast("Broker added");
     // Warn about missing DB columns
     if (res._stripped && res._stripped.length) {
@@ -1774,6 +2149,12 @@ async function addBroker() {
     if ($("broker-name-input")) $("broker-name-input").value = "";
     resetBrokerLogoUpload();
     if ($("broker-contact-input")) $("broker-contact-input").value = "";
+    if ($("broker-ds-source")) $("broker-ds-source").value = "none";
+    const cxFields2 = $("broker-cx-fields");
+    if (cxFields2) cxFields2.classList.add("hidden");
+    if ($("broker-cx-url")) $("broker-cx-url").value = "";
+    if ($("broker-cx-email")) $("broker-cx-email").value = "";
+    if ($("broker-cx-password")) $("broker-cx-password").value = "";
     await loadBrokers();
     renderBrokerList();
     renderBrokerCards();
@@ -1828,12 +2209,20 @@ function renderBrokerCards() {
     const colorBorder = b.theme_color ? `border-color: ${b.theme_color}4d` : '';
     const colorDot = b.theme_color ? `<span class="w-3 h-3 rounded-full inline-block" style="background:${esc(b.theme_color)}"></span><span class="text-[10px] text-gray-500 font-mono">${esc(b.theme_color)}</span>` : '<span class="text-[10px] text-gray-600">No color</span>';
     const contactTxt = b.contact ? `<span class="text-[10px] text-gray-500 truncate">${esc(b.contact)}</span>` : '';
+    const dsBadge = b.data_source && b.data_source !== 'none'
+      ? (b.data_source === 'cellxpert' && b.cx_url
+          ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/20"><svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>CX SYNC</span>`
+          : `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-gray-500/15 text-gray-400">${esc(b.data_source.toUpperCase())}</span>`)
+      : '';
     return `
       <div class="glass-panel rounded-xl p-4 border border-white/10 hover:border-white/20 transition" ${colorBorder ? `style="${colorBorder}"` : ''}>
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0" ${b.theme_color ? `style="box-shadow:0 0 10px ${b.theme_color}33"` : ''}>${logoHtml}</div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold text-white truncate">${esc(b.name)}</p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <p class="text-sm font-bold text-white truncate">${esc(b.name)}</p>
+              ${dsBadge}
+            </div>
             ${contactTxt}
           </div>
         </div>
@@ -1876,6 +2265,17 @@ function editBrokerItem(id) {
     }
     if (label) label.textContent = "✓ Current logo";
   }
+  // Pre-fill data source section
+  const dsSource = $("broker-ds-source");
+  const cxFields = $("broker-cx-fields");
+  const cxSection = $("broker-datasource-section");
+  if (dsSource) { dsSource.value = broker.data_source || "none"; if (cxFields) cxFields.classList.toggle("hidden", dsSource.value !== "cellxpert"); }
+  if (broker.data_source && broker.data_source !== "none" && cxSection) cxSection.classList.remove("hidden");
+  if ($('broker-cx-url')) $("broker-cx-url").value = broker.cx_url || "";
+  if ($('broker-cx-email')) $("broker-cx-email").value = broker.cx_email || "";
+  if ($('broker-cx-password')) $("broker-cx-password").value = ""; // Never pre-fill password
+  const passHint = $("broker-cx-pass-hint");
+  if (passHint) passHint.textContent = broker.cx_password ? "✓ Password stored — leave blank to keep" : "";
   // Change button text to Update
   const addBtn = document.querySelector('#broker-modal .btn-gradient[onclick="addBroker()"]');
   if (addBtn) {
@@ -1895,10 +2295,17 @@ async function submitBrokerEdit() {
   const logo_url = $("broker-logo-data")?.value || null;
   const theme_color = $("broker-color-text")?.value.trim() || null;
   const contact = $("broker-contact-input")?.value.trim() || null;
+  const data_source = $("broker-ds-source")?.value || "none";
+  const cx_url = $("broker-cx-url")?.value.trim() || null;
+  const cx_email = $("broker-cx-email")?.value.trim() || null;
+  const cx_password = $("broker-cx-password")?.value || null; // blank = keep existing
+  if (data_source === "cellxpert" && (!cx_url || !cx_email)) return toast("CellXpert requires URL and email", "warn");
+  const body = { name, logo_url, theme_color, contact, data_source, cx_url, cx_email };
+  if (cx_password) body.cx_password = cx_password;
   try {
     await api(`/admin/brokers/${editingBrokerId}`, {
       method: "PATCH",
-      body: JSON.stringify({ name, logo_url, theme_color, contact })
+      body: JSON.stringify(body)
     });
     toast("Broker updated");
     editingBrokerId = null;
@@ -2077,6 +2484,7 @@ setupAfpSearch("conv-afp-input", "conv-afp-dropdown", "conv-afp-value");
 setupAfpSearch("payout-afp-input", "payout-afp-dropdown", "payout-afp-value");
 setupAfpSearch("conv-filter-afp-input", "conv-filter-afp-dropdown", "conv-filter-afp-value");
 setupAfpSearch("pay-filter-afp-input", "pay-filter-afp-dropdown", "pay-filter-afp-value");
+setupAfpSearch("transfer-afp-input", "transfer-afp-dropdown", "transfer-afp-value");
 
 // Special: user search for promote
 setupAfpSearch("user-search-input", "user-search-dropdown", null, (selected) => {
@@ -2557,11 +2965,11 @@ async function rejectKyc(affiliateId) {
   // Add spin keyframe if not present
   if (!document.getElementById("admin-spin-style")) { const s = document.createElement("style"); s.id="admin-spin-style"; s.textContent="@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}"; document.head.appendChild(s); }
   // Initial load
-  try { setLoading(); await loadStats(); await loadAffiliates(); loadPendingCounts(); setConnected(); stopLoading(); } catch(e) { setDisconnected(); stopLoading(); }
+  try { setLoading(); await loadCurrencyRates(); await loadStats(); await loadAffiliates(); loadPendingCounts(); setConnected(); stopLoading(); } catch(e) { setDisconnected(); stopLoading(); }
   // Hash-based tab routing (e.g. /admin-settings#kyc, #affiliates, #payouts)
   const hash = window.location.hash.replace("#", "");
   if (hash) {
-    const validTabs = ["affiliates", "deals", "conversions", "payouts", "kyc", "users", "audit"];
+    const validTabs = ["affiliates", "deals", "conversions", "payouts", "kyc", "users", "audit", "notifications", "integrations", "analytics"];
     if (validTabs.includes(hash)) {
       switchTab(hash);
       // If navigating to affiliates from notification, auto-filter pending
@@ -2581,3 +2989,1127 @@ async function rejectKyc(affiliateId) {
   }
 })();
 
+// ══════════════════════════════════════════════════════════════
+// NOTIFICATION SETTINGS
+// ══════════════════════════════════════════════════════════════
+
+let _notifSettingsLoaded = false;
+
+async function loadNotificationSettings() {
+  const loading = $("notif-loading");
+  const content = $("notif-content");
+  if (!loading || !content) return;
+
+  try {
+    loading.classList.remove("hidden");
+    content.classList.add("hidden");
+
+    const res = await api("/admin/notification-settings");
+    const channels = res.data || [];
+
+    const tg = channels.find(c => c.channel === "telegram") || { enabled: false, config: {}, events: [] };
+    const email = channels.find(c => c.channel === "email") || { enabled: false, config: {}, events: [] };
+    const discord = channels.find(c => c.channel === "discord") || { enabled: false, config: {}, events: [] };
+    const slack = channels.find(c => c.channel === "slack") || { enabled: false, config: {}, events: [] };
+    const whatsapp = channels.find(c => c.channel === "whatsapp") || { enabled: false, config: {}, events: [] };
+
+    // Telegram
+    $("tg-enabled").checked = tg.enabled;
+    $("tg-bot-token").value = tg.config?.bot_token || "";
+    $("tg-chat-regs").value = tg.config?.registrations_chat_id || "";
+    $("tg-chat-deps").value = tg.config?.deposits_chat_id || "";
+    $("tg-chat-general").value = tg.config?.general_chat_id || "";
+    $("tg-evt-reg").checked = (tg.events || []).includes("registration");
+    $("tg-evt-dep").checked = (tg.events || []).includes("deposit");
+    // General group events
+    const genEvts = tg.config?.general_events || [];
+    $("tg-gen-evt-reg").checked = genEvts.includes("registration");
+    $("tg-gen-evt-dep").checked = genEvts.includes("deposit");
+    $("tg-gen-evt-signup").checked = genEvts.includes("affiliate_signup");
+    $("tg-gen-evt-payout").checked = genEvts.includes("payout_request");
+    $("tg-gen-evt-kyc").checked = genEvts.includes("kyc_submitted");
+    $("tg-gen-evt-commission").checked = genEvts.includes("commission");
+
+    // Email
+    $("email-enabled").checked = email.enabled;
+    $("notif-admin-email").value = email.config?.admin_email || "";
+    $("email-evt-reg").checked = (email.events || []).includes("registration");
+    $("email-evt-dep").checked = (email.events || []).includes("deposit");
+    $("email-evt-signup").checked = (email.events || []).includes("affiliate_signup");
+    $("email-evt-payout").checked = (email.events || []).includes("payout_request");
+    $("email-evt-kyc").checked = (email.events || []).includes("kyc_submitted");
+    $("email-evt-commission").checked = (email.events || []).includes("commission");
+
+    // Discord
+    $("discord-enabled").checked = discord.enabled;
+    if ($("discord-webhook-url")) $("discord-webhook-url").value = discord.config?.webhook_url || "";
+    $("discord-evt-reg").checked = (discord.events || []).includes("registration");
+    $("discord-evt-dep").checked = (discord.events || []).includes("deposit");
+    $("discord-evt-signup").checked = (discord.events || []).includes("affiliate_signup");
+    $("discord-evt-payout").checked = (discord.events || []).includes("payout_request");
+    $("discord-evt-commission").checked = (discord.events || []).includes("commission");
+
+    // Slack
+    $("slack-enabled").checked = slack.enabled;
+    if ($("slack-webhook-url")) $("slack-webhook-url").value = slack.config?.webhook_url || "";
+    $("slack-evt-reg").checked = (slack.events || []).includes("registration");
+    $("slack-evt-dep").checked = (slack.events || []).includes("deposit");
+    $("slack-evt-signup").checked = (slack.events || []).includes("affiliate_signup");
+    $("slack-evt-payout").checked = (slack.events || []).includes("payout_request");
+    $("slack-evt-commission").checked = (slack.events || []).includes("commission");
+
+    // WhatsApp
+    $("whatsapp-enabled").checked = whatsapp.enabled;
+    if ($("whatsapp-api-url")) $("whatsapp-api-url").value = whatsapp.config?.api_url || "";
+    if ($("whatsapp-api-key")) $("whatsapp-api-key").value = whatsapp.config?.api_key || "";
+    if ($("whatsapp-phone")) $("whatsapp-phone").value = whatsapp.config?.phone || "";
+    $("whatsapp-evt-reg").checked = (whatsapp.events || []).includes("registration");
+    $("whatsapp-evt-dep").checked = (whatsapp.events || []).includes("deposit");
+    $("whatsapp-evt-signup").checked = (whatsapp.events || []).includes("affiliate_signup");
+    $("whatsapp-evt-payout").checked = (whatsapp.events || []).includes("payout_request");
+    $("whatsapp-evt-commission").checked = (whatsapp.events || []).includes("commission");
+
+    _notifSettingsLoaded = true;
+    loading.classList.add("hidden");
+    content.classList.remove("hidden");
+  } catch (err) {
+    loading.textContent = "Failed to load notification settings.";
+    console.error("[NOTIF]", err);
+  }
+}
+
+async function saveNotificationSettings() {
+  const statusEl = $("notif-save-status");
+  if (statusEl) { statusEl.textContent = "Saving..."; statusEl.className = "text-[10px] text-yellow-400"; }
+
+  try {
+    const tgEvents = [];
+    if ($("tg-evt-reg").checked) tgEvents.push("registration");
+    if ($("tg-evt-dep").checked) tgEvents.push("deposit");
+
+    // General group events
+    const generalEvents = [];
+    if ($("tg-gen-evt-reg").checked) generalEvents.push("registration");
+    if ($("tg-gen-evt-dep").checked) generalEvents.push("deposit");
+    if ($("tg-gen-evt-signup").checked) generalEvents.push("affiliate_signup");
+    if ($("tg-gen-evt-payout").checked) generalEvents.push("payout_request");
+    if ($("tg-gen-evt-kyc").checked) generalEvents.push("kyc_submitted");
+    if ($("tg-gen-evt-commission").checked) generalEvents.push("commission");
+
+    const emailEvents = [];
+    if ($("email-evt-reg").checked) emailEvents.push("registration");
+    if ($("email-evt-dep").checked) emailEvents.push("deposit");
+    if ($("email-evt-signup").checked) emailEvents.push("affiliate_signup");
+    if ($("email-evt-payout").checked) emailEvents.push("payout_request");
+    if ($("email-evt-kyc").checked) emailEvents.push("kyc_submitted");
+    if ($("email-evt-commission").checked) emailEvents.push("commission");
+
+    // Discord events
+    const discordEvents = [];
+    if ($("discord-evt-reg")?.checked) discordEvents.push("registration");
+    if ($("discord-evt-dep")?.checked) discordEvents.push("deposit");
+    if ($("discord-evt-signup")?.checked) discordEvents.push("affiliate_signup");
+    if ($("discord-evt-payout")?.checked) discordEvents.push("payout_request");
+    if ($("discord-evt-commission")?.checked) discordEvents.push("commission");
+
+    // Slack events
+    const slackEvents = [];
+    if ($("slack-evt-reg")?.checked) slackEvents.push("registration");
+    if ($("slack-evt-dep")?.checked) slackEvents.push("deposit");
+    if ($("slack-evt-signup")?.checked) slackEvents.push("affiliate_signup");
+    if ($("slack-evt-payout")?.checked) slackEvents.push("payout_request");
+    if ($("slack-evt-commission")?.checked) slackEvents.push("commission");
+
+    // WhatsApp events
+    const whatsappEvents = [];
+    if ($("whatsapp-evt-reg")?.checked) whatsappEvents.push("registration");
+    if ($("whatsapp-evt-dep")?.checked) whatsappEvents.push("deposit");
+    if ($("whatsapp-evt-signup")?.checked) whatsappEvents.push("affiliate_signup");
+    if ($("whatsapp-evt-payout")?.checked) whatsappEvents.push("payout_request");
+    if ($("whatsapp-evt-commission")?.checked) whatsappEvents.push("commission");
+
+    const payload = {
+      channels: [
+        {
+          channel: "telegram",
+          enabled: $("tg-enabled").checked,
+          config: {
+            bot_token: $("tg-bot-token").value.trim(),
+            registrations_chat_id: $("tg-chat-regs").value.trim(),
+            deposits_chat_id: $("tg-chat-deps").value.trim(),
+            general_chat_id: $("tg-chat-general").value.trim(),
+            general_events: generalEvents
+          },
+          events: tgEvents
+        },
+        {
+          channel: "email",
+          enabled: $("email-enabled").checked,
+          config: {
+            admin_email: $("notif-admin-email").value.trim()
+          },
+          events: emailEvents
+        },
+        {
+          channel: "discord",
+          enabled: $("discord-enabled").checked,
+          config: {
+            webhook_url: $("discord-webhook-url")?.value.trim() || ""
+          },
+          events: discordEvents
+        },
+        {
+          channel: "slack",
+          enabled: $("slack-enabled").checked,
+          config: {
+            webhook_url: $("slack-webhook-url")?.value.trim() || ""
+          },
+          events: slackEvents
+        },
+        {
+          channel: "whatsapp",
+          enabled: $("whatsapp-enabled").checked,
+          config: {
+            api_url: $("whatsapp-api-url")?.value.trim() || "",
+            api_key: $("whatsapp-api-key")?.value.trim() || "",
+            phone: $("whatsapp-phone")?.value.trim() || ""
+          },
+          events: whatsappEvents
+        }
+      ]
+    };
+
+    await api("/admin/notification-settings", {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+
+    toast("Notification settings saved");
+    if (statusEl) { statusEl.textContent = "Saved ✔"; statusEl.className = "text-[10px] text-green-400"; }
+    setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 3000);
+  } catch (err) {
+    toast("Failed to save: " + err.message, "err");
+    if (statusEl) { statusEl.textContent = "Error"; statusEl.className = "text-[10px] text-red-400"; }
+  }
+}
+
+async function testTelegram(type) {
+  const statusMap = { regs: "tg-regs-status", deps: "tg-deps-status", general: "tg-general-status" };
+  const chatMap = { regs: "tg-chat-regs", deps: "tg-chat-deps", general: "tg-chat-general" };
+  const statusEl = $(statusMap[type]);
+  const chatId = $(chatMap[type])?.value.trim();
+  const token = $("tg-bot-token").value.trim();
+
+  if (!token) { toast("Enter a bot token first", "err"); return; }
+  if (!chatId) { toast("Enter a chat ID first", "err"); return; }
+
+  if (statusEl) { statusEl.textContent = "Sending..."; statusEl.className = "text-[9px] text-yellow-400"; }
+
+  try {
+    await api("/admin/notification-settings/test-telegram", {
+      method: "POST",
+      body: JSON.stringify({ bot_token: token, chat_id: chatId })
+    });
+    if (statusEl) { statusEl.textContent = "✔ Sent!"; statusEl.className = "text-[9px] text-green-400"; }
+    setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 4000);
+  } catch (err) {
+    if (statusEl) { statusEl.textContent = "✘ Failed"; statusEl.className = "text-[9px] text-red-400"; }
+  }
+}
+
+async function testDiscord() {
+  const webhookUrl = $("discord-webhook-url")?.value.trim();
+  const statusEl = $("discord-test-status");
+  if (!webhookUrl) { toast("Enter a Discord webhook URL first", "err"); return; }
+  if (statusEl) { statusEl.textContent = "Sending..."; statusEl.className = "text-[9px] text-yellow-400"; }
+  try {
+    await api("/admin/notification-settings/test-discord", {
+      method: "POST",
+      body: JSON.stringify({ webhook_url: webhookUrl })
+    });
+    if (statusEl) { statusEl.textContent = "✔ Sent!"; statusEl.className = "text-[9px] text-green-400"; }
+    setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 4000);
+  } catch (err) {
+    if (statusEl) { statusEl.textContent = "✘ Failed"; statusEl.className = "text-[9px] text-red-400"; }
+  }
+}
+
+async function testSlack() {
+  const webhookUrl = $("slack-webhook-url")?.value.trim();
+  const statusEl = $("slack-test-status");
+  if (!webhookUrl) { toast("Enter a Slack webhook URL first", "err"); return; }
+  if (statusEl) { statusEl.textContent = "Sending..."; statusEl.className = "text-[9px] text-yellow-400"; }
+  try {
+    await api("/admin/notification-settings/test-slack", {
+      method: "POST",
+      body: JSON.stringify({ webhook_url: webhookUrl })
+    });
+    if (statusEl) { statusEl.textContent = "✔ Sent!"; statusEl.className = "text-[9px] text-green-400"; }
+    setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 4000);
+  } catch (err) {
+    if (statusEl) { statusEl.textContent = "✘ Failed"; statusEl.className = "text-[9px] text-red-400"; }
+  }
+}
+
+async function testWhatsApp() {
+  const apiUrl = $("whatsapp-api-url")?.value.trim();
+  const apiKey = $("whatsapp-api-key")?.value.trim();
+  const phone = $("whatsapp-phone")?.value.trim();
+  const statusEl = $("whatsapp-test-status");
+  if (!apiUrl) { toast("Enter a WhatsApp API URL first", "err"); return; }
+  if (!phone) { toast("Enter a phone number first", "err"); return; }
+  if (statusEl) { statusEl.textContent = "Sending..."; statusEl.className = "text-[9px] text-yellow-400"; }
+  try {
+    await api("/admin/notification-settings/test-whatsapp", {
+      method: "POST",
+      body: JSON.stringify({ api_url: apiUrl, api_key: apiKey, phone })
+    });
+    if (statusEl) { statusEl.textContent = "✔ Sent!"; statusEl.className = "text-[9px] text-green-400"; }
+    setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 4000);
+  } catch (err) {
+    if (statusEl) { statusEl.textContent = "✘ Failed"; statusEl.className = "text-[9px] text-red-400"; }
+  }
+}
+
+async function adminDiscoverTgGroups() {
+  const token = $("tg-bot-token")?.value.trim();
+  if (!token) { toast("Enter a bot token first", "err"); return; }
+  const btn = $("tg-discover-btn");
+  const list = $("tg-discover-list");
+  if (btn) btn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Searching...';
+  try {
+    const res = await api("/admin/notification-settings/discover-groups", {
+      method: "POST",
+      body: JSON.stringify({ bot_token: token })
+    });
+    if (!res?.ok) throw new Error(res?.error || "Failed");
+    const groups = res.groups || [];
+    if (!groups.length) {
+      if (list) { list.innerHTML = '<div class="px-3 py-3 text-xs text-gray-500 text-center">No groups found. Add the bot to a group and send a message first.</div>'; list.classList.remove("hidden"); }
+    } else {
+      if (list) {
+        list.innerHTML = groups.map(g => `
+          <div class="px-3 py-2.5 text-xs hover:bg-white/10 cursor-pointer transition flex items-center justify-between border-b border-white/5 last:border-0" onclick="pickTgGroup('${g.id}')">
+            <span class="text-white font-medium">${g.title}</span>
+            <span class="text-gray-500 font-mono text-[10px]">${g.id}</span>
+          </div>
+        `).join("");
+        list.classList.remove("hidden");
+      }
+    }
+  } catch (err) {
+    if (list) { list.innerHTML = `<div class="px-3 py-3 text-xs text-red-400 text-center">${err.message || "Error discovering groups"}</div>`; list.classList.remove("hidden"); }
+  }
+  if (btn) btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Find Groups from Bot';
+}
+
+function pickTgGroup(chatId) {
+  // Show a styled selection modal instead of browser prompt()
+  const list = $("tg-discover-list");
+  if (list) list.classList.add("hidden");
+
+  // Build a custom 3-button selection modal via styledConfirm infrastructure
+  const modal = $("confirm-modal");
+  const iconWrap = $("confirm-icon");
+  $("confirm-title").textContent = "Assign Telegram Group";
+  $("confirm-message").textContent = "Choose which notification channel this group should receive:";
+  $("confirm-ok-btn").textContent = "Cancel";
+  // Telegram-style icon
+  iconWrap.className = "w-10 h-10 rounded-xl flex items-center justify-center bg-blue-500/10 border border-blue-500/20";
+  iconWrap.innerHTML = '<svg class="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.64-2.88 7.97-3.44 3.79-1.58 4.58-1.86 5.09-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/></svg>';
+  // Hide the default input wrap
+  $("confirm-input-wrap").classList.add("hidden");
+  // Replace the button area with 3 selection buttons
+  const okBtn = $("confirm-ok-btn");
+  const cancelBtn = $("confirm-cancel-btn");
+  const btnContainer = okBtn.parentElement;
+  // Inject selection buttons before the existing buttons
+  const selId = "tg-assign-selection";
+  let selDiv = document.getElementById(selId);
+  if (selDiv) selDiv.remove();
+  selDiv = document.createElement("div");
+  selDiv.id = selId;
+  selDiv.className = "flex flex-col gap-2 mb-3 w-full";
+  selDiv.innerHTML = `
+    <button data-tg-target="1" class="w-full py-2.5 rounded-lg text-[11px] font-bold text-white uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 transition flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      Registrations
+    </button>
+    <button data-tg-target="2" class="w-full py-2.5 rounded-lg text-[11px] font-bold text-white uppercase tracking-wider bg-blue-600 hover:bg-blue-500 transition flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Deposits
+    </button>
+    <button data-tg-target="3" class="w-full py-2.5 rounded-lg text-[11px] font-bold text-white uppercase tracking-wider bg-purple-600 hover:bg-purple-500 transition flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+      General
+    </button>`;
+  btnContainer.parentElement.insertBefore(selDiv, btnContainer);
+  // Style the cancel button, hide the ok button (we use the 3 buttons above)
+  okBtn.classList.add("hidden");
+  cancelBtn.className = "w-full py-2 rounded-lg text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-white/5 hover:bg-white/10 border border-white/10 transition";
+  cancelBtn.textContent = "Cancel";
+
+  openModal("confirm-modal");
+
+  function cleanup() {
+    closeModal("confirm-modal");
+    if (selDiv) selDiv.remove();
+    okBtn.classList.remove("hidden");
+    cancelBtn.removeEventListener("click", onCancel);
+  }
+  function onCancel() { cleanup(); }
+  cancelBtn.addEventListener("click", onCancel);
+
+  selDiv.querySelectorAll("button[data-tg-target]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const t = btn.getAttribute("data-tg-target");
+      if (t === "1") { $("tg-chat-regs").value = chatId; toast("✅ Set as Registrations group"); }
+      else if (t === "2") { $("tg-chat-deps").value = chatId; toast("✅ Set as Deposits group"); }
+      else if (t === "3") { $("tg-chat-general").value = chatId; toast("✅ Set as General group"); }
+      cleanup();
+    });
+  });
+}
+
+async function testEmail() {
+  const email = $("notif-admin-email").value.trim();
+  const statusEl = $("email-test-status");
+  if (!email) { toast("Enter an email address first", "err"); return; }
+
+  if (statusEl) { statusEl.textContent = "Sending..."; statusEl.className = "text-[9px] text-yellow-400"; }
+
+  try {
+    await api("/admin/notification-settings/test-email", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    });
+    if (statusEl) { statusEl.textContent = "✔ Sent!"; statusEl.className = "text-[9px] text-green-400"; }
+    setTimeout(() => { if (statusEl) statusEl.textContent = ""; }, 4000);
+  } catch (err) {
+    if (statusEl) { statusEl.textContent = "✘ Failed"; statusEl.className = "text-[9px] text-red-400"; }
+  }
+}
+
+function togglePasswordVisibility(inputId, btn) {
+  const input = $(inputId);
+  if (!input) return;
+  const isPassword = input.type === "password";
+  input.type = isPassword ? "text" : "password";
+  const svg = btn.querySelector("svg");
+  if (svg) {
+    svg.innerHTML = isPassword
+      ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18"/>'
+      : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// INTEGRATIONS TAB
+// ══════════════════════════════════════════════════════
+
+let integConfig = null;
+let outgoingWebhooks = [];
+let whLogPage = 1;
+
+async function loadIntegrations() {
+  try {
+    const res = await api("/admin/integration-config");
+    integConfig = res.data || {};
+    renderIncomingWebhooks();
+    renderWebhookStatus();
+    renderOutgoingWebhooks();
+    renderBrokerConnections();
+    loadWebhookLogs(1);
+  } catch (err) {
+    console.warn("[Integrations] Load failed:", err.message);
+  }
+}
+
+function renderWebhookStatus() {
+  const d = integConfig;
+  const dot = $("integ-status-dot");
+  const text = $("integ-status-text");
+  const badge = $("integ-secret-badge");
+
+  // Secret status
+  if (d.webhook_secret_status === "configured") {
+    if (badge) { badge.textContent = d.webhook_secret_masked || "****"; badge.className = "text-[9px] font-mono px-2 py-0.5 rounded-full bg-green-900/50 text-green-400 border border-green-500/20"; }
+  } else {
+    if (badge) { badge.textContent = "Not configured"; badge.className = "text-[9px] font-mono px-2 py-0.5 rounded-full bg-red-900/50 text-red-400 border border-red-500/20"; }
+  }
+
+  // Activity stats
+  const act = d.activity || {};
+  if ($("integ-24h-count")) $("integ-24h-count").textContent = act.total_24h || 0;
+  if ($("integ-24h-ok")) $("integ-24h-ok").textContent = act.by_result?.ok || 0;
+  const errCount = Object.entries(act.by_result || {}).filter(([k]) => k !== "ok").reduce((s, [, v]) => s + v, 0);
+  if ($("integ-24h-err")) $("integ-24h-err").textContent = errCount;
+
+  // Status dot & text
+  if (act.total_24h > 0) {
+    dot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
+    text.textContent = `Active — ${act.total_24h} events in last 24h`;
+  } else {
+    dot.className = "w-3 h-3 rounded-full bg-yellow-500";
+    text.textContent = "No webhook activity in last 24h";
+  }
+}
+
+function renderIncomingWebhooks() {
+  const urls = integConfig.incoming_webhooks || {};
+  for (const [type, url] of Object.entries(urls)) {
+    const el = $(`webhook-url-${type}`);
+    if (el) el.textContent = url;
+  }
+}
+
+window.copyWebhookUrl = function(type) {
+  const el = $(`webhook-url-${type}`);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    if (typeof showToast === "function") showToast("Webhook URL copied!", "success");
+  });
+};
+
+function renderOutgoingWebhooks() {
+  outgoingWebhooks = integConfig.outgoing_webhooks || [];
+  const container = $("outgoing-webhooks-list");
+  const actions = $("outgoing-webhooks-actions");
+  if (!container) return;
+
+  if (outgoingWebhooks.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-6">
+        <svg class="w-8 h-8 text-gray-700 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        <p class="text-xs text-gray-500">No outgoing webhooks configured</p>
+        <p class="text-[10px] text-gray-600 mt-1">Add a webhook to send real-time events to external services</p>
+      </div>`;
+    if (actions) actions.classList.add("hidden");
+    return;
+  }
+
+  if (actions) actions.classList.remove("hidden");
+  container.innerHTML = outgoingWebhooks.map((wh, i) => `
+    <div class="bg-white/[0.03] rounded-lg p-3 border border-white/5">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[10px] font-bold text-white uppercase">${wh.name || 'Webhook ' + (i + 1)}</span>
+        <div class="flex items-center gap-2">
+          <button onclick="testOutgoingWebhook(${i})" class="text-[9px] text-blue-400 hover:text-blue-300 transition">Test</button>
+          <button onclick="removeOutgoingWebhook(${i})" class="text-[9px] text-red-400 hover:text-red-300 transition">Remove</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <label class="text-[9px] text-gray-500 uppercase block mb-0.5">Endpoint URL</label>
+          <input type="text" value="${esc(wh.url || '')}" onchange="outgoingWebhooks[${i}].url=this.value" class="form-input text-[10px] px-2 py-1.5 rounded-lg w-full font-mono" placeholder="https://...">
+        </div>
+        <div>
+          <label class="text-[9px] text-gray-500 uppercase block mb-0.5">Secret (optional)</label>
+          <input type="text" value="${esc(wh.secret || '')}" onchange="outgoingWebhooks[${i}].secret=this.value" class="form-input text-[10px] px-2 py-1.5 rounded-lg w-full font-mono" placeholder="X-Webhook-Secret header">
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="text-[9px] text-gray-500 uppercase block mb-1">Events</label>
+        <div class="flex flex-wrap gap-1.5">
+          ${["registration", "ftd", "qualified_cpa", "commission", "payout"].map(evt => `
+            <label class="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer">
+              <input type="checkbox" ${(wh.events || []).includes(evt) ? "checked" : ""} onchange="toggleOutgoingEvent(${i}, '${evt}', this.checked)" class="rounded">
+              ${evt}
+            </label>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
+
+window.addOutgoingWebhook = function() {
+  outgoingWebhooks.push({ name: "", url: "", secret: "", events: ["registration", "ftd", "commission"] });
+  renderOutgoingWebhooks();
+};
+
+window.removeOutgoingWebhook = function(i) {
+  outgoingWebhooks.splice(i, 1);
+  renderOutgoingWebhooks();
+};
+
+window.toggleOutgoingEvent = function(i, evt, checked) {
+  if (!outgoingWebhooks[i].events) outgoingWebhooks[i].events = [];
+  if (checked && !outgoingWebhooks[i].events.includes(evt)) outgoingWebhooks[i].events.push(evt);
+  if (!checked) outgoingWebhooks[i].events = outgoingWebhooks[i].events.filter(e => e !== evt);
+};
+
+window.saveOutgoingWebhooks = async function() {
+  const status = $("outgoing-save-status");
+  try {
+    if (status) status.textContent = "Saving...";
+    await api("/admin/outgoing-webhooks", { method: "PUT", body: JSON.stringify({ webhooks: outgoingWebhooks }) });
+    if (status) status.textContent = "Saved!";
+    if (typeof showToast === "function") showToast("Outgoing webhooks saved", "success");
+    setTimeout(() => { if (status) status.textContent = ""; }, 3000);
+  } catch (err) {
+    if (status) status.textContent = "Error: " + err.message;
+    if (typeof showToast === "function") showToast(err.message, "error");
+  }
+};
+
+window.testOutgoingWebhook = async function(i) {
+  const wh = outgoingWebhooks[i];
+  if (!wh?.url) return showToast("No URL set", "error");
+  try {
+    showToast("Sending test...", "info");
+    const res = await api("/admin/test-webhook", { method: "POST", body: JSON.stringify({ url: wh.url, secret: wh.secret }) });
+    if (res.ok) {
+      showToast(`Test sent! Status: ${res.status} ${res.statusText}`, "success");
+    } else {
+      showToast(`Test failed: ${res.error}`, "error");
+    }
+  } catch (err) {
+    showToast("Test failed: " + err.message, "error");
+  }
+};
+
+function renderBrokerConnections() {
+  const grid = $("integ-broker-grid");
+  if (!grid) return;
+  const brokers = integConfig.brokers || [];
+  const prefixes = integConfig.uid_prefixes || [];
+
+  if (brokers.length === 0) {
+    grid.innerHTML = `
+      <div class="text-center py-6 col-span-full">
+        <svg class="w-8 h-8 text-gray-700 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <p class="text-xs text-gray-500">No brokers configured</p>
+        <p class="text-[10px] text-gray-600 mt-1">Add brokers in the Deals & Brokers tab</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = brokers.map(b => {
+    const bPrefixes = prefixes.filter(p => p.broker_name === b.name);
+    const color = b.theme_color || "#ef4444";
+    return `
+      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5 hover:border-white/10 transition group">
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm" style="background:${esc(color)}20; border: 1px solid ${esc(color)}40; color:${esc(color)}">
+            ${b.logo_url ? `<img src="${esc(b.logo_url)}" class="w-6 h-6 rounded" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" alt=""><span style="display:none" class="items-center justify-center">${esc((b.name||'?')[0])}</span>` : esc((b.name||'?')[0].toUpperCase())}
+          </div>
+          <div>
+            <p class="text-sm font-bold text-white">${esc(b.name)}</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+              <span class="text-[9px] text-green-400">Connected</span>
+            </div>
+          </div>
+        </div>
+        ${bPrefixes.length > 0 ? `
+          <div class="mt-2">
+            <p class="text-[9px] text-gray-500 uppercase mb-1">UID Prefixes</p>
+            <div class="flex flex-wrap gap-1">${bPrefixes.map(p => `<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">${esc(p.prefix)}</span>`).join("")}</div>
+          </div>` : `
+          <div class="mt-2">
+            <p class="text-[9px] text-amber-500 flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+              No UID prefixes — configure in Deals & Brokers tab
+            </p>
+          </div>`}
+        ${b.contact ? `<p class="text-[9px] text-gray-600 mt-2">Contact: ${esc(b.contact)}</p>` : ""}
+      </div>`;
+  }).join("");
+}
+
+// ── Webhook Activity Log ──
+window.loadWebhookLogs = async function(page) {
+  if (page < 1) return;
+  whLogPage = page || 1;
+  const tbody = $("wh-log-tbody");
+  if (!tbody) return;
+  try {
+    const typeFilter = $("wh-log-type-filter")?.value || "";
+    const days = $("wh-log-days-filter")?.value || "7";
+    let url = `/admin/webhook-logs?days=${days}&page=${whLogPage}&limit=30`;
+    if (typeFilter) url += `&event_type=${typeFilter}`;
+    const res = await api(url);
+    const logs = res.data || [];
+    const total = res.total || 0;
+
+    if ($("wh-log-count")) $("wh-log-count").textContent = `${total} events`;
+    if ($("wh-log-prev")) $("wh-log-prev").disabled = whLogPage <= 1;
+    if ($("wh-log-next")) $("wh-log-next").disabled = whLogPage * 30 >= total;
+
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-600">No webhook events found</td></tr>';
+      return;
+    }
+
+    const typeColors = { registration: "text-blue-400", ftd: "text-green-400", qualified_cpa: "text-cyan-400", commission: "text-yellow-400" };
+    tbody.innerHTML = logs.map(l => {
+      const p = l.payload || {};
+      const time = new Date(l.received_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const resultClass = (l.result === "ok" || l.result === "duplicate") ? "text-green-400" : "text-red-400";
+      const resultBg = (l.result === "ok" || l.result === "duplicate") ? "bg-green-900/20" : "bg-red-900/20";
+      return `<tr class="border-t border-white/5 hover:bg-white/[0.02]">
+        <td class="px-4 py-2 text-[10px] text-gray-400 font-mono whitespace-nowrap">${time}</td>
+        <td class="px-4 py-2"><span class="text-[10px] font-bold uppercase ${typeColors[l.event_type] || 'text-gray-400'}">${l.event_type}</span></td>
+        <td class="px-4 py-2 text-[10px] font-mono text-white">${esc(p.userid || p.user_id || '—')}</td>
+        <td class="px-4 py-2 text-[10px] font-mono text-gray-400">${esc(p.afp || '—')}</td>
+        <td class="px-4 py-2"><span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${resultBg} ${resultClass}">${l.result || 'ok'}</span></td>
+        <td class="px-4 py-2 text-[10px] text-gray-500 max-w-[200px] truncate">${p.transaction_sum ? '$' + p.transaction_sum : ''} ${p.commissionamount ? 'comm: $' + p.commissionamount : ''} ${p.isocountry || ''}</td>
+      </tr>`;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-400">${err.message}</td></tr>`;
+  }
+};
+
+// ══════════════════════════════════════════════════════
+// ANALYTICS TAB — Cohort Analysis & Revenue Forecasting
+// ══════════════════════════════════════════════════════
+
+let forecastChart = null;
+
+async function loadAnalytics() {
+  await loadCohort();
+}
+
+function switchAnalyticsSub(name) {
+  document.querySelectorAll(".analytics-sub").forEach(b => {
+    const isActive = b.dataset.sub === name;
+    b.classList.toggle("active", isActive);
+    b.classList.toggle("text-white", isActive);
+    b.classList.toggle("text-gray-400", !isActive);
+  });
+  if ($("analytics-cohort")) $("analytics-cohort").classList.toggle("hidden", name !== "cohort");
+  if ($("analytics-forecast")) $("analytics-forecast").classList.toggle("hidden", name !== "forecast");
+  if (name === "cohort") loadCohort();
+  else loadForecast();
+}
+
+async function loadCohort() {
+  const months = $("cohort-months")?.value || 6;
+  const tbody = $("cohort-tbody");
+  const thead = $("cohort-thead");
+  if (!tbody || !thead) return;
+  tbody.innerHTML = '<tr><td colspan="20" class="px-4 py-8 text-center text-gray-600">Loading cohort data...</td></tr>';
+
+  try {
+    const res = await api(`/admin/cohort?months=${months}`);
+    const cohorts = res.data || [];
+
+    if (cohorts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="20" class="px-4 py-8 text-center text-gray-600">No cohort data yet — need user registrations with FTDs.</td></tr>';
+      thead.innerHTML = '';
+      return;
+    }
+
+    // Build header
+    const maxM = Math.max(...cohorts.map(c => c.retention.length));
+    let hdr = '<tr><th class="px-3 py-2 text-left text-[9px] font-bold text-gray-500 uppercase">Cohort</th>';
+    hdr += '<th class="px-3 py-2 text-center text-[9px] font-bold text-gray-500 uppercase">Users</th>';
+    for (let i = 0; i < maxM; i++) {
+      hdr += `<th class="px-3 py-2 text-center text-[9px] font-bold text-gray-500 uppercase">M${i}</th>`;
+    }
+    hdr += '</tr>';
+    thead.innerHTML = hdr;
+
+    // Build rows
+    tbody.innerHTML = cohorts.map(c => {
+      let row = `<td class="px-3 py-2 text-[10px] font-bold text-white whitespace-nowrap">${c.month}</td>`;
+      row += `<td class="px-3 py-2 text-center text-[10px] font-mono text-gray-400">${c.registered}</td>`;
+      c.retention.forEach(r => {
+        const pct = r.rate;
+        let bg = "bg-red-500/20 text-red-400";
+        if (pct >= 30) bg = "bg-green-500/20 text-green-400";
+        else if (pct >= 10) bg = "bg-yellow-500/20 text-yellow-400";
+        row += `<td class="px-3 py-2 text-center"><span class="text-[9px] font-bold px-2 py-0.5 rounded ${bg}">${pct.toFixed(0)}%</span></td>`;
+      });
+      // Fill empty cells
+      for (let i = c.retention.length; i < maxM; i++) {
+        row += '<td class="px-3 py-2 text-center text-[10px] text-gray-700">—</td>';
+      }
+      return `<tr class="border-t border-white/5 hover:bg-white/[0.02]">${row}</tr>`;
+    }).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="20" class="px-4 py-8 text-center text-red-400">${err.message}</td></tr>`;
+  }
+}
+
+async function loadForecast() {
+  const days = $("fc-days")?.value || 30;
+  // Show loading
+  ["fc-proj-revenue", "fc-proj-cost", "fc-proj-profit", "fc-confidence"].forEach(id => { if ($(id)) $(id).textContent = "..."; });
+
+  try {
+    const res = await api(`/admin/forecast?days=${days}`);
+    const d = res.data || {};
+    const proj = d.projections || {};
+    const rev = d.revenue || {};
+    const comm = d.commission || {};
+    const reg = d.registrations || {};
+    const ftd = d.ftd || {};
+
+    // Projection cards (monthly projections from current pace)
+    if ($("fc-proj-revenue")) $("fc-proj-revenue").textContent = fmtMoney(proj.month_revenue || 0);
+    if ($("fc-proj-cost")) $("fc-proj-cost").textContent = fmtMoney(proj.month_commission || 0);
+    if ($("fc-proj-profit")) {
+      const profit = proj.month_profit || 0;
+      $("fc-proj-profit").textContent = fmtMoney(profit);
+      $("fc-proj-profit").className = $("fc-proj-profit").className.replace(/text-(red|green|emerald|white)-\d+/g, '');
+      $("fc-proj-profit").classList.add(profit >= 0 ? "text-emerald-400" : "text-red-400");
+    }
+    if ($("fc-confidence")) {
+      const conf = rev.confidence || 0;
+      $("fc-confidence").textContent = conf.toFixed(0) + "%";
+      $("fc-confidence").className = $("fc-confidence").className.replace(/text-(red|green|emerald|yellow|white)-\d+/g, '');
+      $("fc-confidence").classList.add(conf >= 70 ? "text-emerald-400" : conf >= 40 ? "text-yellow-400" : "text-red-400");
+    }
+
+    // Trend metrics
+    if ($("fc-rev-trend")) $("fc-rev-trend").textContent = rev.trend ? fmtMoney(rev.trend) + "/day" : "—";
+    if ($("fc-rev-avg")) $("fc-rev-avg").textContent = rev.avg ? fmtMoney(rev.avg) + "/day" : "—";
+    if ($("fc-reg-trend")) $("fc-reg-trend").textContent = reg.trend ? reg.trend.toFixed(2) + "/day" : "—";
+    if ($("fc-ftd-trend")) $("fc-ftd-trend").textContent = ftd.trend ? ftd.trend.toFixed(2) + "/day" : "—";
+
+    // Build Highcharts — historical + forecast
+    const historical = d.historical || [];
+    // Build forecast line data from revenue forecast
+    const revForecastLine = rev.forecast || [];
+    const commForecastLine = comm.forecast || [];
+
+    renderForecastChart(historical, revForecastLine, commForecastLine, days);
+  } catch (err) {
+    if ($("fc-proj-revenue")) $("fc-proj-revenue").textContent = "Error";
+    console.error("Forecast error:", err);
+  }
+}
+
+function renderForecastChart(historical, revForecast, commForecast, days) {
+  const el = $("forecast-chart");
+  if (!el || typeof Highcharts === "undefined") return;
+
+  const historicalRevenue = historical.map(d => [new Date(d.date).getTime(), parseFloat(d.revenue) || 0]);
+  const historicalCost = historical.map(d => [new Date(d.date).getTime(), parseFloat(d.commission) || 0]);
+
+  // Connect forecast to last historical point
+  const lastHistDate = historical.length ? new Date(historical[historical.length - 1].date).getTime() : Date.now();
+  const lastHistRev = historicalRevenue.length ? historicalRevenue[historicalRevenue.length - 1][1] : 0;
+  const lastHistCost = historicalCost.length ? historicalCost[historicalCost.length - 1][1] : 0;
+
+  const forecastRevData = [[lastHistDate, lastHistRev], ...revForecast.map(d => [new Date(d.date).getTime(), d.value || 0])];
+  const forecastCostData = [[lastHistDate, lastHistCost], ...commForecast.map(d => [new Date(d.date).getTime(), d.value || 0])];
+
+  if (forecastChart) forecastChart.destroy();
+
+  forecastChart = Highcharts.chart(el, {
+    chart: { type: "areaspline", backgroundColor: "transparent", height: 350, style: { fontFamily: "Inter, sans-serif" } },
+    title: { text: null },
+    credits: { enabled: false },
+    xAxis: {
+      type: "datetime",
+      gridLineColor: "rgba(255,255,255,0.03)",
+      labels: { style: { color: "#6b7280", fontSize: "9px" } },
+      plotLines: historicalRevenue.length ? [{
+        value: historicalRevenue[historicalRevenue.length - 1][0],
+        color: "rgba(255,255,255,0.15)", width: 1, dashStyle: "Dash",
+        label: { text: "Today", style: { color: "#9ca3af", fontSize: "9px" }, rotation: 0, align: "left", x: 4, y: -5 }
+      }] : []
+    },
+    yAxis: {
+      title: { text: null },
+      gridLineColor: "rgba(255,255,255,0.03)",
+      labels: { style: { color: "#6b7280", fontSize: "9px" }, formatter() { return "$" + Highcharts.numberFormat(this.value, 0, ".", ","); } }
+    },
+    tooltip: {
+      shared: true, backgroundColor: "#1a1a2e", borderColor: "rgba(255,255,255,0.1)",
+      style: { color: "#e5e7eb", fontSize: "10px" },
+      pointFormatter() { return `<span style="color:${this.color}">●</span> ${this.series.name}: <b>$${Highcharts.numberFormat(this.y, 0, ".", ",")}</b><br/>`; }
+    },
+    legend: { itemStyle: { color: "#9ca3af", fontSize: "9px" }, itemHoverStyle: { color: "#fff" } },
+    plotOptions: { areaspline: { marker: { enabled: false }, lineWidth: 2 } },
+    series: [
+      {
+        name: "Revenue (Actual)", data: historicalRevenue,
+        color: "#8b5cf6", fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, "rgba(139,92,246,0.2)"], [1, "rgba(139,92,246,0)"]] }
+      },
+      {
+        name: "Revenue (Forecast)", data: forecastRevData,
+        color: "#8b5cf6", dashStyle: "Dash", fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, "rgba(139,92,246,0.08)"], [1, "rgba(139,92,246,0)"]] }
+      },
+      {
+        name: "Cost (Actual)", data: historicalCost,
+        color: "#f59e0b", fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, "rgba(245,158,11,0.1)"], [1, "rgba(245,158,11,0)"]] }
+      },
+      {
+        name: "Cost (Forecast)", data: forecastCostData,
+        color: "#f59e0b", dashStyle: "Dash", fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, "rgba(245,158,11,0.04)"], [1, "rgba(245,158,11,0)"]] }
+      }
+    ]
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// SETUP TUTORIAL MODALS
+// ══════════════════════════════════════════════════════
+
+const TUTORIALS = {
+  telegram: {
+    title: "Telegram Setup",
+    subtitle: "Configure Telegram bot notifications for admin & affiliates",
+    icon: `<svg class="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.07-.2c-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.64-2.88 7.97-3.44 3.79-1.58 4.58-1.86 5.09-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/></svg>`,
+    color: "blue",
+    body: `
+      <div class="space-y-5">
+        <div class="bg-blue-500/5 border border-blue-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Overview</p>
+          <p class="text-xs text-gray-400">Telegram bots send instant notifications to your group or private chat when events happen (new registrations, FTDs, deposits).</p>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 1 — Create a Telegram Bot</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Open Telegram and search for <span class="font-mono text-blue-400">@BotFather</span></li>
+            <li>Send the command <code class="bg-white/5 px-1.5 py-0.5 rounded text-[10px] font-mono text-white">/newbot</code></li>
+            <li>Choose a name (e.g. <span class="text-white">TFXS Notifications</span>)</li>
+            <li>Choose a username ending in <code class="bg-white/5 px-1.5 py-0.5 rounded text-[10px] font-mono text-white">bot</code> (e.g. <span class="font-mono text-white">tfxs_notif_bot</span>)</li>
+            <li>BotFather will give you an <span class="text-yellow-400 font-bold">API Token</span> — copy it</li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 2 — Get Your Chat ID</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Create a Telegram Group (or use an existing one)</li>
+            <li>Add your newly created bot to the group</li>
+            <li>Send any message in the group</li>
+            <li>Visit: <code class="bg-white/5 px-1.5 py-0.5 rounded text-[10px] font-mono text-white break-all">https://api.telegram.org/bot&lt;YOUR_TOKEN&gt;/getUpdates</code></li>
+            <li>Look for <code class="bg-white/5 px-1.5 py-0.5 rounded text-[10px] font-mono text-white">"chat":{"id": -123456789}</code> — that negative number is your <span class="text-yellow-400 font-bold">Chat ID</span></li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 3 — Configure in TFXS</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Paste the <span class="text-yellow-400">Bot Token</span> in the "Bot Token" field below</li>
+            <li>Paste the <span class="text-yellow-400">Chat IDs</span> into the respective fields (Registrations, Deposits, General)</li>
+            <li>You can use different groups for each event type, or one group for all</li>
+            <li>Click <span class="text-white font-bold">Test</span> to send a test message</li>
+            <li>Click <span class="text-white font-bold">Save</span> to apply</li>
+          </ol>
+        </div>
+
+        <div class="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-yellow-400 uppercase tracking-wider mb-1">💡 Pro Tip</p>
+          <p class="text-[11px] text-gray-400">You can set up separate groups for <span class="text-white">Registrations</span>, <span class="text-white">FTDs/Deposits</span>, and <span class="text-white">General Alerts</span> to keep your notifications organized. Use the same bot token but different chat IDs.</p>
+        </div>
+      </div>`
+  },
+
+  discord: {
+    title: "Discord Setup",
+    subtitle: "Send notifications to a Discord channel via webhooks",
+    icon: `<svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>`,
+    color: "indigo",
+    body: `
+      <div class="space-y-5">
+        <div class="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Overview</p>
+          <p class="text-xs text-gray-400">Discord Webhooks let you send automated messages to any channel. No bot setup required — just create a webhook URL and paste it in.</p>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 1 — Create a Webhook in Discord</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Open your Discord server</li>
+            <li>Right-click the channel where you want notifications → <span class="text-white">Edit Channel</span></li>
+            <li>Go to <span class="text-white">Integrations</span> → <span class="text-white">Webhooks</span></li>
+            <li>Click <span class="text-white font-bold">New Webhook</span></li>
+            <li>Give it a name (e.g. <span class="text-white">TFXS Alerts</span>)</li>
+            <li>Click <span class="text-indigo-400 font-bold">Copy Webhook URL</span></li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 2 — Add to TFXS</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Go to <span class="text-white">Integrations → Outgoing Webhooks</span></li>
+            <li>Click <span class="text-white font-bold">+ Add Webhook</span></li>
+            <li>Set the URL to your Discord webhook URL</li>
+            <li>Choose which events to forward (registrations, FTDs, etc.)</li>
+            <li>Save — notifications will appear in your Discord channel</li>
+          </ol>
+        </div>
+
+        <div class="bg-indigo-500/5 border border-indigo-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">📝 Webhook URL Format</p>
+          <code class="text-[10px] font-mono text-indigo-300 break-all">https://discord.com/api/webhooks/1234567890/abcdefg...</code>
+        </div>
+
+        <div class="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-yellow-400 uppercase tracking-wider mb-1">💡 Pro Tip</p>
+          <p class="text-[11px] text-gray-400">Create separate channels (#registrations, #ftds, #alerts) and use different webhooks for each to keep things organized.</p>
+        </div>
+      </div>`
+  },
+
+  slack: {
+    title: "Slack Setup",
+    subtitle: "Send notifications to a Slack channel via incoming webhooks",
+    icon: `<svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>`,
+    color: "green",
+    body: `
+      <div class="space-y-5">
+        <div class="bg-green-500/5 border border-green-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">Overview</p>
+          <p class="text-xs text-gray-400">Slack Incoming Webhooks let you post messages to any Slack channel. Create a webhook in your Slack workspace and TFXS will send notifications there.</p>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 1 — Create a Slack App</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Go to <span class="font-mono text-green-400">api.slack.com/apps</span> and click <span class="text-white font-bold">Create New App</span></li>
+            <li>Select <span class="text-white">From scratch</span></li>
+            <li>Name it (e.g. <span class="text-white">TFXS Notifications</span>) and choose your workspace</li>
+            <li>Click <span class="text-white font-bold">Create App</span></li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 2 — Enable Incoming Webhooks</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>In your app settings, go to <span class="text-white">Incoming Webhooks</span></li>
+            <li>Toggle <span class="text-white font-bold">Activate Incoming Webhooks</span> to ON</li>
+            <li>Click <span class="text-white font-bold">Add New Webhook to Workspace</span></li>
+            <li>Select the channel for notifications</li>
+            <li>Click <span class="text-white font-bold">Allow</span></li>
+            <li>Copy the <span class="text-green-400 font-bold">Webhook URL</span></li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 3 — Add to TFXS</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Go to <span class="text-white">Integrations → Outgoing Webhooks</span></li>
+            <li>Click <span class="text-white font-bold">+ Add Webhook</span></li>
+            <li>Paste the Slack webhook URL</li>
+            <li>Select which events to send</li>
+            <li>Save — done!</li>
+          </ol>
+        </div>
+
+        <div class="bg-green-500/5 border border-green-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">📝 Webhook URL Format</p>
+          <code class="text-[10px] font-mono text-green-300 break-all">https://hooks.slack.com/services/T.../B.../...</code>
+        </div>
+      </div>`
+  },
+
+  whatsapp: {
+    title: "WhatsApp Setup",
+    subtitle: "Send notifications via the WhatsApp Business API",
+    icon: `<svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`,
+    color: "emerald",
+    body: `
+      <div class="space-y-5">
+        <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Overview</p>
+          <p class="text-xs text-gray-400">WhatsApp Business API lets you send automated messages. You can use a provider like <span class="text-white font-bold">Twilio</span>, <span class="text-white font-bold">MessageBird</span>, or <span class="text-white font-bold">Meta's Cloud API</span> directly.</p>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Option A — Using Twilio (Easiest)</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Sign up at <span class="font-mono text-emerald-400">twilio.com</span></li>
+            <li>In console, go to <span class="text-white">Messaging → Try it out → Send a WhatsApp message</span></li>
+            <li>Follow the sandbox setup (send a code to the Twilio WhatsApp number)</li>
+            <li>Note your <span class="text-yellow-400 font-bold">Account SID</span>, <span class="text-yellow-400 font-bold">Auth Token</span>, and <span class="text-yellow-400 font-bold">From number</span></li>
+            <li>Use the outgoing webhook in TFXS to forward events to a middleware (e.g. Zapier or a small function) that calls the Twilio API</li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Option B — Using Meta Cloud API (Free tier)</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Go to <span class="font-mono text-emerald-400">developers.facebook.com</span> → Create App → Business type</li>
+            <li>Add <span class="text-white">WhatsApp</span> product to your app</li>
+            <li>In WhatsApp → Getting Started, you'll get a <span class="text-yellow-400 font-bold">temporary access token</span></li>
+            <li>Note the <span class="text-yellow-400">Phone Number ID</span> and <span class="text-yellow-400">Token</span></li>
+            <li>Set up a middleware (Zapier/n8n/custom function) to receive TFXS webhooks and forward to the WhatsApp API</li>
+          </ol>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">Step 3 — Connect to TFXS</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Go to <span class="text-white">Integrations → Outgoing Webhooks</span></li>
+            <li>Create a webhook pointing to your middleware URL</li>
+            <li>The middleware receives events and sends WhatsApp messages via the API</li>
+          </ol>
+        </div>
+
+        <div class="bg-yellow-500/5 border border-yellow-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-yellow-400 uppercase tracking-wider mb-1">💡 Quick Alternative — Zapier</p>
+          <p class="text-[11px] text-gray-400">Use <span class="text-white font-bold">Zapier</span> or <span class="text-white font-bold">Make.com</span> as a middleware: Trigger = Webhook (paste URL in TFXS outgoing webhooks), Action = Send WhatsApp via Twilio/Meta. No code required!</p>
+        </div>
+      </div>`
+  },
+
+  email: {
+    title: "Email Setup",
+    subtitle: "Email notifications are built-in and ready to use",
+    icon: `<svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>`,
+    color: "amber",
+    body: `
+      <div class="space-y-5">
+        <div class="bg-amber-500/5 border border-amber-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">Overview</p>
+          <p class="text-xs text-gray-400">Email notifications are already built into TFXS. No external setup required — just configure which events trigger emails and who receives them.</p>
+        </div>
+
+        <div>
+          <p class="text-[11px] font-bold text-white mb-3">How It Works</p>
+          <ol class="list-decimal list-inside space-y-2 text-[11px] text-gray-400">
+            <li>Go to the <span class="text-white">Notifications</span> tab (you're here!)</li>
+            <li>Scroll to the <span class="text-white">Email Notifications</span> section</li>
+            <li>Enter the admin email address for alerts</li>
+            <li>Toggle which events trigger emails:
+              <ul class="list-disc list-inside ml-4 mt-1 space-y-1">
+                <li>New registrations</li>
+                <li>First time deposits</li>
+                <li>Payout requests</li>
+                <li>KYC submissions</li>
+              </ul>
+            </li>
+            <li>Click <span class="text-white font-bold">Save</span></li>
+          </ol>
+        </div>
+
+        <div class="bg-green-500/5 border border-green-500/10 rounded-xl p-4">
+          <p class="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">✅ No Extra Setup</p>
+          <p class="text-[11px] text-gray-400">Emails are sent automatically through the TFXS backend mail service. Just make sure your email address is correct and check your spam folder for the first message.</p>
+        </div>
+      </div>`
+  }
+};
+
+function openTutorial(platform) {
+  const t = TUTORIALS[platform];
+  if (!t) return;
+  const modal = $("tutorial-modal");
+  if (!modal) return;
+
+  $("tut-title").textContent = t.title;
+  $("tut-subtitle").textContent = t.subtitle;
+  $("tut-icon").innerHTML = t.icon;
+  $("tut-icon").className = `w-10 h-10 rounded-xl flex items-center justify-center bg-${t.color}-500/10 border border-${t.color}-500/20`;
+  $("tut-body").innerHTML = t.body;
+
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+}
+
+function closeTutorial() {
+  const modal = $("tutorial-modal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+}
