@@ -2,20 +2,22 @@
 <html lang="en">
 <head>
     <meta name="theme-color" content="#f5f5f7">
-    <script>((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?"#f5f5f7":"#050505"})(localStorage.getItem("tfxs_theme")||"light")</script>
+    <script src="js/brand.config.js"></script>
+    <script>((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?BRAND.colors.bgLight:BRAND.colors.bgDark})(localStorage.getItem(BRAND._lsKey("theme"))||"light")</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>TFXS Affiliate | Elite Dashboard Pro</title>
-    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <title id="page-title">TFXS Affiliate | Elite Dashboard Pro</title>
+    <script>document.getElementById('page-title').textContent=BRAND._title('index')</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:title" content="TFXS Affiliates — Elite Dashboard">
     <meta property="og:description" content="Premium affiliate management dashboard for top-tier forex CPA partners.">
     <meta property="og:image" content="assets/logo.svg">
     <meta property="og:type" content="website">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.0"></script>
     <script src="https://code.highcharts.com/11/highcharts.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -33,17 +35,7 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
-                        brand: {
-                            50: '#fff1f2',
-                            100: '#ffe4e6',
-                            500: '#ef4444', 
-                            600: '#dc2626',
-                            900: '#7f1d1d',
-                            neon: '#ff3333',
-                            yellow: '#fbbf24',
-                            dark: '#050505',
-                            panel: '#0A0A0A'
-                        }
+                        brand: BRAND._tailwindBrand()
                     },
                     animation: {
                         'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
@@ -283,8 +275,8 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sm:gap-4 relative">
             <div class="flex items-center gap-4 sm:gap-10">
                 <a href="/" class="flex items-center gap-2 group cursor-pointer no-underline">
-                    <img src="assets/logo.svg" alt="TFXS Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
-                    <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors">TFXS<span class="opacity-50 font-light"> AFFILIATES</span></span>
+                    <img src="assets/logo.svg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                    <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors"><script>document.write(BRAND.name);</script><span class="opacity-50 font-light"> <script>document.write(BRAND.nameFull.replace(BRAND.name,'').trim());</script></span></span>
                 </a>
 
                 <div id="nav-links" class="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
@@ -393,6 +385,31 @@
                                 <div class="flex-1">
                                     <p class="text-[10px] text-gray-500 uppercase tracking-wider" id="popup-paid-label" data-i18n="payout.paid">Total Paid</p>
                                     <p class="text-sm font-bold text-white font-mono" id="popup-paid">$0.00</p>
+                                </div>
+                            </div>
+                            <div class="h-[1px] bg-white/5" id="popup-paid-aff-divider" style="display:none"></div>
+                            <div class="flex items-center gap-3" id="popup-paid-aff-row" style="display:none">
+                                <div class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg></div>
+                                <div class="flex-1">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Total Paid to Affiliates</p>
+                                    <p class="text-sm font-bold text-purple-400 font-mono" id="popup-paid-aff">$0.00</p>
+                                    <p class="text-[8px] text-gray-600" id="popup-paid-aff-sub">Completed payouts</p>
+                                </div>
+                            </div>
+                            <div class="h-[1px] bg-white/5" id="popup-lt-rev-divider" style="display:none"></div>
+                            <div class="flex items-center gap-3" id="popup-lt-rev-row" style="display:none">
+                                <div class="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
+                                <div class="flex-1">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Lifetime Revenue</p>
+                                    <p class="text-sm font-bold text-cyan-400 font-mono" id="popup-lt-revenue">$0.00</p>
+                                </div>
+                            </div>
+                            <div class="h-[1px] bg-white/5" id="popup-lt-profit-divider" style="display:none"></div>
+                            <div class="flex items-center gap-3" id="popup-lt-profit-row" style="display:none">
+                                <div class="w-7 h-7 rounded-lg bg-teal-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></div>
+                                <div class="flex-1">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Lifetime Net Profit</p>
+                                    <p class="text-sm font-bold text-teal-400 font-mono" id="popup-lt-profit">$0.00</p>
                                 </div>
                             </div>
                             <div class="h-[1px] bg-white/5"></div>
@@ -511,6 +528,7 @@
                     <input type="hidden" id="broker-filter" value="">
                 </div>
             </div>
+
             
             <div class="glass-panel px-4 py-2 rounded-lg flex items-center gap-2 border-white/10">
                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -581,6 +599,98 @@
                 <div class="flex items-baseline gap-2">
                     <span id="kpi-roi" class="text-xl lg:text-2xl font-mono font-bold text-white skeleton">0.00</span>
                     <span class="text-[10px] font-bold text-green-500 bg-green-500/10 px-1.5 rounded inline-flex items-center gap-0.5" id="kpi-roi-badge"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17l9.2-9.2M17 17V7H7"/></svg> 0%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ ADMIN BUSINESS OVERVIEW (hidden for affiliates) ═══ -->
+        <section id="admin-business-section" class="hidden animate-fade-in-up" style="animation-delay: 0.15s;">
+            <!-- Business KPIs -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    <h2 class="text-base font-bold text-white uppercase tracking-wider">Business Overview</h2>
+                </div>
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/20 uppercase">Admin Only</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <!-- Revenue (Broker raw) -->
+                <div class="glass-panel p-4 rounded-xl border-l-4 border-l-green-500 group cursor-pointer relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition">
+                        <svg class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+                    </div>
+                    <p class="text-[10px] font-bold text-green-400 uppercase tracking-wider mb-1">Revenue</p>
+                    <span id="kpi-revenue" class="text-xl font-mono font-bold text-white">$0.00</span>
+                    <p class="text-[9px] text-gray-500 mt-1">Broker revenue total</p>
+                </div>
+                <!-- Affiliate Cost -->
+                <div class="glass-panel p-4 rounded-xl border-l-4 border-l-orange-500 group cursor-pointer relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition">
+                        <svg class="h-10 w-10 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    </div>
+                    <p class="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-1">Affiliate Cost</p>
+                    <span id="kpi-aff-cost" class="text-xl font-mono font-bold text-white">$0.00</span>
+                    <p class="text-[9px] text-gray-500 mt-1">Owed to affiliates</p>
+                </div>
+                <!-- Net Profit -->
+                <div class="glass-panel p-4 rounded-xl border-l-4 border-l-emerald-500 group cursor-pointer relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition">
+                        <svg class="h-10 w-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Net Profit</p>
+                    <span id="kpi-profit" class="text-xl font-mono font-bold text-white">$0.00</span>
+                    <p class="text-[9px] text-gray-500 mt-1">Revenue − Cost</p>
+                </div>
+                <!-- Margin -->
+                <div class="glass-panel p-4 rounded-xl border-l-4 border-l-purple-500 group cursor-pointer relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition">
+                        <svg class="h-10 w-10 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z"/></svg>
+                    </div>
+                    <p class="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1">Margin</p>
+                    <span id="kpi-margin" class="text-xl font-mono font-bold text-white">0%</span>
+                    <p class="text-[9px] text-gray-500 mt-1">Profit / Revenue</p>
+                </div>
+            </div>
+
+            <!-- Affiliate Performance Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden border border-white/5">
+                <div class="p-4 border-b border-white/5 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Affiliate Performance</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="backfill-btn" onclick="backfillRawCommission()" class="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10 transition hidden">
+                            <svg class="w-3 h-3 inline mr-1 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            Backfill Historical
+                        </button>
+                        <button id="backfill-unlinked-btn" onclick="backfillUnlinked()" class="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 border border-amber-500/20 transition hidden">
+                            <svg class="w-3 h-3 inline mr-1 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                            Backfill Unlinked
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-wider text-gray-500 border-b border-white/5">
+                                <th class="px-4 py-3 font-semibold">Affiliate</th>
+                                <th class="px-4 py-3 font-semibold text-center">Reg</th>
+                                <th class="px-4 py-3 font-semibold text-center">FTD</th>
+                                <th class="px-4 py-3 font-semibold text-center">QFTD</th>
+                                <th class="px-4 py-3 font-semibold text-right">Deposits</th>
+                                <th class="px-4 py-3 font-semibold text-right">Revenue</th>
+                                <th class="px-4 py-3 font-semibold text-right">Aff. Cost</th>
+                                <th class="px-4 py-3 font-semibold text-right">Profit</th>
+                                <th class="px-4 py-3 font-semibold text-right">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="affiliate-perf-tbody" class="divide-y divide-white/5">
+                            <tr><td colspan="9" class="px-4 py-8 text-center text-xs text-gray-600">Loading...</td></tr>
+                        </tbody>
+                        <tfoot id="affiliate-perf-tfoot" class="border-t border-white/10 bg-white/[0.02]">
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </section>
@@ -1007,14 +1117,16 @@
             const API = window.TFXS_API;
             let totalCommission = 0, totalRegs = 0, ftDs = 0, qftDs = 0, totalDeposit = 0, totalNetDeposit = 0;
             let backendKPIs = false;
+            let _summaryData = null; // Store for balance card sync
             if (API && typeof API.fetchSummary === 'function') {
                 try {
                     const affiliateId = API.getAffiliateId ? API.getAffiliateId() : null;
                     const summaryRes = await API.fetchSummary(affiliateId, fromStr, toStr);
                     if (summaryRes && summaryRes.ok && summaryRes.data) {
                         const s = summaryRes.data;
+                        _summaryData = s; // Save for balance card
                         // Admin: commission KPI shows raw CellXpert revenue; affiliate: deal-based commission
-                        const isAdminView = localStorage.getItem('is_admin') === 'true';
+                        const isAdminView = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
                         totalCommission = (isAdminView && s.raw_revenue !== undefined) ? s.raw_revenue : (s.total_commission || 0);
                         totalRegs = s.registrations || 0;
                         ftDs = s.ftd || 0;
@@ -1024,7 +1136,7 @@
                         backendKPIs = true;
 
                         // Admin business KPIs
-                        if (isAdminView && s.raw_revenue !== undefined) {
+                        if (localStorage.getItem(BRAND._lsKey('is_admin')) === 'true' && s.raw_revenue !== undefined) {
                             const kpiRev = document.getElementById('kpi-revenue');
                             const kpiCost = document.getElementById('kpi-aff-cost');
                             const kpiProfit = document.getElementById('kpi-profit');
@@ -1073,8 +1185,34 @@
             animateValue(qftdEl, 0, qftDs, 600);
             animateValue(roiEl, 0, parseFloat(roi), 800, v => v.toFixed(2));
 
-            // Update Chart
-            updateChart(filteredEarnings, filteredRegs, startDate, endDate);
+            // Update Chart — use reports endpoint for accurate daily data
+            let chartUpdated = false;
+            let apiCountries = null;
+            if (API && typeof API.fetchReports === 'function') {
+                try {
+                    const affiliateId = API.getAffiliateId ? API.getAffiliateId() : null;
+                    const reportsRes = await API.fetchReports(affiliateId, fromStr, toStr);
+                    if (reportsRes && reportsRes.ok && reportsRes.data && reportsRes.data.daily) {
+                        // Build chart-compatible earnings and regs from backend daily data
+                        const dailyData = reportsRes.data.daily;
+                        const chartEarnings = [];
+                        const chartRegs = [];
+                        dailyData.forEach(d => {
+                            if (d.commission > 0) chartEarnings.push({ created: d.date + 'T12:00:00Z', type: 'Commission', commission_amount: d.commission, amount: d.commission });
+                            for (let i = 0; i < (d.registrations || 0); i++) chartRegs.push({ date: d.date + 'T12:00:00Z' });
+                        });
+                        updateChart(chartEarnings, chartRegs, startDate, endDate);
+                        chartUpdated = true;
+                        // Capture pre-aggregated country data from backend
+                        if (reportsRes.data.countries) apiCountries = reportsRes.data.countries;
+                    }
+                } catch (e) {
+                    console.warn('[TFXS] Reports fetch for chart failed:', e.message);
+                }
+            }
+            if (!chartUpdated) {
+                updateChart(filteredEarnings, filteredRegs, startDate, endDate);
+            }
 
             // Update Globe (If available)
             if(window.updateGlobeData) {
@@ -1089,18 +1227,6 @@
 
             // Update Sparklines (7-day trailing from DB, not filtered)
             updateSparklines();
-
-            // Fetch reports for accurate country chart data
-            let apiCountries = null;
-            if (API && typeof API.fetchReports === 'function') {
-                try {
-                    const affiliateId = API.getAffiliateId ? API.getAffiliateId() : null;
-                    const reportsRes = await API.fetchReports(affiliateId, fromStr, toStr);
-                    if (reportsRes && reportsRes.ok && reportsRes.data && reportsRes.data.countries) {
-                        apiCountries = reportsRes.data.countries;
-                    }
-                } catch (e) { console.warn('[TFXS] Reports fetch for countries failed:', e.message); }
-            }
 
             // Update Country Charts — use backend pre-aggregated data when available
             updateCountryCharts(filteredRegs, filteredEarnings, apiCountries);
@@ -1125,43 +1251,89 @@
                         const currentMonth = b.current_month_earnings || 0;
                         const lastMonth = b.last_month_earnings || 0;
                         const isSameMonth = b.same_month === true;
+                        const isAdminView = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
 
-                        // My Balance: dynamic based on schedule type
-                        // Same-month: available already includes current month (payable = totalEarned)
-                        // Following-month: available = previous months unpaid, so add currentMonth
-                        const myBalance = isSameMonth ? available : (available + currentMonth);
+                        // Admin: use date-filtered summary revenue (same as KPI cards) for consistency
+                        // Affiliate: "My Balance" = current month earnings only (popup shows full breakdown)
+                        let myBalance;
+                        if (isAdminView && _summaryData && _summaryData.raw_revenue !== undefined) {
+                            myBalance = _summaryData.raw_revenue;
+                        } else if (isAdminView && b.raw_revenue !== undefined) {
+                            myBalance = b.raw_revenue;
+                        } else {
+                            myBalance = currentMonth;
+                        }
 
                         document.getElementById('balance-display').textContent = formatCurrency(myBalance);
-                        document.getElementById('popup-available').textContent = formatCurrency(available);
-                        document.getElementById('popup-lifetime').textContent = formatCurrency(lifetime);
-                        document.getElementById('popup-paid').textContent = formatCurrency(paid);
 
-                        // Dynamic labels based on schedule mode
-                        const accruingRow = document.getElementById('popup-accruing-row');
-                        const accruingDivider = document.getElementById('popup-accruing-divider');
-                        const accruingEl = document.getElementById('popup-accruing');
-                        const availableSub = document.getElementById('popup-available-sub');
-
-                        if (isSameMonth) {
-                            // Same-month: show current month in accruing row, available = everything minus paid
+                        // Admin: override popup with business metrics (use date-filtered summary data)
+                        const _sd = (isAdminView && _summaryData) ? _summaryData : null;
+                        if (_sd && _sd.raw_revenue !== undefined) {
+                            document.getElementById('popup-available').textContent = formatCurrency(_sd.raw_revenue);
+                            const availLabel = document.querySelector('#popup-available')?.closest('.flex-1')?.querySelector('.text-gray-500');
+                            if (availLabel) availLabel.textContent = 'Total Revenue';
+                            const availSub = document.getElementById('popup-available-sub');
+                            if (availSub) availSub.textContent = 'Broker revenue total';
+                            // Accruing row → Affiliate Cost
+                            const accruingRow = document.getElementById('popup-accruing-row');
+                            const accruingDivider = document.getElementById('popup-accruing-divider');
                             if (accruingRow) accruingRow.style.display = '';
                             if (accruingDivider) accruingDivider.style.display = '';
-                            if (accruingEl) accruingEl.textContent = formatCurrency(currentMonth);
                             const accruingLabel = document.getElementById('popup-accruing-label');
-                            if (accruingLabel) accruingLabel.textContent = 'This Month Earned';
+                            if (accruingLabel) accruingLabel.textContent = 'Affiliate Cost';
                             const accruingSub = document.getElementById('popup-accruing-sub');
-                            if (accruingSub) accruingSub.textContent = 'Immediately payable';
-                            if (availableSub) availableSub.textContent = 'After withdrawals';
+                            if (accruingSub) accruingSub.textContent = 'Owed to affiliates';
+                            const accruingEl = document.getElementById('popup-accruing');
+                            if (accruingEl) { accruingEl.textContent = formatCurrency(_sd.affiliate_cost || 0); accruingEl.className = 'text-sm font-bold text-red-400 font-mono'; }
+                            // Lifetime → Net Profit
+                            document.getElementById('popup-lifetime').textContent = formatCurrency(_sd.profit || 0);
+                            const lifetimeLabel = document.querySelector('#popup-lifetime')?.closest('.flex-1')?.querySelector('.text-gray-500');
+                            if (lifetimeLabel) lifetimeLabel.textContent = 'Net Profit';
+                            const lifetimeEl = document.getElementById('popup-lifetime');
+                            if (lifetimeEl) lifetimeEl.className = (_sd.profit || 0) >= 0 ? 'text-sm font-bold text-emerald-400 font-mono' : 'text-sm font-bold text-red-400 font-mono';
+                            // Paid → Margin
+                            document.getElementById('popup-paid').textContent = (_sd.margin || 0).toFixed(1) + '%';
+                            const paidLabel2 = document.getElementById('popup-paid-label');
+                            if (paidLabel2) paidLabel2.textContent = 'Margin';
+                            // Total Paid to Affiliates (admin only)
+                            const paidAffRow = document.getElementById('popup-paid-aff-row');
+                            const paidAffDivider = document.getElementById('popup-paid-aff-divider');
+                            const paidAffEl = document.getElementById('popup-paid-aff');
+                            if (paidAffRow) paidAffRow.style.display = '';
+                            if (paidAffDivider) paidAffDivider.style.display = '';
+                            if (paidAffEl) paidAffEl.textContent = formatCurrency(paid || 0);
                         } else {
-                            // Following-month: show current month accruing
-                            if (accruingRow) accruingRow.style.display = '';
-                            if (accruingDivider) accruingDivider.style.display = '';
-                            if (accruingEl) accruingEl.textContent = formatCurrency(currentMonth);
-                            const accruingLabel = document.getElementById('popup-accruing-label');
-                            if (accruingLabel) accruingLabel.textContent = 'Current Month';
-                            const accruingSub = document.getElementById('popup-accruing-sub');
-                            if (accruingSub) accruingSub.textContent = 'Earning this month';
-                            if (availableSub) availableSub.textContent = 'Last month (unpaid)';
+                            document.getElementById('popup-available').textContent = formatCurrency(available);
+                            document.getElementById('popup-lifetime').textContent = formatCurrency(lifetime);
+                            document.getElementById('popup-paid').textContent = formatCurrency(paid);
+                        }
+
+                        // Dynamic labels based on schedule mode (affiliates only — admin uses business metrics above)
+                        if (!_sd || _sd.raw_revenue === undefined) {
+                            const accruingRow = document.getElementById('popup-accruing-row');
+                            const accruingDivider = document.getElementById('popup-accruing-divider');
+                            const accruingEl = document.getElementById('popup-accruing');
+                            const availableSub = document.getElementById('popup-available-sub');
+
+                            if (isSameMonth) {
+                                if (accruingRow) accruingRow.style.display = '';
+                                if (accruingDivider) accruingDivider.style.display = '';
+                                if (accruingEl) accruingEl.textContent = formatCurrency(currentMonth);
+                                const accruingLabel = document.getElementById('popup-accruing-label');
+                                if (accruingLabel) accruingLabel.textContent = 'This Month Earned';
+                                const accruingSub = document.getElementById('popup-accruing-sub');
+                                if (accruingSub) accruingSub.textContent = 'Immediately payable';
+                                if (availableSub) availableSub.textContent = 'After withdrawals';
+                            } else {
+                                if (accruingRow) accruingRow.style.display = '';
+                                if (accruingDivider) accruingDivider.style.display = '';
+                                if (accruingEl) accruingEl.textContent = formatCurrency(currentMonth);
+                                const accruingLabel = document.getElementById('popup-accruing-label');
+                                if (accruingLabel) accruingLabel.textContent = 'Current Month';
+                                const accruingSub = document.getElementById('popup-accruing-sub');
+                                if (accruingSub) accruingSub.textContent = 'Earning this month';
+                                if (availableSub) availableSub.textContent = 'Last month (unpaid)';
+                            }
                         }
 
                         // Payout draws from 'available' (same-month: includes current; following: previous months only)
@@ -1185,11 +1357,12 @@
                         // Store lifetime total for globe modal
                         window._lifetimeEarned = lifetime;
 
-                        // ── Commission KPI: already set from date-filtered local data above ──
+                        // ── Commission KPI: already set from date-filtered /api/summary above ──
                         // Do NOT override with lifetime total_earned — that ignores date range
+                        // The balance card shows lifetime totals; KPIs show date-filtered values
 
                         // Next payout date (affiliates only) / Active affiliates count (admins)
-                        const isAdmin = localStorage.getItem('is_admin') === 'true';
+                        const isAdmin = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
                         if (isAdmin) {
                             // Admin: show total affiliates count
                             const npLabel = document.getElementById('popup-last-label');
@@ -1201,6 +1374,35 @@
                         } else if (typeof getNextPayoutDate === 'function') {
                             const nextPayoutDate = getNextPayoutDate();
                             document.getElementById('popup-next-payout').textContent = nextPayoutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        }
+
+                        // === ADMIN: Lifetime Revenue & Net Profit (all-time, no date filter) ===
+                        if (isAdminView && API && typeof API.fetchSummary === 'function') {
+                            try {
+                                const ltRes = await API.fetchSummary(API.getAffiliateId ? API.getAffiliateId() : null);
+                                if (ltRes && ltRes.ok && ltRes.data && ltRes.data.raw_revenue !== undefined) {
+                                    const ltd = ltRes.data;
+                                    // Show lifetime rows
+                                    const ltRevRow = document.getElementById('popup-lt-rev-row');
+                                    const ltRevDiv = document.getElementById('popup-lt-rev-divider');
+                                    const ltProfitRow = document.getElementById('popup-lt-profit-row');
+                                    const ltProfitDiv = document.getElementById('popup-lt-profit-divider');
+                                    if (ltRevRow) ltRevRow.style.display = '';
+                                    if (ltRevDiv) ltRevDiv.style.display = '';
+                                    if (ltProfitRow) ltProfitRow.style.display = '';
+                                    if (ltProfitDiv) ltProfitDiv.style.display = '';
+                                    // Populate values
+                                    const ltRevEl = document.getElementById('popup-lt-revenue');
+                                    const ltProfitEl = document.getElementById('popup-lt-profit');
+                                    if (ltRevEl) ltRevEl.textContent = formatCurrency(ltd.raw_revenue || 0);
+                                    if (ltProfitEl) {
+                                        ltProfitEl.textContent = formatCurrency(ltd.profit || 0);
+                                        ltProfitEl.className = (ltd.profit || 0) >= 0
+                                            ? 'text-sm font-bold text-emerald-400 font-mono'
+                                            : 'text-sm font-bold text-red-400 font-mono';
+                                    }
+                                }
+                            } catch (e) { console.warn('[Dashboard] Lifetime summary fetch failed:', e.message); }
                         }
 
                         // % change: compare current month vs last month
@@ -1223,10 +1425,25 @@
                 }
 
                 // === KYC PAYOUT GATE ===
-                const isAdmin = localStorage.getItem('is_admin') === 'true';
-                if (!isAdmin) {
+                const isAdmin = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
+                if (isAdmin) {
+                    // Admin manages withdrawals from Admin Settings → Payouts, not from dashboard
+                    const payBtn = document.getElementById('request-payout-btn');
+                    const kycWarn = document.getElementById('kyc-payout-warning');
+                    if (payBtn) {
+                        payBtn.disabled = false;
+                        payBtn.classList.remove('btn-gradient', 'cursor-not-allowed');
+                        payBtn.classList.add('cursor-pointer');
+                        payBtn.style.background = 'rgba(16,185,129,0.08)';
+                        payBtn.style.border = '1px solid rgba(16,185,129,0.25)';
+                        payBtn.style.boxShadow = 'none';
+                        payBtn.onclick = () => { window.location.href = '/admin-settings#payouts'; };
+                        payBtn.innerHTML = '<svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> <span class="text-emerald-400">Manage Withdrawals →</span>';
+                    }
+                    if (kycWarn) kycWarn.classList.add('hidden');
+                } else {
                     try {
-                        const jwt = localStorage.getItem('tfxs_jwt');
+                        const jwt = localStorage.getItem(BRAND._lsKey('jwt'));
                         const kycRes = await fetch(`${API_BASE}/api/kyc/status`, { headers: { 'Authorization': `Bearer ${jwt}` } });
                         const kycData = await kycRes.json();
                         const kycStatus = kycData.data?.status || 'none';
@@ -1269,6 +1486,7 @@
             });
 
             // Add earnings — distinguish FTD vs Commission vs QCPA by event type
+            const _isAdmin = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
             earnings.filter(e => e.type === 'Commission' || e.type === 'FTD' || e.type === 'QCPA').forEach(e => {
                 let country = 'Unknown', flag = '🌍', countryCode = '';
                 if(database) {
@@ -1278,6 +1496,15 @@
                 // QCPA is a KPI status event (no money), Commission is money, FTD is deposit
                 const evType = e.type === 'Commission' ? 'comm' : (e.type === 'FTD' ? 'ftd' : (e.type === 'QCPA' ? 'qcpa' : null));
                 if (!evType) return;
+                // Commission amount: admin sees raw broker commission, affiliate sees deal-based commission
+                // QCPA: ALWAYS $0 — never carries money regardless of DB values
+                let evAmount = 0;
+                if (e.type === 'Commission') {
+                    evAmount = _isAdmin ? (e.raw_commission || e.commission_amount || e.amount || 0) : (e.commission_amount || e.amount || 0);
+                } else if (e.type === 'FTD') {
+                    evAmount = e.deposit_amount || e.amount || 0;
+                }
+                // QCPA stays at 0
                 events.push({
                     type: evType,
                     date: new Date(e.created),
@@ -1285,7 +1512,7 @@
                     flag: flag,
                     countryCode: countryCode,
                     userId: e.userId,
-                    amount: e.type === 'Commission' ? (e.commission_amount || e.amount || 0) : (e.type === 'FTD' ? (e.deposit_amount || e.amount || 0) : 0)
+                    amount: evAmount
                 });
             });
 
@@ -1695,7 +1922,7 @@
                  });
              }
              
-             const isAdminView = localStorage.getItem('is_admin') === 'true';
+             const isAdminView = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
              const colSpan = isAdminView ? 7 : 6;
 
              if(filtered.length === 0) {
@@ -1723,14 +1950,16 @@
                  
                  // Amount column logic:
                  // - FTD: show deposit amount
-                 // - Commission/QCPA: show commission amount
+                 // - Commission: admin sees raw_commission (broker revenue), affiliate sees commission_amount
+                 // - QCPA: ALWAYS $0 — it's a KPI-only event, never carries money
                  // - Registration: show $0.00
                  let displayAmount = 0;
                  if (tx.type === "FTD") {
                      displayAmount = tx.deposit_amount || tx.amount || 0;
-                 } else if (tx.type === "Commission" || tx.type === "QCPA") {
-                     displayAmount = tx.commission_amount || tx.amount || 0;
+                 } else if (tx.type === "Commission") {
+                     displayAmount = isAdminView ? (tx.raw_commission || tx.commission_amount || tx.amount || 0) : (tx.commission_amount || tx.amount || 0);
                  }
+                 // QCPA intentionally stays at 0 — not grouped with Commission
 
                  const rawStatus = tx.status || "pending";
                  const statusConfig = {
@@ -1779,12 +2008,17 @@
 
             function resolveLink(template, afp) {
                 if (!template || !afp) return template || '';
-                return template
-                    .replace(/\{AFP\}/gi, afp)
-                    .replace(/\[afp\]/gi, afp)
-                    .replace(/\{afp\}/gi, afp)
-                    .replace(/=AFP$/i, '=' + afp)
-                    .replace(/=AFP&/i, '=' + afp + '&');
+                if (/\{AFP\}|\[afp\]|\{afp\}|=AFP/i.test(template)) {
+                    return template
+                        .replace(/\{AFP\}/gi, afp)
+                        .replace(/\[afp\]/gi, afp)
+                        .replace(/\{afp\}/gi, afp)
+                        .replace(/=AFP$/i, '=' + afp)
+                        .replace(/=AFP&/i, '=' + afp + '&');
+                }
+                // No placeholder — append AFP as URL parameter
+                const sep = template.includes('?') ? '&' : '?';
+                return template + sep + 'afp=' + encodeURIComponent(afp);
             }
 
             function renderBrokerOptions() {
@@ -1842,7 +2076,7 @@
                     const { fetchDeals, getAffiliateId } = window.TFXS_API || {};
                     if (!fetchDeals) return;
                     const aid = getAffiliateId ? getAffiliateId() : null;
-                    const afp = aid || localStorage.getItem('affiliate_id') || '';
+                    const afp = aid || localStorage.getItem(BRAND._lsKey('affiliate_id')) || '';
                     const res = await fetchDeals(aid);
                     if (!res || !res.ok) return;
                     const deals = res.data || [];
@@ -1940,6 +2174,8 @@
 
             // Fetch contact info from backend
             async function loadContactInfo() {
+                // Admin doesn't need "Contact Affiliate Manager"
+                if (localStorage.getItem(BRAND._lsKey('is_admin')) === 'true') return;
                 try {
                     const apiGet = window.TFXS_API?.apiGet;
                     if (!apiGet) return;
@@ -2405,7 +2641,7 @@
             // Commission per country (bar chart)
             const countryComm = {};
             const countryRegions = {};
-            const isAdmin = localStorage.getItem('is_admin') === 'true';
+            const isAdmin = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
 
             // Prefer backend pre-aggregated country data (covers ALL records, not just 50)
             if (apiCountries && apiCountries.length > 0) {
@@ -2451,7 +2687,11 @@
                 dataLabels: { enabled: true, formatter: v => '$' + v, style: { fontSize: isMobileBar ? '9px' : '10px', colors: [document.documentElement.classList.contains('light-theme') ? '#374151' : '#fff'] } },
                 xaxis: {
                     categories: barLabels,
-                    labels: { style: { colors: '#71717a', fontSize: isMobileBar ? '9px' : '10px' }, formatter: v => '$' + v }
+                    labels: {
+                        show: true,
+                        formatter: function(val) { return '$' + val; },
+                        style: { colors: '#71717a', fontSize: isMobileBar ? '9px' : '10px' }
+                    }
                 },
                 yaxis: { labels: { style: { colors: document.documentElement.classList.contains('light-theme') ? '#6b7280' : '#d4d4d8', fontSize: isMobileBar ? '10px' : '11px' }, maxWidth: isMobileBar ? 60 : 160 } },
                 grid: { borderColor: document.documentElement.classList.contains('light-theme') ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)', strokeDashArray: 4 },
@@ -3285,10 +3525,10 @@
         const invoiceNo = 'INV-' + reqDate.getFullYear() + String(reqDate.getMonth()+1).padStart(2,'0') + String(reqDate.getDate()).padStart(2,'0') + '-' + (payout.id ? String(payout.id).slice(-4) : Math.random().toString(36).slice(2,6).toUpperCase());
 
         // Get affiliate info from localStorage
-        const cached = JSON.parse(localStorage.getItem('tfxs_settings') || '{}');
+        const cached = JSON.parse(localStorage.getItem(BRAND._lsKey('settings')) || '{}');
         const displayName = cached.displayName || 'Affiliate';
         const email = cached.email || '';
-        const afp = localStorage.getItem('affiliate_id') || '';
+        const afp = localStorage.getItem(BRAND._lsKey('affiliate_id')) || '';
 
         // ── Header background ──
         doc.setFillColor(10, 10, 10);
@@ -3300,7 +3540,7 @@
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(22);
         doc.setTextColor(255, 255, 255);
-        doc.text('TFXS AFFILIATES', 20, 22);
+        doc.text(BRAND.nameFull, 20, 22);
 
         doc.setFontSize(9);
         doc.setTextColor(180, 180, 180);
@@ -3403,12 +3643,12 @@
         // ── Footer ──
         doc.setFontSize(7);
         doc.setTextColor(180, 180, 180);
-        doc.text('This invoice was generated automatically by TFXS Affiliates. For questions, contact support.', 105, 275, { align: 'center' });
+        doc.text('This invoice was generated automatically by ' + BRAND.nameFull + '. For questions, contact support.', 105, 275, { align: 'center' });
         doc.setFillColor(220, 38, 38);
         doc.rect(0, 290, 210, 7, 'F');
 
         // Save
-        doc.save('TFXS-Invoice-' + invoiceNo + '.pdf');
+        doc.save(BRAND._pdfName('Invoice', invoiceNo));
         if (typeof showToast === 'function') showToast('Invoice downloaded!', 'success');
       } catch (err) {
         console.error('[PDF] Invoice generation failed:', err);
@@ -3598,7 +3838,7 @@
                     }
                 }
             } catch (_) {
-                const cached = JSON.parse(localStorage.getItem('tfxs_settings') || '{}');
+                const cached = JSON.parse(localStorage.getItem(BRAND._lsKey('settings')) || '{}');
                 if (cached.walletAddress) document.getElementById('payout-wallet').value = cached.walletAddress;
                 if (cached.paymentMethod) {
                     const radio = document.querySelector(`input[name="payout_method"][value="${cached.paymentMethod}"]`);
