@@ -10,7 +10,7 @@ if (localStorage.getItem(_LS_A("is_admin")) !== "true") {
   window.location.replace("/");
 }
 
-const API = window.TFXS_API?.API_BASE || (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
+const API = (window.PLATFORM_API || window.TFXS_API)?.API_BASE || (window.BRAND && BRAND.urls.api) || "";  // No hardcoded fallback — BRAND.urls.api is the source of truth
 const PER_PAGE = 25;
 
 // ══════════════════════════════════════════════════════
@@ -390,9 +390,9 @@ function renderKpiChart(ts) {
     },
     yAxis: [
       { // Left — Commission $
-        title: { text: 'Commission ($)', style: { color: isLt ? 'rgba(220,38,38,0.7)' : 'rgba(229,57,53,0.7)', fontSize: '10px', fontWeight: '600' } },
+        title: { text: 'Commission ($)', style: { color: BRAND.colors.primary500 + 'b3', fontSize: '10px', fontWeight: '600' } },
         labels: {
-          style: { color: isLt ? 'rgba(220,38,38,0.65)' : 'rgba(229,57,53,0.65)', fontSize: '10px' },
+          style: { color: BRAND.colors.primary500 + 'a6', fontSize: '10px' },
           formatter: function() { return this.value >= 1000 ? '$' + (this.value / 1000).toFixed(1) + 'K' : '$' + Math.round(this.value); }
         },
         min: 0,
@@ -444,8 +444,8 @@ function renderKpiChart(ts) {
       },
       {
         name: 'Commission $', data: commData, yAxis: 0,
-        color: '#ef4444',
-        fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, 'rgba(239,68,68,0.2)'], [1, 'rgba(239,68,68,0)']] }
+        color: BRAND.colors.primary500,
+        fillColor: { linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 }, stops: [[0, 'rgba(' + BRAND.colors.haloRgba + ',0.2)'], [1, 'rgba(' + BRAND.colors.haloRgba + ',0)']] }
       }
     ]
   };
@@ -1071,7 +1071,7 @@ function addTierRow(data) {
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div><label class="text-[9px] text-gray-600 block">Description</label><input type="text" class="tier-description form-input w-full px-2 py-1.5 rounded text-[11px]" value="${esc(data?.description || "")}" placeholder="Optional tier description..."></div>
-      <div><label class="text-[9px] text-gray-600 block">Color</label><input type="text" class="tier-color form-input w-full px-2 py-1.5 rounded text-[11px]" placeholder="#dc2626" value="${esc(data?.style_color || "")}"></div>
+      <div><label class="text-[9px] text-gray-600 block">Color</label><input type="text" class="tier-color form-input w-full px-2 py-1.5 rounded text-[11px]" placeholder="${BRAND.colors.primary600}" value="${esc(data?.style_color || "")}"></div>
     </div>
   `;
   list.appendChild(row);
@@ -1529,6 +1529,7 @@ function openTransferModal(userId, currentAfp) {
 }
 
 function openBulkTransferModal() {
+  // For bulk transfer, get the first selected conversion's user_id
   const ids = [...selectedConvIds];
   if (!ids.length) return;
   const first = allConversions.find(r => r.id === ids[0]);
@@ -2036,13 +2037,6 @@ async function loadBrokers() {
   try {
     const res = await api("/admin/brokers");
     allBrokers = res.data || [];
-    // Fetch plan limits (once) to enforce broker limit in UI
-    if (!planMaxBrokers) {
-      try {
-        const planInfo = await api("/api/plan-info");
-        if (planInfo?.ok && planInfo.limits?.maxBrokers) planMaxBrokers = planInfo.limits.maxBrokers;
-      } catch (_) {}
-    }
     // Populate the broker filter dropdown in deals tab
     rebuildCustomSelectOptions('deal-broker-filter',
       [{ value: '', label: 'All Brokers' }, ...allBrokers.map(b => ({ value: b.name, label: b.name }))],
@@ -2127,8 +2121,8 @@ function openBrokerModal() {
   resetBrokerLogoUpload();
   if ($("broker-name-input")) $("broker-name-input").value = "";
   if ($("broker-contact-input")) $("broker-contact-input").value = "";
-  if ($("broker-color-text")) $("broker-color-text").value = "#dc2626";
-  if ($("broker-color-input")) $("broker-color-input").value = "#dc2626";
+  if ($("broker-color-text")) $("broker-color-text").value = BRAND.colors.primary600;
+  if ($("broker-color-input")) $("broker-color-input").value = BRAND.colors.primary600;
   // Reset button text back to Add
   const addBtn = document.querySelector('#broker-modal .btn-gradient');
   if (addBtn) {
@@ -2167,12 +2161,6 @@ async function addBroker() {
     if ($("broker-name-input")) $("broker-name-input").value = "";
     resetBrokerLogoUpload();
     if ($("broker-contact-input")) $("broker-contact-input").value = "";
-    if ($("broker-ds-source")) $("broker-ds-source").value = "none";
-    const cxFields2 = $("broker-cx-fields");
-    if (cxFields2) cxFields2.classList.add("hidden");
-    if ($("broker-cx-url")) $("broker-cx-url").value = "";
-    if ($("broker-cx-email")) $("broker-cx-email").value = "";
-    if ($("broker-cx-password")) $("broker-cx-password").value = "";
     await loadBrokers();
     renderBrokerList();
     renderBrokerCards();
@@ -2271,8 +2259,8 @@ function editBrokerItem(id) {
   // Pre-fill the broker modal fields
   if ($("broker-name-input")) $("broker-name-input").value = broker.name || "";
   if ($("broker-contact-input")) $("broker-contact-input").value = broker.contact || "";
-  if ($("broker-color-text")) $("broker-color-text").value = broker.theme_color || "#dc2626";
-  if ($("broker-color-input")) $("broker-color-input").value = broker.theme_color || "#dc2626";
+  if ($("broker-color-text")) $("broker-color-text").value = broker.theme_color || BRAND.colors.primary600;
+  if ($("broker-color-input")) $("broker-color-input").value = broker.theme_color || BRAND.colors.primary600;
   // Reset logo upload
   resetBrokerLogoUpload();
   // Show existing logo preview if available
@@ -2347,7 +2335,7 @@ let _brokerPrefixes = [];
 
 async function loadBrokerPrefixes() {
   try {
-    const { fetchBrokerPrefixes } = window.TFXS_API;
+    const { fetchBrokerPrefixes } = window.PLATFORM_API || window.TFXS_API;
     const res = await fetchBrokerPrefixes();
     _brokerPrefixes = res.data || res || [];
     renderBrokerPrefixes();
@@ -2394,7 +2382,7 @@ async function addBrokerPrefix() {
   if (!prefix) return toast("Enter a prefix pattern", "warn");
   if (!broker_name) return toast("Select a broker", "warn");
   try {
-    const { addBrokerPrefixAPI } = window.TFXS_API;
+    const { addBrokerPrefixAPI } = window.PLATFORM_API || window.TFXS_API;
     await addBrokerPrefixAPI(prefix, broker_name);
     toast("Prefix rule added");
     $("prefix-input").value = "";
@@ -2406,7 +2394,7 @@ async function addBrokerPrefix() {
 async function deleteBrokerPrefix(id) {
   if (!await tfxsConfirm("This prefix mapping will be removed.", { title: "Delete Prefix Mapping", okText: "Delete", variant: "danger" })) return;
   try {
-    const { deleteBrokerPrefixAPI } = window.TFXS_API;
+    const { deleteBrokerPrefixAPI } = window.PLATFORM_API || window.TFXS_API;
     await deleteBrokerPrefixAPI(id);
     toast("Prefix rule deleted");
     await loadBrokerPrefixes();
@@ -2417,7 +2405,7 @@ async function normalizeBrokerNames() {
   const btn = $("normalize-brokers-btn");
   if (btn) { btn.disabled = true; btn.textContent = "Normalizing..."; }
   try {
-    const { normalizeBrokersAPI } = window.TFXS_API;
+    const { normalizeBrokersAPI } = window.PLATFORM_API || window.TFXS_API;
     const res = await normalizeBrokersAPI();
     toast(`Broker names normalized — ${res.updated || 0} conversion(s) updated`);
   } catch (e) { toast("Normalization failed: " + e.message, "error"); }
@@ -2989,6 +2977,39 @@ async function rejectKyc(affiliateId) {
   if (!document.getElementById("admin-spin-style")) { const s = document.createElement("style"); s.id="admin-spin-style"; s.textContent="@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}"; document.head.appendChild(s); }
   // Initial load
   try { setLoading(); await loadCurrencyRates(); await loadStats(); await loadAffiliates(); loadPendingCounts(); setConnected(); stopLoading(); } catch(e) { setDisconnected(); stopLoading(); }
+
+  // ── Plan limits awareness (Issue #10) ──
+  try {
+    const _planApi = (window.PLATFORM_API || window.TFXS_API);
+    if (_planApi && _planApi.apiGet) {
+      const planInfo = await _planApi.apiGet('/api/plan-info');
+      if (planInfo && planInfo.ok && planInfo.limits) {
+        const lim = planInfo.limits;
+        planMaxBrokers = lim.maxBrokers || 0; // Store globally for addBroker / renderBrokerList
+        const warnings = [];
+        // Check affiliate usage vs limit
+        if (lim.maxAffiliates) {
+          const affCount = _totalAffiliates || 0;
+          const pct = Math.round((affCount / lim.maxAffiliates) * 100);
+          if (pct >= 90) warnings.push(`Affiliates: ${affCount}/${lim.maxAffiliates} (${pct}%)`);
+        }
+        // Check broker usage vs limit
+        if (lim.maxBrokers && allBrokers && allBrokers.length) {
+          const bCount = allBrokers.length;
+          const pct = Math.round((bCount / lim.maxBrokers) * 100);
+          if (pct >= 80) warnings.push(`Brokers: ${bCount}/${lim.maxBrokers} (${pct}%)`);
+        }
+        if (warnings.length > 0) {
+          const banner = document.createElement('div');
+          banner.className = 'mx-4 mt-3 px-4 py-3 rounded-xl border text-sm';
+          banner.style.cssText = 'background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.25);color:#fbbf24;';
+          banner.innerHTML = `<span class="font-semibold">⚠ Plan Limits:</span> ${warnings.join(' · ')} — <span class="text-yellow-300/70 text-xs">Upgrade your plan for higher limits.</span>`;
+          const main = document.querySelector('main') || document.body;
+          main.insertBefore(banner, main.firstChild);
+        }
+      }
+    }
+  } catch (_planErr) { /* non-critical */ }
   // Hash-based tab routing (e.g. /admin-settings#kyc, #affiliates, #payouts)
   const hash = window.location.hash.replace("#", "");
   if (hash) {
@@ -3610,7 +3631,7 @@ function renderBrokerConnections() {
 
   grid.innerHTML = brokers.map(b => {
     const bPrefixes = prefixes.filter(p => p.broker_name === b.name);
-    const color = b.theme_color || "#ef4444";
+    const color = b.theme_color || BRAND.colors.primary500;
     return `
       <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5 hover:border-white/10 transition group">
         <div class="flex items-center gap-3 mb-3">
@@ -4136,13 +4157,74 @@ function closeTutorial() {
   modal.classList.add("hidden");
   modal.classList.remove("flex");
 }
-
 // ══════════════════════════════════════════════════════════════
 // CONTRACT / SIGNATURE ENGINE — Admin JS
 // ══════════════════════════════════════════════════════════════
 
 let _contractsCache = [];
 let _contractsAffiliatesCache = [];
+let _contractsDealsCache = [];
+
+const CONTRACT_TEMPLATES = {
+  cpa_agreement: {
+    name: "CPA Affiliate Agreement",
+    description: "Standard CPA commission agreement between broker and affiliate.",
+    icon: "📄",
+    title: "CPA Affiliate Agreement",
+    content: "CPA AFFILIATE AGREEMENT\n\nThis CPA Affiliate Agreement (\"Agreement\") is entered into as of {{Date}} between {{BrokerName}} (\"Company\") and {{AffiliateName}} (\"Affiliate\").\n\n1. APPOINTMENT\nThe Company appoints the Affiliate as a non-exclusive independent marketing affiliate to promote the Company's services under the {{DealName}} program.\n\n2. COMMISSION\nThe Affiliate shall earn a CPA commission of {{Commission}} per Qualified Client introduced who meets the qualification criteria defined by the Company.\n\n3. QUALIFICATION CRITERIA\nA \"Qualified Client\" must:\n- Register a live account through the Affiliate's referral link;\n- Make a minimum first deposit of {{MinDeposit}};\n- Complete the required trading activity as specified.\n\n4. PAYMENT TERMS\nCommissions are calculated monthly and paid within 30 days of month close, subject to verification and fraud review.\n\n5. AFFILIATE OBLIGATIONS\nThe Affiliate agrees to:\n- Promote services honestly and in compliance with applicable laws;\n- Not engage in fraudulent, misleading, or abusive marketing;\n- Maintain an active and compliant marketing channel.\n\n6. CONFIDENTIALITY\nThe Affiliate shall keep all non-public Company information strictly confidential.\n\n7. TERM AND TERMINATION\nThis Agreement commences on {{Date}} and may be terminated by either party with 30 days written notice, or immediately for cause.\n\n8. INDEPENDENT CONTRACTOR\nThe Affiliate is an independent contractor, not an employee or agent of the Company.\n\nBy signing, the Affiliate confirms they have read and agreed to all terms.\n\nAffiliate: {{AffiliateName}}\nDate: {{Date}}"
+  },
+  exclusivity: {
+    name: "Exclusivity Agreement",
+    description: "Exclusive partnership — affiliate promotes this broker only.",
+    icon: "🔒",
+    title: "Exclusivity Agreement",
+    content: "EXCLUSIVITY AGREEMENT\n\nThis Exclusivity Agreement (\"Agreement\") is entered into as of {{Date}} between {{BrokerName}} (\"Company\") and {{AffiliateName}} (\"Affiliate\").\n\n1. EXCLUSIVE PARTNERSHIP\nThe Affiliate agrees to exclusively promote the Company's trading services under the {{DealName}} program and shall not promote competing brokers or platforms without prior written consent.\n\n2. EXCLUSIVE BENEFITS\nIn consideration for exclusivity, the Company offers:\n- Priority CPA commission of {{Commission}} per Qualified Client;\n- Dedicated account manager and priority support;\n- Early access to new promotions and marketing materials.\n\n3. DEFINITION OF COMPETING SERVICES\n\"Competing Services\" means any online trading, investment, or brokerage service that directly competes with the Company's core offerings.\n\n4. AFFILIATE OBLIGATIONS\nThe Affiliate shall:\n- Actively promote the Company's services in good faith;\n- Report any conflicts of interest promptly;\n- Maintain compliance with all applicable marketing regulations.\n\n5. BREACH\nAny breach of the exclusivity clause entitles the Company to terminate this Agreement and withhold commissions earned after the date of breach.\n\n6. TERM\nThis Agreement is effective from {{Date}} and may be renewed annually by mutual written agreement.\n\nAffiliate: {{AffiliateName}}\nCompany: {{BrokerName}}\nDate: {{Date}}"
+  },
+  nda: {
+    name: "Non-Disclosure Agreement (NDA)",
+    description: "Protects confidential information shared with the affiliate.",
+    icon: "🔐",
+    title: "Non-Disclosure Agreement",
+    content: "NON-DISCLOSURE AGREEMENT\n\nThis Non-Disclosure Agreement (\"NDA\") is entered into as of {{Date}} between {{BrokerName}} (\"Disclosing Party\") and {{AffiliateName}} (\"Receiving Party\").\n\n1. CONFIDENTIAL INFORMATION\n\"Confidential Information\" includes all non-public information disclosed by the Disclosing Party, including but not limited to: commission structures, client data, marketing strategies, technology, business plans, and information related to the {{DealName}} program.\n\n2. OBLIGATIONS\nThe Receiving Party agrees to:\n- Hold all Confidential Information in strict confidence;\n- Use Confidential Information solely for the purpose of the affiliate partnership;\n- Not disclose Confidential Information to any third party without prior written consent;\n- Take reasonable security precautions to prevent unauthorized disclosure.\n\n3. EXCLUSIONS\nThis NDA does not apply to information that:\n- Is or becomes publicly available through no breach of this Agreement;\n- Was already known to the Receiving Party prior to disclosure;\n- Is required to be disclosed by law or valid court order.\n\n4. TERM\nThis Agreement is effective from {{Date}} and remains in force for 2 (two) years, or until terminated by mutual agreement.\n\n5. REMEDIES\nThe parties acknowledge that breach may cause irreparable harm, entitling the Disclosing Party to seek injunctive relief.\n\nAffiliate: {{AffiliateName}}\nDate: {{Date}}"
+  }
+};
+
+function detectContractVars(content) {
+  const matches = [...(content || "").matchAll(/\{\{(\w+)\}\}/g)];
+  return [...new Set(matches.map(m => m[1]))];
+}
+
+function updateContractVarsDetected() {
+  const content = $("contract-content")?.value || "";
+  const vars = detectContractVars(content);
+  const el = $("contract-vars-detected");
+  if (el) el.textContent = vars.length ? vars.map(v => `{{${v}}}`).join(", ") : "none";
+}
+
+function openTemplatePickerModal() {
+  const list = $("template-picker-list");
+  if (!list) return;
+  list.innerHTML = Object.entries(CONTRACT_TEMPLATES).map(([key, t]) => `
+    <button onclick="applyContractTemplate('${key}')"
+            class="w-full text-left p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-brand-500/30 hover:bg-white/[0.04] transition group flex items-start gap-3">
+      <span class="text-xl mt-0.5 shrink-0">${t.icon}</span>
+      <div class="flex-1">
+        <p class="text-xs font-bold text-white group-hover:text-brand-300 transition">${esc(t.name)}</p>
+        <p class="text-[10px] text-gray-500 mt-0.5">${esc(t.description)}</p>
+      </div>
+      <svg class="w-4 h-4 text-gray-600 group-hover:text-brand-400 transition ml-auto shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>`).join("");
+  openModal("template-picker-modal");
+}
+
+function applyContractTemplate(key) {
+  const t = CONTRACT_TEMPLATES[key];
+  if (!t) return;
+  $("contract-title").value = t.title;
+  $("contract-content").value = t.content;
+  updateContractVarsDetected();
+  closeModal("template-picker-modal");
+}
 
 function switchContractsSub(panel) {
   ["templates", "assignments"].forEach(p => {
@@ -4164,6 +4246,9 @@ async function loadContracts() {
   $("contracts-list")?.classList.add("hidden");
   $("contracts-empty")?.classList.add("hidden");
   try {
+    if (!_contractsDealsCache.length) {
+      try { const dr = await api("/admin/deals"); _contractsDealsCache = (dr.data || []).filter(d => d.is_active !== false); } catch (_) {}
+    }
     const res = await api("/admin/contracts");
     _contractsCache = res.data || [];
     renderContractsList(_contractsCache);
@@ -4179,16 +4264,21 @@ function renderContractsList(list) {
     return;
   }
   const el = $("contracts-list");
-  el.innerHTML = list.map(c => `
+  el.innerHTML = list.map(c => {
+    const linkedDeal = c.deal_id ? _contractsDealsCache.find(d => d.id === c.deal_id) : null;
+    const varNames = detectContractVars(c.content);
+    return `
     <div class="glass-panel rounded-2xl p-4 border border-white/5 flex flex-col sm:flex-row sm:items-center gap-3">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-1 flex-wrap">
           <span class="text-sm font-semibold text-white truncate">${esc(c.title)}</span>
           ${c.require_before_links ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-400 uppercase">Locks Links</span>` : ""}
+          ${linkedDeal ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-400">🔗 ${esc(linkedDeal.broker)}</span>` : ""}
+          ${varNames.length ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 text-gray-500">${varNames.length} var${varNames.length !== 1 ? "s" : ""}</span>` : ""}
         </div>
-        <p class="text-[10px] text-gray-500 line-clamp-2">${esc((c.content || "").substring(0, 120))}${c.content?.length > 120 ? "\u2026" : ""}</p>
+        <p class="text-[10px] text-gray-500 line-clamp-2">${esc((c.content || "").substring(0, 120))}${c.content?.length > 120 ? "…" : ""}</p>
         <p class="text-[9px] text-gray-600 mt-1">${fmtDate(c.created_at)}</p>
-      </div>
+      </div>`;
       <div class="flex items-center gap-2 shrink-0">
         <button onclick="viewContractText('${c.id}')" title="Preview" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -4203,24 +4293,42 @@ function renderContractsList(list) {
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </button>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   el.classList.remove("hidden");
 }
 
-function openContractModal(id) {
+async function openContractModal(id) {
   $("contract-modal-id").value = id || "";
   $("contract-modal-title").textContent = id ? "Edit Contract" : "New Contract Template";
+  // Load deals for the linked deal dropdown
+  const dealSel = $("contract-deal-id");
+  if (dealSel) {
+    if (!_contractsDealsCache.length) {
+      try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); } catch (_) {}
+    }
+    dealSel.innerHTML = '<option value="" style="background:#111">— None —</option>' +
+      _contractsDealsCache.map(d => {
+        const label = [d.broker, d.name || d.deal_type || "CPA", d.cpa_amount ? `$${d.cpa_amount}` : ""].filter(Boolean).join(" — ");
+        return `<option value="${d.id}" style="background:#111">${esc(label)}</option>`;
+      }).join("");
+  }
   if (id) {
     const c = _contractsCache.find(x => x.id === id);
     if (c) {
       $("contract-title").value = c.title || "";
       $("contract-content").value = c.content || "";
       $("contract-lock-links").checked = !!c.require_before_links;
+      if (dealSel) dealSel.value = c.deal_id || "";
+      updateContractVarsDetected();
     }
   } else {
     $("contract-title").value = "";
     $("contract-content").value = "";
     $("contract-lock-links").checked = false;
+    if (dealSel) dealSel.value = "";
+    const varsEl = $("contract-vars-detected");
+    if (varsEl) varsEl.textContent = "—";
   }
   openModal("contract-modal");
 }
@@ -4230,14 +4338,16 @@ async function saveContract() {
   const title = $("contract-title").value.trim();
   const content = $("contract-content").value.trim();
   const require_before_links = $("contract-lock-links").checked;
+  const deal_id = $("contract-deal-id")?.value || null;
   if (!title) return toast("Title required", "warn");
   if (!content) return toast("Contract content required", "warn");
+  const variables = detectContractVars(content);
   try {
     if (id) {
-      await api(`/admin/contracts/${id}`, { method: "PATCH", body: JSON.stringify({ title, content, require_before_links }) });
+      await api(`/admin/contracts/${id}`, { method: "PATCH", body: JSON.stringify({ title, content, require_before_links, deal_id: deal_id || null, variables }) });
       toast("Contract updated");
     } else {
-      await api("/admin/contracts", { method: "POST", body: JSON.stringify({ title, content, require_before_links }) });
+      await api("/admin/contracts", { method: "POST", body: JSON.stringify({ title, content, require_before_links, deal_id: deal_id || null, variables }) });
       toast("Contract created");
     }
     closeModal("contract-modal");
@@ -4266,10 +4376,37 @@ function viewContractText(id) {
 async function openAssignContractModal(contractId, contractTitle) {
   $("assign-contract-id").value = contractId;
   $("assign-contract-name").textContent = contractTitle;
-  ["Date", "BrokerName", "DealName", "Custom"].forEach(k => {
-    const el = $("assign-var-" + k);
-    if (el) el.value = k === "Date" ? new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" }) : "";
-  });
+  // Detect variables from contract content + pre-fill from linked deal
+  const c = _contractsCache.find(x => x.id === contractId);
+  const vars = c ? detectContractVars(c.content) : [];
+  const presets = {};
+  presets["Date"] = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+  if (c?.deal_id) {
+    let deal = _contractsDealsCache.find(d => d.id === c.deal_id);
+    if (!deal) {
+      try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); deal = _contractsDealsCache.find(d => d.id === c.deal_id); } catch (_) {}
+    }
+    if (deal) {
+      presets["BrokerName"] = deal.broker || "";
+      presets["DealName"] = deal.name || deal.deal_type || "";
+      presets["Commission"] = deal.cpa_amount ? `$${deal.cpa_amount}` : "";
+    }
+  }
+  // Render dynamic variable fields
+  const section = $("assign-vars-section");
+  const container = $("assign-vars-container");
+  if (vars.length && container) {
+    container.innerHTML = vars.map(v => `
+      <div>
+        <label class="text-[9px] text-gray-600 block mb-1">${esc(v)}</label>
+        <input type="text" data-var-key="${esc(v)}" class="form-input w-full px-3 py-2 rounded-lg text-xs"
+               value="${esc(presets[v] || "")}" placeholder="${esc(v)}">
+      </div>`).join("");
+    section?.classList.remove("hidden");
+  } else {
+    section?.classList.add("hidden");
+  }
+  // Load affiliates
   const listEl = $("assign-affiliate-list");
   listEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-3">Loading affiliates...</p>`;
   openModal("assign-contract-modal");
@@ -4298,9 +4435,9 @@ async function doAssignContract() {
   const checked = [...document.querySelectorAll(".assign-aff-check:checked")].map(c => c.dataset.affId);
   if (!checked.length) return toast("Select at least one affiliate", "warn");
   const variables = {};
-  ["Date", "BrokerName", "DealName", "Custom"].forEach(k => {
-    const val = $("assign-var-" + k)?.value?.trim();
-    if (val) variables[k] = val;
+  document.querySelectorAll("#assign-vars-container [data-var-key]").forEach(el => {
+    const val = el.value.trim();
+    if (val) variables[el.dataset.varKey] = val;
   });
   try {
     const res = await api(`/admin/contracts/${contractId}/assign`, {
@@ -4310,6 +4447,20 @@ async function doAssignContract() {
     toast(`Contract assigned to ${res.assigned} affiliate(s)`);
     closeModal("assign-contract-modal");
   } catch (e) { toast(e.message, "err"); }
+}
+
+function previewContract() {
+  const contractId = $("assign-contract-id").value;
+  const c = _contractsCache.find(x => x.id === contractId);
+  if (!c) return;
+  const variables = {};
+  document.querySelectorAll("#assign-vars-container [data-var-key]").forEach(el => {
+    const val = el.value.trim();
+    if (val) variables[el.dataset.varKey] = val;
+  });
+  const rendered = c.content.replace(/\{\{(\w+)\}\}/g, (_, k) => variables[k] !== undefined ? variables[k] : `{{${k}}}`);
+  $("contract-preview-content").textContent = rendered;
+  openModal("contract-preview-modal");
 }
 
 async function loadContractAssignments() {
@@ -4327,17 +4478,18 @@ async function loadContractAssignments() {
     const tbody = $("assignments-tbody");
     tbody.innerHTML = list.map(a => {
       const affName = a.affiliate_accounts?.display_name || a.affiliate_afp || a.affiliate_id;
-      const ctName = a.contracts?.title || "\u2014";
+      const ctName = a.contracts?.title || "—";
       const statusBg = a.status === "signed" ? "bg-green-500/20 text-green-400" : "bg-amber-500/20 text-amber-400";
       return `<tr class="border-b border-white/5 hover:bg-white/[0.02]">
         <td class="px-4 py-3 text-xs text-gray-300 font-medium">${esc(ctName)}</td>
         <td class="px-4 py-3 text-xs text-gray-300">${esc(affName)}</td>
         <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusBg}">${esc(a.status)}</span></td>
-        <td class="px-4 py-3 text-xs text-gray-500">${a.signed_at ? fmtTime(a.signed_at) : "\u2014"}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">${a.signed_at ? fmtTime(a.signed_at) : "—"}</td>
         <td class="px-4 py-3 text-xs text-gray-500">${fmtDate(a.created_at)}</td>
       </tr>`;
     }).join("");
     $("assignments-table-wrap")?.classList.remove("hidden");
+    // Update badge
     const pending = list.filter(a => a.status === "pending").length;
     const badge = $("contracts-tab-badge");
     if (badge) { badge.textContent = pending; badge.classList.toggle("hidden", pending === 0); }
