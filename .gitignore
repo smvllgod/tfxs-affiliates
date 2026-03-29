@@ -1,0 +1,11 @@
+# Netlify plugin dependencies (auto-installed, should not be tracked)
+.netlify/plugins/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+*.swo
