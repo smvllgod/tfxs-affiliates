@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
     <meta name="theme-color" content="#f5f5f7">
-    <script>((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?"#f5f5f7":"#050505"})(localStorage.getItem("tfxs_theme")||"light")</script>
+    <script src="js/brand.config.js"></script>
+    <script>((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?BRAND.colors.bgLight:BRAND.colors.bgDark})(localStorage.getItem(BRAND._lsKey("theme"))||"light")</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>TFXS Affiliate | Reports</title>
-    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <title id="page-title">TFXS Affiliate | Reports</title>
+    <script>document.getElementById('page-title').textContent=BRAND._title('reports')</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:title" content="TFXS Affiliates — Reports">
     <meta property="og:description" content="Detailed financial reports and conversion analytics.">
@@ -31,17 +33,7 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
-                        brand: {
-                            50: '#fff1f2',
-                            100: '#ffe4e6',
-                            500: '#ef4444', 
-                            600: '#dc2626',
-                            900: '#7f1d1d',
-                            neon: '#ff3333',
-                            yellow: '#fbbf24',
-                            dark: '#050505',
-                            panel: '#0A0A0A'
-                        }
+                        brand: BRAND._tailwindBrand()
                     },
                     animation: {
                         'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
@@ -184,8 +176,8 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sm:gap-4 relative">
             <div class="flex items-center gap-4 sm:gap-10">
                 <a href="/" class="flex items-center gap-2 group cursor-pointer no-underline">
-                    <img src="assets/logo.svg" alt="TFXS Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
-                    <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors">TFXS<span class="opacity-50 font-light"> AFFILIATES</span></span>
+                    <img src="assets/logo.svg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                    <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors"><script>document.write(BRAND.name);</script><span class="opacity-50 font-light"> <script>document.write(BRAND.nameFull.replace(BRAND.name,'').trim());</script></span></span>
                 </a>
 
                 <div id="nav-links" class="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
@@ -403,32 +395,32 @@
                         <!-- Content populated by JS -->
                     </tbody>
                 </table>
-                <div class="p-4 border-t border-white/5 flex items-center justify-between text-xs relative z-20">
-                     <div class="flex items-center gap-2">
-                         <span class="text-gray-400" data-i18n="rep.itemsPerPage">Items per page:</span>
-                         <div id="ipp-reg-wrapper" class="custom-select relative">
-                             <button type="button" id="ipp-reg-btn" class="flex items-center gap-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white hover:border-white/20 transition">
-                                 <span id="ipp-reg-label">10</span>
-                                 <svg class="w-3 h-3 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                             </button>
-                             <div id="ipp-reg-dropdown" class="hidden absolute bottom-full mb-1 left-0 w-20 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl z-50 overflow-hidden">
-                                 <div id="ipp-reg-options">
-                                     <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300 bg-white/5 font-medium" data-value="10">10</div>
-                                     <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="25">25</div>
-                                     <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="50">50</div>
-                                 </div>
+            </div>
+            <div class="p-4 border-t border-white/5 flex items-center justify-between text-xs relative z-20">
+                 <div class="flex items-center gap-2">
+                     <span class="text-gray-400" data-i18n="rep.itemsPerPage">Items per page:</span>
+                     <div id="ipp-reg-wrapper" class="custom-select relative">
+                         <button type="button" id="ipp-reg-btn" class="flex items-center gap-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white hover:border-white/20 transition">
+                             <span id="ipp-reg-label">10</span>
+                             <svg class="w-3 h-3 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                         </button>
+                         <div id="ipp-reg-dropdown" class="hidden absolute bottom-full mb-1 left-0 w-20 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl z-50 overflow-hidden">
+                             <div id="ipp-reg-options">
+                                 <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300 bg-white/5 font-medium" data-value="10">10</div>
+                                 <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="25">25</div>
+                                 <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="50">50</div>
                              </div>
-                             <input type="hidden" id="items-per-page-reg" value="10">
                          </div>
+                         <input type="hidden" id="items-per-page-reg" value="10">
                      </div>
-                     <div class="flex items-center gap-4 text-gray-400">
-                         <span class="pagination-info-reg">--</span>
-                         <div class="flex gap-1">
-                             <button id="reg-prev" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                             <button id="reg-next" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                         </div>
+                 </div>
+                 <div class="flex items-center gap-4 text-gray-400">
+                     <span class="pagination-info-reg">--</span>
+                     <div class="flex gap-1">
+                         <button id="reg-prev" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                         <button id="reg-next" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
                      </div>
-                </div>
+                 </div>
             </div>
         </div>
 
@@ -508,32 +500,32 @@
                         <!-- Content populated by JS -->
                     </tbody>
                 </table>
-                <div class="p-4 border-t border-white/5 flex items-center justify-between text-xs relative">
-                     <div class="flex items-center gap-2">
-                         <span class="text-gray-400" data-i18n="rep.itemsPerPage">Items per page:</span>
-                         <div id="ipp-earn-wrapper" class="custom-select relative">
-                             <button type="button" id="ipp-earn-btn" class="flex items-center gap-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white hover:border-white/20 transition">
-                                 <span id="ipp-earn-label">10</span>
-                                 <svg class="w-3 h-3 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                             </button>
-                             <div id="ipp-earn-dropdown" class="hidden absolute bottom-full mb-1 left-0 w-20 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl z-50 overflow-hidden">
-                                 <div id="ipp-earn-options">
-                                     <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300 bg-white/5 font-medium" data-value="10">10</div>
-                                     <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="25">25</div>
-                                     <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="50">50</div>
-                                 </div>
+            </div>
+            <div class="p-4 border-t border-white/5 flex items-center justify-between text-xs relative">
+                 <div class="flex items-center gap-2">
+                     <span class="text-gray-400" data-i18n="rep.itemsPerPage">Items per page:</span>
+                     <div id="ipp-earn-wrapper" class="custom-select relative">
+                         <button type="button" id="ipp-earn-btn" class="flex items-center gap-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white hover:border-white/20 transition">
+                             <span id="ipp-earn-label">10</span>
+                             <svg class="w-3 h-3 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                         </button>
+                         <div id="ipp-earn-dropdown" class="hidden absolute bottom-full mb-1 left-0 w-20 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl z-50 overflow-hidden">
+                             <div id="ipp-earn-options">
+                                 <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300 bg-white/5 font-medium" data-value="10">10</div>
+                                 <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="25">25</div>
+                                 <div class="custom-select-opt px-3 py-1.5 text-[11px] cursor-pointer hover:bg-white/10 transition text-gray-300" data-value="50">50</div>
                              </div>
-                             <input type="hidden" id="items-per-page" value="10">
                          </div>
+                         <input type="hidden" id="items-per-page" value="10">
                      </div>
-                     <div class="flex items-center gap-4 text-gray-400">
-                         <span class="pagination-info">--</span>
-                         <div class="flex gap-1">
-                             <button id="earn-prev" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                             <button id="earn-next" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                         </div>
+                 </div>
+                 <div class="flex items-center gap-4 text-gray-400">
+                     <span class="pagination-info">--</span>
+                     <div class="flex gap-1">
+                         <button id="earn-prev" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                         <button id="earn-next" class="p-1 hover:text-white disabled:opacity-50 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
                      </div>
-                </div>
+                 </div>
             </div>
         </div>
 
@@ -560,7 +552,7 @@
         let datePicker;
         let regCurrentPage = 1;
         let earnCurrentPage = 1;
-        const IS_ADMIN = localStorage.getItem("is_admin") === "true";
+        const IS_ADMIN = localStorage.getItem(BRAND._lsKey("is_admin")) === "true";
 
         // === Custom Dropdown Wiring ===
         (function() {
@@ -1161,12 +1153,16 @@
                 tbody.appendChild(tr);
             });
 
-            // Total Row
-            const colSpan = IS_ADMIN ? 9 : 8;
+            // Total Row — use individual empty cells instead of colspan for precise alignment
             const totalRow = document.createElement('tr');
             totalRow.className = 'bg-white/5 font-bold border-t border-white/10';
+            const emptyCells = IS_ADMIN
+                ? `<td class="px-4 py-4 text-white text-left uppercase tracking-wider text-[10px]">TOTAL</td>` +
+                  `<td class="px-4 py-4"></td>`.repeat(7)   // Country→FTD Date (7 empty)
+                : `<td class="px-4 py-4 text-white text-left uppercase tracking-wider text-[10px]">TOTAL</td>` +
+                  `<td class="px-4 py-4"></td>`.repeat(6);  // User ID→FTD Date (6 empty)
             totalRow.innerHTML = `
-                <td class="px-4 py-4 text-white text-left uppercase tracking-wider text-[10px]" colspan="${colSpan}">TOTAL</td>
+                ${emptyCells}
                 <td class="px-4 py-4 text-white text-center">${formatCurrency(totalDeposits)}</td>
                 <td class="px-4 py-4 text-gray-300 text-center">${totalNetDeposits > 0 ? formatCurrency(totalNetDeposits) : '—'}</td>
                 <td class="px-4 py-4"></td>
@@ -1294,7 +1290,7 @@
             doc.setTextColor(220, 38, 38);
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
-            doc.text('TFXS AFFILIATES', 14, 18);
+            doc.text(BRAND.nameFull, 14, 18);
             doc.setFontSize(10);
             doc.setTextColor(100, 100, 100);
             doc.text(reportTitle, 14, 25);
@@ -1341,7 +1337,7 @@
                         }
                     }
                 });
-                doc.save('TFXS_Payout_Report.pdf');
+                doc.save(BRAND._pdfName('Payout_Report'));
             } else if (isRegTab) {
                 const filtered = database.registrations.filter(r => {
                     const d = new Date(r.date);
@@ -1380,7 +1376,7 @@
                     }
                 });
 
-                doc.save('TFXS_Registration_Report.pdf');
+                doc.save(BRAND._pdfName('Registration_Report'));
             } else {
                 const filtered = database.earnings.filter(e => {
                     const d = new Date(e.created);
@@ -1417,7 +1413,7 @@
                     }
                 });
 
-                doc.save('TFXS_Earnings_Report.pdf');
+                doc.save(BRAND._pdfName('Earnings_Report'));
             }
 
             showToast('PDF downloaded!', 'success');
@@ -1486,7 +1482,8 @@
                 const amount = parseFloat(p.amount || 0);
                 if (p.status === 'paid') totalPaid += amount;
                 if (p.status === 'pending' || p.status === 'approved') totalPending += amount;
-                const method = CRYPTO_LABELS[p.payment_method] || p.payment_method || '—';
+                const isSelfW = p.wallet_address === 'Admin self-withdrawal';
+                const method = isSelfW ? '🏦 ' + (CRYPTO_LABELS[p.payment_method] || p.payment_method || 'Self-Withdrawal') : (CRYPTO_LABELS[p.payment_method] || p.payment_method || '—');
                 const statusColors = {
                     pending: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
                     approved: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
@@ -1533,7 +1530,7 @@
         doc.setFontSize(22);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(220, 38, 38);
-        doc.text('TFXS AFFILIATES', 20, 28);
+        doc.text(BRAND.nameFull, 20, 28);
 
         doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
@@ -1571,7 +1568,7 @@
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(30, 30, 30);
         const affiliateId = (typeof window.TFXS_API !== 'undefined' && window.TFXS_API.getAffiliateId) ? window.TFXS_API.getAffiliateId() : 'Affiliate';
-        const settings = JSON.parse(localStorage.getItem('tfxs_settings') || '{}');
+        const settings = JSON.parse(localStorage.getItem(BRAND._lsKey('settings')) || '{}');
         const billName = settings.displayName || affiliateId;
         doc.text(billName, colLeft, y);
         y += 5;
@@ -1631,7 +1628,8 @@
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(40, 40, 40);
-        doc.text('Affiliate Commission Payout', 25, boxY);
+        const isSelfWithdraw = p.wallet_address === 'Admin self-withdrawal';
+        doc.text(isSelfWithdraw ? 'Commission Withdrawal (Self)' : 'Affiliate Commission Payout', 25, boxY);
         const method = CRYPTO_LABELS[p.payment_method] || p.payment_method || '—';
         doc.text(method, 95, boxY);
         doc.setFont('helvetica', 'bold');
@@ -1691,7 +1689,7 @@
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(255, 255, 255);
-        doc.text('TFXS AFFILIATES', 20, H - 10);
+        doc.text(BRAND.nameFull, 20, H - 10);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         doc.text('This is a computer-generated invoice. No signature required.', W - 20, H - 10, { align: 'right' });
@@ -1701,9 +1699,9 @@
         doc.line(20, H - 25, W - 20, H - 25);
         doc.setFontSize(7);
         doc.setTextColor(180, 180, 180);
-        doc.text('Generated on ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + ' — TFXS Affiliates Platform', W / 2, H - 28, { align: 'center' });
+        doc.text('Generated on ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + ' — ' + BRAND.nameFull + ' Platform', W / 2, H - 28, { align: 'center' });
 
-        doc.save('TFXS-Invoice-' + invoiceNum + '.pdf');
+        doc.save(BRAND._pdfName('Invoice', invoiceNum));
     }
     </script>
 

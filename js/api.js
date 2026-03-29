@@ -1,34 +1,80 @@
 /**
- * TFXS AFFILIATES — API Layer v2
- * Connects the frontend dashboard to the TFXS backend on Render.
+ * AFFILIATES — API Layer v2
+ * Connects the frontend dashboard to the backend on Render.
  * JWT-only authentication — no static tokens.
+ * Brand config: reads from window.BRAND (loaded via brand.config.js)
  */
 
-const API_BASE = "https://api.theforexskyline.com";
+const API_BASE = (window.BRAND && BRAND.urls.api) || "https://api.theforexskyline.com";
+const _LS = (k) => window.BRAND ? BRAND._lsKey(k) : `tfxs_${k}`;
+
+// ── Tenant blocked overlay (suspended / trial expired) ────
+function showTenantBlockedOverlay(message) {
+  if (document.getElementById("__tenant-blocked")) return;
+  const overlay = document.createElement("div");
+  overlay.id = "__tenant-blocked";
+  overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;";
+  overlay.innerHTML = `<div style="text-align:center;max-width:440px;padding:40px;background:#111;border-radius:16px;border:1px solid #333;">
+    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
+    <h2 style="color:#fff;font-size:22px;margin-bottom:12px;">Platform Unavailable</h2>
+    <p style="color:#999;font-size:15px;line-height:1.5;">${message}</p>
+    <p style="color:#666;font-size:13px;margin-top:16px;">Contact your platform provider for assistance.</p>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ── Dynamic brand config (fetch from backend on load) ─────
+(async function loadDynamicBrand() {
+  try {
+    const r = await fetch(`${API_BASE}/api/brand`, { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.ok && d.brand && window.BRAND) {
+      // Merge backend brand over static defaults (backend wins)
+      const b = d.brand;
+      if (b.name)        BRAND.name = b.name;
+      if (b.nameFull)    BRAND.nameFull = b.nameFull;
+      if (b.company)     BRAND.company = b.company;
+      if (b.year)        BRAND.year = b.year;
+      if (b.prefix)      BRAND.prefix = b.prefix;
+      if (b.tagline)     BRAND.tagline = b.tagline;
+      if (b.description) BRAND.description = b.description;
+      if (b.logoUrl)     BRAND.urls.logo = b.logoUrl;
+      // Recompute CSS vars if colors changed
+      if (b.primaryHex) {
+        BRAND.colors.primary600 = b.primaryHex;
+        BRAND.colors.primary500 = b.primaryHex;
+      }
+      if (b.gradientEnd) BRAND.colors.primary700 = b.gradientEnd;
+      if (b.bgDark)      BRAND.colors.bgDark = b.bgDark;
+      if (typeof BRAND._injectCSS === "function") BRAND._injectCSS();
+    }
+  } catch { /* static brand.config.js is the fallback */ }
+})();
 
 // ── Affiliate ID management ──────────────────────────────
 function getAffiliateId() {
   // Admin sees global data — no affiliate filter
-  if (localStorage.getItem("is_admin") === "true") return null;
-  let id = localStorage.getItem("affiliate_id");
+  if (localStorage.getItem(_LS("is_admin")) === "true") return null;
+  let id = localStorage.getItem(_LS("affiliate_id"));
   // Return null if not set — API works without it (returns all data)
   return id || null;
 }
 
 function setAffiliateId(id) {
   if (id && id.trim()) {
-    localStorage.setItem("affiliate_id", id.trim());
+    localStorage.setItem(_LS("affiliate_id"), id.trim());
   }
 }
 
 function clearAffiliateId() {
-  localStorage.removeItem("affiliate_id");
+  localStorage.removeItem(_LS("affiliate_id"));
 }
 
 // ── Generic GET helper (with timeout + retry for Render cold starts) ──
 async function apiGet(path, retries = 2) {
   const url = `${API_BASE}${path}`;
-  const jwtToken = localStorage.getItem('tfxs_jwt');
+  const jwtToken = localStorage.getItem(_LS('jwt'));
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -41,7 +87,15 @@ async function apiGet(path, retries = 2) {
       const res = await fetch(url, { signal: controller.signal, headers });
       clearTimeout(timeout);
 
-      if (res.status === 401) { localStorage.removeItem("tfxs_jwt"); localStorage.removeItem("affiliate_id"); localStorage.removeItem("is_admin"); window.location.replace("/login"); return; }
+      if (res.status === 401) { localStorage.removeItem(_LS("jwt")); localStorage.removeItem(_LS("affiliate_id")); localStorage.removeItem(_LS("is_admin")); window.location.replace("/login"); return; }
+      if (res.status === 403) {
+        try {
+          const body = await res.clone().json();
+          if (body.code === "TENANT_SUSPENDED" || body.code === "TRIAL_EXPIRED") {
+            showTenantBlockedOverlay(body.error || "Platform unavailable"); return;
+          }
+        } catch {}
+      }
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`API ${res.status}: ${text}`);
@@ -49,7 +103,7 @@ async function apiGet(path, retries = 2) {
       return res.json();
     } catch (err) {
       if (attempt < retries && err.name !== "TypeError") {
-        console.warn(`[TFXS API] Attempt ${attempt + 1} failed, retrying in 3s...`, err.message);
+        console.warn(`[API] Attempt ${attempt + 1} failed, retrying in 3s...`, err.message);
         await new Promise(r => setTimeout(r, 3000));
         continue;
       }
@@ -61,7 +115,7 @@ async function apiGet(path, retries = 2) {
 // ── Generic PUT/POST/PATCH/DELETE helper ─────────────────
 async function apiSend(method, path, body) {
   const url = `${API_BASE}${path}`;
-  const jwtToken = localStorage.getItem('tfxs_jwt');
+  const jwtToken = localStorage.getItem(_LS('jwt'));
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -77,7 +131,7 @@ async function apiSend(method, path, body) {
   });
   clearTimeout(timeout);
 
-  if (res.status === 401) { localStorage.removeItem("tfxs_jwt"); localStorage.removeItem("affiliate_id"); localStorage.removeItem("is_admin"); window.location.replace("/login"); return; }
+  if (res.status === 401) { localStorage.removeItem(_LS("jwt")); localStorage.removeItem(_LS("affiliate_id")); localStorage.removeItem(_LS("is_admin")); window.location.replace("/login"); return; }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`API ${res.status}: ${text}`);
@@ -99,11 +153,13 @@ async function fetchBrokers() {
 }
 
 /** KPI summary: { registrations, ftd, qualified_cpa, total_commission } */
-async function fetchSummary(affiliateId) {
+async function fetchSummary(affiliateId, from, to) {
   const params = [];
   if (affiliateId) params.push(`affiliate_id=${encodeURIComponent(affiliateId)}`);
   const broker = getSelectedBroker();
   if (broker) params.push(`broker=${encodeURIComponent(broker)}`);
+  if (from) params.push(`from=${from}`);
+  if (to) params.push(`to=${to}`);
   const qs = params.length ? `?${params.join('&')}` : '';
   return apiGet(`/api/summary${qs}`);
 }

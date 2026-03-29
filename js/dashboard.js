@@ -1,5 +1,5 @@
 /**
- * TFXS AFFILIATES — Dashboard Live Data Connector
+ * AFFILIATES — Dashboard Live Data Connector
  * Loads live data from the backend and injects it into the existing dashboard DOM.
  * Falls back gracefully to static mock data (app.js) if the API is unreachable.
  *
@@ -10,10 +10,11 @@
 (function () {
   "use strict";
 
+  const _LS_D = (k) => window.BRAND ? BRAND._lsKey(k) : `tfxs_${k}`;
   // Use shared country resolver from api.js
   const { getAffiliateId, apiGet, apiSend, fetchSummary, fetchEvents, fetchReports, fetchRoiSettings, fetchBrokers, showError, hideError, resolveCountry, escapeHtml } = window.TFXS_API;
 
-  const IS_ADMIN = localStorage.getItem("is_admin") === "true";
+  const IS_ADMIN = localStorage.getItem(_LS_D("is_admin")) === "true";
   let affiliateId = null;
   let refreshTimer = null;
   let isLive = false;
@@ -113,13 +114,17 @@
 
   // ── Admin-specific UI tweaks ────────────────────────────
   function applyAdminUI() {
-    // 1. Replace "Request Payout" with "Manage Payouts"
+    // 1. Replace "Request Payout" with "Manage Withdrawals → Admin Settings"
     const payoutBtn = document.getElementById("request-payout-btn");
     if (payoutBtn) {
       payoutBtn.removeAttribute("onclick");
-      payoutBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-        MANAGE PAYOUTS`;
+      payoutBtn.disabled = false;
+      payoutBtn.classList.remove('btn-gradient', 'cursor-not-allowed');
+      payoutBtn.classList.add('cursor-pointer');
+      payoutBtn.style.background = 'rgba(16,185,129,0.08)';
+      payoutBtn.style.border = '1px solid rgba(16,185,129,0.25)';
+      payoutBtn.style.boxShadow = 'none';
+      payoutBtn.innerHTML = `<svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> <span class="text-emerald-400">Manage Withdrawals →</span>`;
       payoutBtn.addEventListener("click", () => { window.location.href = "/admin-settings#payouts"; });
     }
 
@@ -441,7 +446,8 @@
         amount: e.event_type === "ftd" ? parseFloat(e.deposit_amount) || 0 : (e.event_type === "commission" ? parseFloat(e.commission_amount) || 0 : 0),
         deposit_amount: parseFloat(e.deposit_amount) || 0,
         commission_amount: e.event_type === "commission" ? parseFloat(e.commission_amount) || 0 : 0,
-        raw_commission: parseFloat(e.raw_commission) || parseFloat(e.commission_amount) || 0,
+        // QCPA never carries money — force raw_commission to 0 for non-commission events
+        raw_commission: e.event_type === "commission" ? (parseFloat(e.raw_commission) || parseFloat(e.commission_amount) || 0) : 0,
         broker: e.broker || null,
         type: e.event_type === "ftd" ? "FTD" : e.event_type === "qualified_cpa" ? "QCPA" : e.event_type === "commission" ? "Commission" : "Registration",
         created: e.occurred_at,
@@ -519,7 +525,17 @@
     try {
       const brokerFilter = document.getElementById("broker-filter")?.value || "";
       let url = "/admin/affiliate-performance";
-      if (brokerFilter) url += `?broker=${encodeURIComponent(brokerFilter)}`;
+      const params = [];
+      if (brokerFilter) params.push(`broker=${encodeURIComponent(brokerFilter)}`);
+      // Pass current dashboard date range so data matches the selected timeframe
+      const picker = window.dashboardDatePicker;
+      if (picker && picker.selectedDates && picker.selectedDates.length >= 1) {
+        const sd = picker.selectedDates[0];
+        const ed = picker.selectedDates[1] || picker.selectedDates[0];
+        params.push(`from=${sd.toISOString().substring(0, 10)}`);
+        params.push(`to=${ed.toISOString().substring(0, 10)}`);
+      }
+      if (params.length) url += `?${params.join('&')}`;
       const res = await apiGet(url);
       if (!res?.ok) throw new Error("Failed");
 

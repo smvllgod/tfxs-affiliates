@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
     <meta name="theme-color" content="#f5f5f7">
-    <script>((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?"#f5f5f7":"#050505"})(localStorage.getItem("tfxs_theme")||"light")</script>
+    <script src="js/brand.config.js"></script>
+    <script>((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?BRAND.colors.bgLight:BRAND.colors.bgDark})(localStorage.getItem(BRAND._lsKey("theme"))||"light")</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>TFXS Affiliate | Settings</title>
-    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+    <title id="page-title">TFXS Affiliate | Settings</title>
+    <script>document.getElementById('page-title').textContent=BRAND._title('settings')</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:title" content="TFXS Affiliates — Settings">
     <meta property="og:description" content="Account settings and preferences.">
@@ -20,7 +22,7 @@
       // Admin redirect — if admin lands on user settings, bounce to admin panel
       (function() {
         try {
-          var t = localStorage.getItem('tfxs_jwt');
+          var t = localStorage.getItem(BRAND._lsKey('jwt'));
           if (t) { var p = JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); if (p.is_admin) { window.location.replace('/admin-settings'); } }
         } catch(e) {}
       })();
@@ -34,17 +36,7 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
-                        brand: {
-                            50: '#fff1f2',
-                            100: '#ffe4e6',
-                            500: '#ef4444', 
-                            600: '#dc2626',
-                            900: '#7f1d1d',
-                            neon: '#ff3333',
-                            yellow: '#fbbf24',
-                            dark: '#050505',
-                            panel: '#0A0A0A'
-                        }
+                        brand: BRAND._tailwindBrand()
                     },
                     animation: {
                         'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
@@ -96,8 +88,8 @@
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sm:gap-4 relative">
             <div class="flex items-center gap-4 sm:gap-10">
                 <a href="/" class="flex items-center gap-2 group cursor-pointer no-underline">
-                    <img src="assets/logo.svg" alt="TFXS Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
-                    <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors">TFXS<span class="opacity-50 font-light"> AFFILIATES</span></span>
+                    <img src="assets/logo.svg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                    <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors"><script>document.write(BRAND.name);</script><span class="opacity-50 font-light"> <script>document.write(BRAND.nameFull.replace(BRAND.name,'').trim());</script></span></span>
                 </a>
 
                 <div id="nav-links" class="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
@@ -168,6 +160,31 @@
              <p class="text-gray-400 mt-2 font-light" data-i18n="set.subtitle">Customise your profile and update payment preferences.</p>
         </header>
 
+        <!-- Tab Navigation -->
+        <div class="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/5 w-fit">
+            <button id="tab-btn-general" onclick="switchSettingsTab('general')" class="px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 bg-brand-500/20 text-brand-500 border border-brand-500/30">
+                <span class="flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    General
+                </span>
+            </button>
+            <button id="tab-btn-notifications" onclick="switchSettingsTab('notifications')" class="px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 text-gray-500 hover:text-gray-300 hover:bg-white/5">
+                <span class="flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    Notifications
+                </span>
+            </button>
+            <button id="tab-btn-contracts" onclick="switchSettingsTab('contracts')" class="px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 text-gray-500 hover:text-gray-300 hover:bg-white/5 relative">
+                <span class="flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Contracts
+                </span>
+                <span id="contracts-pending-badge" class="hidden absolute -top-1 -right-1 bg-amber-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-bold">!</span>
+            </button>
+        </div>
+
+        <!-- ═══ GENERAL SETTINGS TAB ═══ -->
+        <div id="tab-general">
         <div class="glass-panel p-8 rounded-2xl border border-white/5">
             
             <!-- Avatar Selection -->
@@ -307,8 +324,476 @@
                 </div>
             </div>
 
+        </div><!-- end glass-panel -->
+        </div><!-- end tab-general -->
+
+        <!-- ═══ NOTIFICATIONS TAB ═══ -->
+        <div id="tab-notifications" class="hidden">
+        <div class="glass-panel p-8 rounded-2xl border border-white/5">
+
+            <!-- ═══════ TELEGRAM NOTIFICATIONS ═══════ -->
+            <div id="telegram-section">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                        Telegram Notifications
+                    </h3>
+                    <div id="tg-status-badge"></div>
+                </div>
+
+                <!-- LOCKED STATE (default) -->
+                <div id="tg-locked-state" class="rounded-2xl p-6 border border-white/5 bg-white/[0.02]">
+                    <div class="flex flex-col items-center text-center py-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-400 mb-2">Telegram Not Available</h4>
+                        <p class="text-xs text-gray-600 max-w-sm">Telegram notifications are not enabled for your account yet. Contact your account manager to unlock this feature.</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>Requires admin activation</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- UNLOCKED STATE (hidden by default) -->
+                <div id="tg-unlocked-state" class="hidden">
+                    <div class="rounded-2xl p-6 border border-blue-500/10 bg-blue-500/[0.03]">
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-white">Your Telegram Bot</h4>
+                                    <p class="text-[10px] text-gray-500">Receive real-time alerts on your phone</p>
+                                </div>
+                            </div>
+                            <button onclick="openTelegramTutorial()" class="text-[9px] font-bold text-blue-400 hover:text-blue-300 transition uppercase tracking-wider flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-500/20 hover:bg-blue-500/10">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Need help?
+                            </button>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Bot Token -->
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Bot Token</label>
+                                <div class="relative">
+                                    <input type="password" id="aff-tg-bot-token" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono pr-10" placeholder="123456:ABCdefGHIjklMNOpqrSTUvwx">
+                                    <button type="button" onclick="toggleTgTokenVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition">
+                                        <svg id="tg-eye-icon" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Chat ID + Auto-discover -->
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Chat / Group ID</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="aff-tg-chat-id" class="form-input text-xs px-3 py-2.5 rounded-lg flex-1 font-mono" placeholder="-1001234567890">
+                                    <button onclick="discoverTelegramGroups()" id="tg-discover-btn" class="px-3 py-2.5 rounded-lg text-[10px] font-bold text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 transition flex items-center gap-1.5 whitespace-nowrap">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                        Find Groups
+                                    </button>
+                                </div>
+                                <!-- Discovered groups dropdown -->
+                                <div id="tg-groups-list" class="hidden mt-2 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-xl overflow-hidden max-h-48 overflow-y-auto"></div>
+                            </div>
+
+                            <!-- Events -->
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2 block">Notify me about</label>
+                                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="aff-tg-evt-commission" checked class="rounded">
+                                        <span class="text-xs text-gray-300">💰 Commissions</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="aff-tg-evt-payout" checked class="rounded">
+                                        <span class="text-xs text-gray-300">💸 Payouts</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="aff-tg-evt-registration" class="rounded">
+                                        <span class="text-xs text-gray-300">👤 Registrations</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" id="aff-tg-evt-deposit" class="rounded">
+                                        <span class="text-xs text-gray-300">🏦 Deposits</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex items-center gap-3 pt-2 border-t border-white/5">
+                                <button onclick="testAffiliateTelegram()" class="text-[9px] font-bold text-blue-400 hover:text-blue-300 transition uppercase tracking-wider flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Send Test
+                                </button>
+                                <span id="aff-tg-test-status" class="text-[9px] text-gray-600"></span>
+                                <div class="flex-1"></div>
+                                <button onclick="saveAffiliateTelegram()" class="btn-gradient px-4 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Save Telegram
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ TELEGRAM TUTORIAL MODAL ═══════ -->
+            <div id="telegram-tutorial-modal" class="fixed inset-0 z-[9999] hidden flex items-center justify-center p-4" style="background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);">
+                <div class="glass-panel rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto border border-blue-500/10">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                            Telegram Setup Guide
+                        </h3>
+                        <button onclick="closeTelegramTutorial()" class="text-gray-500 hover:text-white transition p-1">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-5">
+                        <!-- Step 1 -->
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm font-bold">1</div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white mb-1">Create Your Bot</h4>
+                                <p class="text-[11px] text-gray-400 leading-relaxed">Open Telegram and search for <strong class="text-blue-400">@BotFather</strong>. Send <code class="bg-white/10 px-1.5 py-0.5 rounded text-blue-300">/newbot</code> and follow the prompts to name your bot.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm font-bold">2</div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white mb-1">Copy the Bot Token</h4>
+                                <p class="text-[11px] text-gray-400 leading-relaxed">BotFather will give you a token like <code class="bg-white/10 px-1.5 py-0.5 rounded text-green-300 text-[10px]">123456:ABCdef...</code>. Copy it and paste it in the <strong class="text-white">Bot Token</strong> field above.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm font-bold">3</div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white mb-1">Create a Group & Add Your Bot</h4>
+                                <p class="text-[11px] text-gray-400 leading-relaxed">Create a new Telegram group (or use an existing one). Add your bot to the group as a member. Send any message in the group.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-sm font-bold">4</div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white mb-1">Find Your Group</h4>
+                                <p class="text-[11px] text-gray-400 leading-relaxed">Click the <strong class="text-blue-400">"Find Groups"</strong> button to automatically detect your groups. Or manually paste the Chat ID.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div class="flex gap-4">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center text-green-400 text-sm font-bold">5</div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white mb-1">Test & Save</h4>
+                                <p class="text-[11px] text-gray-400 leading-relaxed">Click <strong class="text-blue-400">"Send Test"</strong> to verify it works, then click <strong class="text-white">"Save Telegram"</strong>. Done! 🎉</p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl bg-blue-500/5 border border-blue-500/10 p-3">
+                            <p class="text-[10px] text-blue-300/70 flex items-start gap-2">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Your bot token is stored securely and is only used to send notifications to the group you specify. We never read your messages.</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <button onclick="closeTelegramTutorial()" class="w-full mt-6 py-2.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider border border-white/10 hover:bg-white/5 transition">Got it!</button>
+                </div>
+            </div>
+
+            <!-- ═══════ DISCORD NOTIFICATIONS ═══════ -->
+            <div class="mt-8 border-t border-white/5 pt-8" id="discord-section">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                        Discord Notifications
+                    </h3>
+                    <div id="discord-status-badge"></div>
+                </div>
+                <!-- LOCKED -->
+                <div id="discord-locked-state" class="rounded-2xl p-6 border border-white/5 bg-white/[0.02]">
+                    <div class="flex flex-col items-center text-center py-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-400 mb-2">Discord Not Available</h4>
+                        <p class="text-xs text-gray-600 max-w-sm">Discord notifications are not enabled for your account yet. Contact your account manager to unlock this feature.</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>Requires admin activation</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- UNLOCKED -->
+                <div id="discord-unlocked-state" class="hidden">
+                    <div class="rounded-2xl p-6 border border-indigo-500/10 bg-indigo-500/[0.03]">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">Discord Webhook</h4>
+                                <p class="text-[10px] text-gray-500">Receive alerts in your Discord server</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Webhook URL</label>
+                                <input type="text" id="aff-discord-webhook" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono" placeholder="https://discord.com/api/webhooks/...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2 block">Notify me about</label>
+                                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-discord-evt-commission" checked class="rounded"><span class="text-xs text-gray-300">💰 Commissions</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-discord-evt-payout" checked class="rounded"><span class="text-xs text-gray-300">💸 Payouts</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-discord-evt-registration" class="rounded"><span class="text-xs text-gray-300">👤 Registrations</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-discord-evt-deposit" class="rounded"><span class="text-xs text-gray-300">🏦 Deposits</span></label>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2 border-t border-white/5">
+                                <button onclick="testChannelNotification('discord')" class="text-[9px] font-bold text-indigo-400 hover:text-indigo-300 transition uppercase tracking-wider flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Send Test
+                                </button>
+                                <span id="aff-discord-test-status" class="text-[9px] text-gray-600"></span>
+                                <div class="flex-1"></div>
+                                <button onclick="saveChannelSettings('discord')" class="btn-gradient px-4 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Save Discord
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ SLACK NOTIFICATIONS ═══════ -->
+            <div class="mt-8 border-t border-white/5 pt-8" id="slack-section">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+                        Slack Notifications
+                    </h3>
+                    <div id="slack-status-badge"></div>
+                </div>
+                <!-- LOCKED -->
+                <div id="slack-locked-state" class="rounded-2xl p-6 border border-white/5 bg-white/[0.02]">
+                    <div class="flex flex-col items-center text-center py-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-400 mb-2">Slack Not Available</h4>
+                        <p class="text-xs text-gray-600 max-w-sm">Slack notifications are not enabled for your account yet. Contact your account manager to unlock this feature.</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>Requires admin activation</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- UNLOCKED -->
+                <div id="slack-unlocked-state" class="hidden">
+                    <div class="rounded-2xl p-6 border border-green-500/10 bg-green-500/[0.03]">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div class="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">Slack Webhook</h4>
+                                <p class="text-[10px] text-gray-500">Receive alerts in your Slack workspace</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Webhook URL</label>
+                                <input type="text" id="aff-slack-webhook" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono" placeholder="https://hooks.slack.com/services/...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2 block">Notify me about</label>
+                                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-slack-evt-commission" checked class="rounded"><span class="text-xs text-gray-300">💰 Commissions</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-slack-evt-payout" checked class="rounded"><span class="text-xs text-gray-300">💸 Payouts</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-slack-evt-registration" class="rounded"><span class="text-xs text-gray-300">👤 Registrations</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-slack-evt-deposit" class="rounded"><span class="text-xs text-gray-300">🏦 Deposits</span></label>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2 border-t border-white/5">
+                                <button onclick="testChannelNotification('slack')" class="text-[9px] font-bold text-green-400 hover:text-green-300 transition uppercase tracking-wider flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Send Test
+                                </button>
+                                <span id="aff-slack-test-status" class="text-[9px] text-gray-600"></span>
+                                <div class="flex-1"></div>
+                                <button onclick="saveChannelSettings('slack')" class="btn-gradient px-4 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Save Slack
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ WHATSAPP NOTIFICATIONS ═══════ -->
+            <div class="mt-8 border-t border-white/5 pt-8" id="whatsapp-section">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        WhatsApp Notifications
+                    </h3>
+                    <div id="whatsapp-status-badge"></div>
+                </div>
+                <!-- LOCKED -->
+                <div id="whatsapp-locked-state" class="rounded-2xl p-6 border border-white/5 bg-white/[0.02]">
+                    <div class="flex flex-col items-center text-center py-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-400 mb-2">WhatsApp Not Available</h4>
+                        <p class="text-xs text-gray-600 max-w-sm">WhatsApp notifications are not enabled for your account yet. Contact your account manager to unlock this feature.</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>Requires admin activation</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- UNLOCKED -->
+                <div id="whatsapp-unlocked-state" class="hidden">
+                    <div class="rounded-2xl p-6 border border-emerald-500/10 bg-emerald-500/[0.03]">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">WhatsApp API</h4>
+                                <p class="text-[10px] text-gray-500">Receive alerts on your phone via WhatsApp</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">API URL</label>
+                                <input type="text" id="aff-whatsapp-api-url" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono" placeholder="https://api.whatsapp.com/...">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">API Key</label>
+                                <input type="password" id="aff-whatsapp-api-key" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono" placeholder="Your API key (optional)">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Phone Number</label>
+                                <input type="text" id="aff-whatsapp-phone" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono" placeholder="+1234567890">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2 block">Notify me about</label>
+                                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-whatsapp-evt-commission" checked class="rounded"><span class="text-xs text-gray-300">💰 Commissions</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-whatsapp-evt-payout" checked class="rounded"><span class="text-xs text-gray-300">💸 Payouts</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-whatsapp-evt-registration" class="rounded"><span class="text-xs text-gray-300">👤 Registrations</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-whatsapp-evt-deposit" class="rounded"><span class="text-xs text-gray-300">🏦 Deposits</span></label>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2 border-t border-white/5">
+                                <button onclick="testChannelNotification('whatsapp')" class="text-[9px] font-bold text-emerald-400 hover:text-emerald-300 transition uppercase tracking-wider flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Send Test
+                                </button>
+                                <span id="aff-whatsapp-test-status" class="text-[9px] text-gray-600"></span>
+                                <div class="flex-1"></div>
+                                <button onclick="saveChannelSettings('whatsapp')" class="btn-gradient px-4 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Save WhatsApp
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════ EMAIL NOTIFICATIONS ═══════ -->
+            <div class="mt-8 border-t border-white/5 pt-8" id="email-section">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Email Notifications
+                    </h3>
+                    <div id="email-status-badge"></div>
+                </div>
+                <!-- LOCKED -->
+                <div id="email-locked-state" class="rounded-2xl p-6 border border-white/5 bg-white/[0.02]">
+                    <div class="flex flex-col items-center text-center py-6">
+                        <div class="w-16 h-16 rounded-2xl bg-gray-500/10 border border-gray-500/20 flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-400 mb-2">Email Alerts Not Available</h4>
+                        <p class="text-xs text-gray-600 max-w-sm">Email notifications are not enabled for your account yet. Contact your account manager to unlock this feature.</p>
+                        <div class="mt-4 flex items-center gap-2 text-[10px] text-gray-600">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>Requires admin activation</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- UNLOCKED -->
+                <div id="email-unlocked-state" class="hidden">
+                    <div class="rounded-2xl p-6 border border-amber-500/10 bg-amber-500/[0.03]">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                                <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold text-white">Email Alerts</h4>
+                                <p class="text-[10px] text-gray-500">Receive notifications to your inbox</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Email Address</label>
+                                <input type="email" id="aff-email-address" class="form-input text-xs px-3 py-2.5 rounded-lg w-full font-mono" placeholder="you@example.com">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2 block">Notify me about</label>
+                                <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-email-evt-commission" checked class="rounded"><span class="text-xs text-gray-300">💰 Commissions</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-email-evt-payout" checked class="rounded"><span class="text-xs text-gray-300">💸 Payouts</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-email-evt-registration" class="rounded"><span class="text-xs text-gray-300">👤 Registrations</span></label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="aff-email-evt-deposit" class="rounded"><span class="text-xs text-gray-300">🏦 Deposits</span></label>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 pt-2 border-t border-white/5">
+                                <button onclick="testChannelNotification('email')" class="text-[9px] font-bold text-amber-400 hover:text-amber-300 transition uppercase tracking-wider flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Send Test
+                                </button>
+                                <span id="aff-email-test-status" class="text-[9px] text-gray-600"></span>
+                                <div class="flex-1"></div>
+                                <button onclick="saveChannelSettings('email')" class="btn-gradient px-4 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Save Email
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end glass-panel -->
+        </div><!-- end tab-notifications -->
+
+        <!-- ═══ KYC & PASSWORD (part of General tab) ═══ -->
+        <div id="tab-general-extra">
+        <div class="glass-panel p-8 rounded-2xl border border-white/5">
+
             <!-- KYC Verification Section -->
-            <div class="mt-10 border-t border-white/5 pt-10" id="kyc-section">
+            <div id="kyc-section">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                         <svg class="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -391,13 +876,78 @@
              <div class="mt-8 pt-6 border-t border-white/5 flex justify-end">
                 <button id="save-settings" class="btn-gradient px-8 py-3 rounded-xl shadow-lg shadow-brand-500/20 text-xs font-bold text-white uppercase tracking-wider hover:opacity-90 transition transform active:scale-95" data-i18n="set.saveChanges">Save Changes</button>
             </div>
+        </div><!-- end glass-panel -->
+        </div><!-- end tab-general-extra -->
+
+        <!-- ═══ CONTRACTS TAB ═══ -->
+        <div id="tab-contracts" class="hidden">
+        <div class="glass-panel p-8 rounded-2xl border border-white/5">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Contracts &amp; Agreements</h3>
+                    <p class="text-[11px] text-gray-500">Review and sign contracts assigned to your account.</p>
+                </div>
+            </div>
+            <div id="contract-gate-warning" class="hidden mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <div>
+                    <p class="text-xs font-bold text-amber-400">Action Required</p>
+                    <p class="text-[11px] text-amber-300/80 mt-0.5">You must sign all pending contracts before you can access your deals and tracking links.</p>
+                </div>
+            </div>
+            <div id="contracts-aff-loading" class="text-center py-12 text-gray-500 text-xs">Loading contracts...</div>
+            <div id="contracts-aff-empty" class="hidden text-center py-16">
+                <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-7 h-7 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <p class="text-gray-500 text-xs">No contracts assigned to you yet.</p>
+            </div>
+            <div id="contracts-aff-list" class="hidden space-y-4"></div>
         </div>
+        </div><!-- end tab-contracts -->
 
     </main>
     <script src="js/theme.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
+    <script>
+        // ── Settings Tab Switching ──
+        function switchSettingsTab(tab) {
+            const tabGeneral = document.getElementById('tab-general');
+            const tabGeneralExtra = document.getElementById('tab-general-extra');
+            const tabNotifications = document.getElementById('tab-notifications');
+            const tabContracts = document.getElementById('tab-contracts');
+            const btnGeneral = document.getElementById('tab-btn-general');
+            const btnNotifications = document.getElementById('tab-btn-notifications');
+            const btnContracts = document.getElementById('tab-btn-contracts');
+
+            const activeClasses = 'bg-brand-500/20 text-brand-500 border border-brand-500/30';
+            const inactiveClasses = 'text-gray-500 hover:text-gray-300 hover:bg-white/5';
+
+            // Hide all
+            [tabGeneral, tabGeneralExtra, tabNotifications].forEach(el => el && el.classList.add('hidden'));
+            if (tabContracts) tabContracts.classList.add('hidden');
+            [btnGeneral, btnNotifications].forEach(btn => btn && (btn.className = 'px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ' + inactiveClasses));
+            if (btnContracts) btnContracts.className = 'px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 relative ' + inactiveClasses;
+
+            if (tab === 'general') {
+                tabGeneral.classList.remove('hidden');
+                tabGeneralExtra.classList.remove('hidden');
+                btnGeneral.className = 'px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ' + activeClasses;
+            } else if (tab === 'notifications') {
+                tabNotifications.classList.remove('hidden');
+                btnNotifications.className = 'px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ' + activeClasses;
+            } else if (tab === 'contracts') {
+                if (tabContracts) tabContracts.classList.remove('hidden');
+                if (btnContracts) btnContracts.className = 'px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 relative ' + activeClasses;
+                loadAffiliateContracts();
+            }
+        }
+    </script>
     <script>
         // --- KYC Doc Type Custom Dropdown ---
         (function() {
@@ -487,10 +1037,29 @@
                         if (s.address_state && stateInput) stateInput.value = s.address_state;
                         if (s.address_zip && zipInput) zipInput.value = s.address_zip;
                         if (s.address_country && countryInput) {
-                            countryInput.value = s.address_country;
+                            // Resolve code to full name (e.g. 'TG' -> 'Togo')
+                            const resolvedName = typeof window._resolveCountryName === 'function' 
+                                ? window._resolveCountryName(s.address_country) 
+                                : s.address_country;
+                            countryInput.value = resolvedName;
                             // Set flag emoji directly without opening the dropdown
                             if (typeof window._setCountryFlag === 'function') {
                                 window._setCountryFlag(s.address_country);
+                            }
+                            // Lock country field for non-admin users (set during signup)
+                            const jwt = localStorage.getItem(BRAND._lsKey('jwt'));
+                            let isAdmin = false;
+                            try { if (jwt) { const p = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); isAdmin = !!p.is_admin; } } catch(_){}
+                            if (!isAdmin) {
+                                countryInput.readOnly = true;
+                                countryInput.style.opacity = '0.7';
+                                countryInput.style.cursor = 'not-allowed';
+                                countryInput.title = 'Country is set from your registration. Contact admin to change.';
+                                // Hide the dropdown on focus
+                                countryInput.addEventListener('focus', function(e) {
+                                    const dd = document.getElementById('country-dropdown');
+                                    if (dd) dd.classList.add('hidden');
+                                });
                             }
                         }
                         if (s.avatar_seed) {
@@ -516,6 +1085,13 @@
                         }
                         // Auto-payout toggle state
                         loadAutoPayoutState(s);
+                        // Telegram state
+                        loadAffiliateTelegramState();
+                        // Other notification channels
+                        loadChannelState('discord');
+                        loadChannelState('slack');
+                        loadChannelState('whatsapp');
+                        loadChannelState('email');
                     }
                 }).catch(err => {
                     console.warn("[Settings] Could not load saved settings:", err.message);
@@ -553,12 +1129,19 @@
             const flagEl = document.getElementById('country-flag');
             if (!input || !dd || !flagEl) return;
 
-            function setFlag(name) {
-                const c = COUNTRIES.find(x => x.n.toLowerCase() === (name || '').toLowerCase());
+            function setFlag(nameOrCode) {
+                const val = (nameOrCode || '').trim();
+                const c = COUNTRIES.find(x => x.n.toLowerCase() === val.toLowerCase() || x.c.toLowerCase() === val.toLowerCase());
                 flagEl.textContent = c ? c.f : '';
             }
             // Expose globally so settings loader can set flag without opening dropdown
             window._setCountryFlag = setFlag;
+            // Resolve country code to full name
+            window._resolveCountryName = function(nameOrCode) {
+                const val = (nameOrCode || '').trim();
+                const c = COUNTRIES.find(x => x.n.toLowerCase() === val.toLowerCase() || x.c.toLowerCase() === val.toLowerCase());
+                return c ? c.n : val;
+            };
 
             function render(list) {
                 if (!list.length) { dd.classList.add('hidden'); return; }
@@ -749,7 +1332,7 @@
                  // Also save to localStorage as instant cache
                  const email = document.getElementById('settings-email').value.trim();
                  const settingsCache = { displayName, email, avatarSeed, paymentMethod, walletAddress, phone, address_street, address_city, address_state, address_zip, address_country };
-                 localStorage.setItem('tfxs_settings', JSON.stringify(settingsCache));
+                 localStorage.setItem(BRAND._lsKey('settings'), JSON.stringify(settingsCache));
 
                  // Update nav on this page
                  const navName = document.querySelector('nav .text-sm.font-bold');
@@ -773,7 +1356,7 @@
                  // Still save to localStorage as fallback
                  const emailFallback = document.getElementById('settings-email').value.trim();
                  const settingsCache = { displayName, email: emailFallback, avatarSeed, paymentMethod, walletAddress };
-                 localStorage.setItem('tfxs_settings', JSON.stringify(settingsCache));
+                 localStorage.setItem(BRAND._lsKey('settings'), JSON.stringify(settingsCache));
 
                  if (typeof showToast === 'function') showToast("Saved locally — backend sync will retry", "info");
              }
@@ -883,6 +1466,266 @@
             renderAutoPayoutToggle();
         }
 
+        // ═══════ AFFILIATE TELEGRAM FUNCTIONS ═══════
+
+        async function loadAffiliateTelegramState() {
+            const API = window.TFXS_API;
+            if (!API) return;
+            try {
+                const res = await API.apiGet('/api/telegram-settings');
+                if (!res || !res.ok) return;
+                const d = res.data || {};
+                const locked = document.getElementById('tg-locked-state');
+                const unlocked = document.getElementById('tg-unlocked-state');
+                const badge = document.getElementById('tg-status-badge');
+
+                if (d.telegram_unlocked) {
+                    // Show unlocked state
+                    if (locked) locked.classList.add('hidden');
+                    if (unlocked) unlocked.classList.remove('hidden');
+                    if (badge) badge.innerHTML = '<span class="text-[9px] font-bold px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/20 uppercase">Enabled</span>';
+                    // Fill fields
+                    const tokenInput = document.getElementById('aff-tg-bot-token');
+                    const chatInput = document.getElementById('aff-tg-chat-id');
+                    if (tokenInput) tokenInput.value = d.telegram_bot_token || '';
+                    if (chatInput) chatInput.value = d.telegram_chat_id || '';
+                    // Events
+                    const events = d.telegram_events || ['commission', 'payout_processed'];
+                    const evtComm = document.getElementById('aff-tg-evt-commission');
+                    const evtPay = document.getElementById('aff-tg-evt-payout');
+                    const evtReg = document.getElementById('aff-tg-evt-registration');
+                    const evtDep = document.getElementById('aff-tg-evt-deposit');
+                    if (evtComm) evtComm.checked = events.includes('commission');
+                    if (evtPay) evtPay.checked = events.includes('payout_processed');
+                    if (evtReg) evtReg.checked = events.includes('registration');
+                    if (evtDep) evtDep.checked = events.includes('deposit');
+                } else {
+                    // Locked
+                    if (locked) locked.classList.remove('hidden');
+                    if (unlocked) unlocked.classList.add('hidden');
+                    if (badge) badge.innerHTML = '<span class="text-[9px] font-bold px-2 py-1 rounded-full bg-gray-500/20 text-gray-500 border border-gray-500/20 uppercase">Locked</span>';
+                }
+            } catch (err) {
+                console.warn('[TG Settings]', err.message);
+            }
+        }
+
+        async function saveAffiliateTelegram() {
+            const API = window.TFXS_API;
+            if (!API) return;
+            const events = [];
+            if (document.getElementById('aff-tg-evt-commission')?.checked) events.push('commission');
+            if (document.getElementById('aff-tg-evt-payout')?.checked) events.push('payout_processed');
+            if (document.getElementById('aff-tg-evt-registration')?.checked) events.push('registration');
+            if (document.getElementById('aff-tg-evt-deposit')?.checked) events.push('deposit');
+
+            try {
+                const res = await API.apiSend('PUT', '/api/telegram-settings', {
+                    bot_token: document.getElementById('aff-tg-bot-token')?.value.trim() || '',
+                    chat_id: document.getElementById('aff-tg-chat-id')?.value.trim() || '',
+                    enabled: true,
+                    events
+                });
+                if (res?.ok) {
+                    if (typeof showToast === 'function') showToast('Telegram settings saved!', 'success');
+                } else {
+                    throw new Error(res?.error || 'Save failed');
+                }
+            } catch (err) {
+                if (typeof showToast === 'function') showToast(err.message || 'Could not save', 'error');
+            }
+        }
+
+        async function testAffiliateTelegram() {
+            const API = window.TFXS_API;
+            if (!API) return;
+            const token = document.getElementById('aff-tg-bot-token')?.value.trim();
+            const chatId = document.getElementById('aff-tg-chat-id')?.value.trim();
+            const statusEl = document.getElementById('aff-tg-test-status');
+            if (!token) { if (typeof showToast === 'function') showToast('Enter a bot token first', 'error'); return; }
+            if (!chatId) { if (typeof showToast === 'function') showToast('Enter a chat ID first', 'error'); return; }
+            if (statusEl) { statusEl.textContent = 'Sending...'; statusEl.className = 'text-[9px] text-yellow-400'; }
+            try {
+                const res = await API.apiSend('POST', '/api/telegram-settings/test', { bot_token: token, chat_id: chatId });
+                if (res?.ok) {
+                    if (statusEl) { statusEl.textContent = '✔ Sent!'; statusEl.className = 'text-[9px] text-green-400'; }
+                    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+                } else {
+                    throw new Error(res?.error || 'Test failed');
+                }
+            } catch (err) {
+                if (statusEl) { statusEl.textContent = '✘ ' + (err.message || 'Failed'); statusEl.className = 'text-[9px] text-red-400'; }
+            }
+        }
+
+        async function discoverTelegramGroups() {
+            const API = window.TFXS_API;
+            if (!API) return;
+            const token = document.getElementById('aff-tg-bot-token')?.value.trim();
+            if (!token) { if (typeof showToast === 'function') showToast('Enter a bot token first', 'error'); return; }
+            const btn = document.getElementById('tg-discover-btn');
+            const list = document.getElementById('tg-groups-list');
+            if (btn) btn.textContent = 'Searching...';
+            try {
+                const res = await API.apiSend('POST', '/api/telegram-settings/discover-groups', { bot_token: token });
+                if (!res?.ok) throw new Error(res?.error || 'Failed');
+                const groups = res.groups || [];
+                if (!groups.length) {
+                    if (list) { list.innerHTML = '<div class="px-3 py-3 text-xs text-gray-500 text-center">No groups found. Make sure your bot is added to a group and someone has sent a message.</div>'; list.classList.remove('hidden'); }
+                } else {
+                    if (list) {
+                        list.innerHTML = groups.map(g => `
+                            <div class="px-3 py-2.5 text-xs hover:bg-white/10 cursor-pointer transition flex items-center justify-between border-b border-white/5 last:border-0" onclick="selectTelegramGroup('${g.id}')">
+                                <span class="text-white font-medium">${g.title}</span>
+                                <span class="text-gray-500 font-mono text-[10px]">${g.id}</span>
+                            </div>
+                        `).join('');
+                        list.classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                if (list) { list.innerHTML = `<div class="px-3 py-3 text-xs text-red-400 text-center">${err.message || 'Error discovering groups'}</div>`; list.classList.remove('hidden'); }
+            }
+            if (btn) btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg> Find Groups';
+        }
+
+        function selectTelegramGroup(chatId) {
+            const input = document.getElementById('aff-tg-chat-id');
+            if (input) input.value = chatId;
+            const list = document.getElementById('tg-groups-list');
+            if (list) list.classList.add('hidden');
+            if (typeof showToast === 'function') showToast('Group selected!', 'success');
+        }
+
+        function toggleTgTokenVisibility() {
+            const input = document.getElementById('aff-tg-bot-token');
+            const svg = document.getElementById('tg-eye-icon');
+            if (!input) return;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            if (svg) {
+                svg.innerHTML = isPassword
+                    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18"/>'
+                    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+            }
+        }
+
+        function openTelegramTutorial() {
+            document.getElementById('telegram-tutorial-modal')?.classList.remove('hidden');
+        }
+
+        function closeTelegramTutorial() {
+            document.getElementById('telegram-tutorial-modal')?.classList.add('hidden');
+        }
+
+        // ═══════ GENERIC CHANNEL FUNCTIONS (Discord, Slack, WhatsApp, Email) ═══════
+
+        const CHANNEL_FIELD_MAP = {
+            discord: { fields: ['webhook_url'], inputs: { webhook_url: 'aff-discord-webhook' } },
+            slack: { fields: ['webhook_url'], inputs: { webhook_url: 'aff-slack-webhook' } },
+            whatsapp: { fields: ['api_url', 'api_key', 'phone_number'], inputs: { api_url: 'aff-whatsapp-api-url', api_key: 'aff-whatsapp-api-key', phone_number: 'aff-whatsapp-phone' } },
+            email: { fields: ['email_address'], inputs: { email_address: 'aff-email-address' } }
+        };
+
+        async function loadChannelState(channel) {
+            const API = window.TFXS_API;
+            if (!API) return;
+            try {
+                const res = await API.apiGet(`/api/channel-settings/${channel}`);
+                if (!res || !res.ok) return;
+                const d = res.data || {};
+                const locked = document.getElementById(`${channel}-locked-state`);
+                const unlocked = document.getElementById(`${channel}-unlocked-state`);
+                const badge = document.getElementById(`${channel}-status-badge`);
+
+                const colors = { discord: 'indigo', slack: 'green', whatsapp: 'emerald', email: 'amber' };
+                const color = colors[channel] || 'blue';
+
+                if (d.unlocked) {
+                    if (locked) locked.classList.add('hidden');
+                    if (unlocked) unlocked.classList.remove('hidden');
+                    if (badge) badge.innerHTML = `<span class="text-[9px] font-bold px-2 py-1 rounded-full bg-${color}-500/20 text-${color}-400 border border-${color}-500/20 uppercase">Enabled</span>`;
+                    // Fill fields
+                    const map = CHANNEL_FIELD_MAP[channel];
+                    if (map) {
+                        map.fields.forEach(f => {
+                            const el = document.getElementById(map.inputs[f]);
+                            if (el && d[f]) el.value = d[f];
+                        });
+                    }
+                    // Events
+                    const events = d.events || ['commission', 'payout_processed'];
+                    const prefix = `aff-${channel}-evt-`;
+                    const evtMap = { commission: 'commission', payout: 'payout_processed', registration: 'registration', deposit: 'deposit' };
+                    Object.keys(evtMap).forEach(key => {
+                        const el = document.getElementById(prefix + key);
+                        if (el) el.checked = events.includes(evtMap[key]);
+                    });
+                } else {
+                    if (locked) locked.classList.remove('hidden');
+                    if (unlocked) unlocked.classList.add('hidden');
+                    if (badge) badge.innerHTML = '<span class="text-[9px] font-bold px-2 py-1 rounded-full bg-gray-500/20 text-gray-500 border border-gray-500/20 uppercase">Locked</span>';
+                }
+            } catch (err) {
+                console.warn(`[${channel}] load error:`, err.message);
+            }
+        }
+
+        async function saveChannelSettings(channel) {
+            const API = window.TFXS_API;
+            if (!API) return;
+            const map = CHANNEL_FIELD_MAP[channel];
+            if (!map) return;
+            const body = { enabled: true, events: [] };
+            // Collect field values
+            map.fields.forEach(f => {
+                const el = document.getElementById(map.inputs[f]);
+                if (el) body[f] = el.value.trim();
+            });
+            // Collect events
+            const prefix = `aff-${channel}-evt-`;
+            const evtMap = { commission: 'commission', payout: 'payout_processed', registration: 'registration', deposit: 'deposit' };
+            Object.keys(evtMap).forEach(key => {
+                const el = document.getElementById(prefix + key);
+                if (el && el.checked) body.events.push(evtMap[key]);
+            });
+            try {
+                const res = await API.apiSend('PUT', `/api/channel-settings/${channel}`, body);
+                if (res?.ok) {
+                    if (typeof showToast === 'function') showToast(`${channel.charAt(0).toUpperCase() + channel.slice(1)} settings saved!`, 'success');
+                } else {
+                    throw new Error(res?.error || 'Save failed');
+                }
+            } catch (err) {
+                if (typeof showToast === 'function') showToast(err.message || 'Could not save', 'error');
+            }
+        }
+
+        async function testChannelNotification(channel) {
+            const API = window.TFXS_API;
+            if (!API) return;
+            const map = CHANNEL_FIELD_MAP[channel];
+            if (!map) return;
+            const body = {};
+            map.fields.forEach(f => {
+                const el = document.getElementById(map.inputs[f]);
+                if (el) body[f] = el.value.trim();
+            });
+            const statusEl = document.getElementById(`aff-${channel}-test-status`);
+            if (statusEl) { statusEl.textContent = 'Sending...'; statusEl.className = 'text-[9px] text-yellow-400'; }
+            try {
+                const res = await API.apiSend('POST', `/api/channel-settings/${channel}/test`, body);
+                if (res?.ok) {
+                    if (statusEl) { statusEl.textContent = '✔ Sent!'; statusEl.className = 'text-[9px] text-green-400'; }
+                    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+                } else {
+                    throw new Error(res?.error || 'Test failed');
+                }
+            } catch (err) {
+                if (statusEl) { statusEl.textContent = '✘ ' + (err.message || 'Failed'); statusEl.className = 'text-[9px] text-red-400'; }
+            }
+        }
+
         // --- KYC Logic ---
         const kycImages = []; // base64 array
 
@@ -937,7 +1780,7 @@
             btn.textContent = 'Uploading...';
             btn.disabled = true;
             try {
-                const jwt = localStorage.getItem('tfxs_jwt');
+                const jwt = localStorage.getItem(BRAND._lsKey('jwt'));
                 const res = await fetch(`${API_BASE}/api/kyc/submit`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
@@ -959,7 +1802,7 @@
             const statusBox = document.getElementById('kyc-status-box');
             const uploadForm = document.getElementById('kyc-upload-form');
             try {
-                const jwt = localStorage.getItem('tfxs_jwt');
+                const jwt = localStorage.getItem(BRAND._lsKey('jwt'));
                 const res = await fetch(`${API_BASE}/api/kyc/status`, {
                     headers: { 'Authorization': `Bearer ${jwt}` }
                 });
@@ -1090,6 +1933,125 @@
 
         updateServerTime();
         setInterval(updateServerTime, 1000);
+    </script>
+    <!-- ── Affiliate Contract Engine ── -->
+    <script>
+    let _affContracts = [];
+
+    async function loadAffiliateContracts() {
+        const loading = document.getElementById('contracts-aff-loading');
+        const empty = document.getElementById('contracts-aff-empty');
+        const list = document.getElementById('contracts-aff-list');
+        const warning = document.getElementById('contract-gate-warning');
+        const badge = document.getElementById('contracts-pending-badge');
+        if (loading) loading.classList.remove('hidden');
+        if (empty) empty.classList.add('hidden');
+        if (list) { list.classList.add('hidden'); list.innerHTML = ''; }
+        if (warning) warning.classList.add('hidden');
+        try {
+            const API_BASE = (window.PLATFORM_API || window.TFXS_API)?.API_BASE || (window.BRAND && BRAND.urls.api) || '';
+            const jwt = localStorage.getItem((window.BRAND ? BRAND._lsKey('jwt') : 'tfxs_jwt'));
+            const res = await fetch(API_BASE + '/api/my-contracts', {
+                headers: { 'Authorization': 'Bearer ' + jwt, 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'Failed to load');
+            _affContracts = data.data || [];
+            if (loading) loading.classList.add('hidden');
+            if (!_affContracts.length) { if (empty) empty.classList.remove('hidden'); return; }
+            const pending = _affContracts.filter(c => c.status === 'pending');
+            const lockingPending = pending.filter(c => c.require_before_links);
+            if (lockingPending.length && warning) warning.classList.remove('hidden');
+            if (badge) { badge.textContent = pending.length > 0 ? '!' : ''; badge.classList.toggle('hidden', pending.length === 0); }
+            list.innerHTML = _affContracts.map(c => {
+                const isPending = c.status === 'pending';
+                const statusHtml = isPending
+                    ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-400 uppercase">Pending Signature</span>`
+                    : `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-green-500/20 text-green-400 uppercase">\u2713 Signed</span>`;
+                const lockHtml = c.require_before_links && isPending
+                    ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/20 text-red-400 uppercase">Locks Deals</span>`
+                    : '';
+                return `<div class="rounded-2xl p-5 border ${isPending ? 'border-amber-500/20 bg-amber-500/[0.03]' : 'border-green-500/10 bg-green-500/[0.02]'}">
+                    <div class="flex items-start justify-between gap-3 flex-wrap mb-3">
+                        <div>
+                            <h4 class="text-sm font-semibold text-white">${_esc(c.title || 'Contract')}</h4>
+                            <p class="text-[10px] text-gray-500 mt-0.5">Assigned ${_fmtDate(c.assigned_at)}${c.signed_at ? ' \u00b7 Signed ' + _fmtDate(c.signed_at) : ''}</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">${statusHtml}${lockHtml}</div>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <button onclick="viewAffContract('${c.id}')" class="flex items-center gap-1.5 text-[10px] font-bold text-brand-400 hover:text-brand-300 transition uppercase tracking-wider">Read Contract</button>
+                        ${isPending ? `<button onclick="signAffContract('${c.id}')" id="sign-btn-${c.id}" class="btn-gradient px-4 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider">Sign &amp; Accept</button>` : `<span class="text-[10px] text-green-400">\u2713 Completed</span>`}
+                    </div>
+                </div>`;
+            }).join('');
+            list.classList.remove('hidden');
+        } catch (e) {
+            if (loading) loading.classList.add('hidden');
+            if (empty) { empty.classList.remove('hidden'); empty.querySelector('p').textContent = 'Error: ' + e.message; }
+        }
+    }
+
+    function _esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function _fmtDate(d) { if (!d) return '\u2014'; return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+
+    async function viewAffContract(assignmentId) {
+        const API_BASE = (window.PLATFORM_API || window.TFXS_API)?.API_BASE || (window.BRAND && BRAND.urls.api) || '';
+        const jwt = localStorage.getItem((window.BRAND ? BRAND._lsKey('jwt') : 'tfxs_jwt'));
+        try {
+            const res = await fetch(API_BASE + '/api/my-contracts/' + assignmentId, { headers: { 'Authorization': 'Bearer ' + jwt } });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error);
+            const c = data.data;
+            const text = c.rendered_content || c.contracts?.content || 'No content available.';
+            const title = c.contracts?.title || 'Contract';
+            let modal = document.getElementById('aff-contract-view-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'aff-contract-view-modal';
+                modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center p-4';
+                modal.style.cssText = 'background:rgba(0,0,0,0.8);backdrop-filter:blur(4px)';
+                modal.innerHTML = `<div class="glass-panel rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"><div class="flex items-center justify-between mb-4"><h3 id="acvm-title" class="text-sm font-bold text-white uppercase tracking-wider"></h3><button onclick="this.closest('#aff-contract-view-modal').remove()" class="text-gray-500 hover:text-white transition"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div><div id="acvm-content" class="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-mono bg-white/[0.02] border border-white/5 rounded-xl p-4 max-h-[60vh] overflow-y-auto"></div><button onclick="this.closest('#aff-contract-view-modal').remove()" class="w-full mt-4 py-2.5 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10 hover:bg-white/5 transition uppercase tracking-wider">Close</button></div>`;
+                document.body.appendChild(modal);
+            }
+            document.getElementById('acvm-title').textContent = title;
+            document.getElementById('acvm-content').textContent = text;
+        } catch (e) { alert('Could not load contract: ' + e.message); }
+    }
+
+    async function signAffContract(assignmentId) {
+        const btn = document.getElementById('sign-btn-' + assignmentId);
+        if (!confirm('By clicking OK, you confirm that you have read and agree to the terms of this contract. This action cannot be undone.')) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Signing...'; }
+        const API_BASE = (window.PLATFORM_API || window.TFXS_API)?.API_BASE || (window.BRAND && BRAND.urls.api) || '';
+        const jwt = localStorage.getItem((window.BRAND ? BRAND._lsKey('jwt') : 'tfxs_jwt'));
+        try {
+            const res = await fetch(API_BASE + '/api/contracts/' + assignmentId + '/sign', {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + jwt, 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error);
+            loadAffiliateContracts();
+        } catch (e) {
+            if (btn) { btn.disabled = false; btn.textContent = 'Sign & Accept'; }
+            alert('Signing failed: ' + e.message);
+        }
+    }
+
+    (async function() {
+        try {
+            const API_BASE = (window.PLATFORM_API || window.TFXS_API)?.API_BASE || (window.BRAND && BRAND.urls.api) || '';
+            const jwt = localStorage.getItem((window.BRAND ? BRAND._lsKey('jwt') : 'tfxs_jwt'));
+            if (!jwt) return;
+            const res = await fetch(API_BASE + '/api/my-contracts', { headers: { 'Authorization': 'Bearer ' + jwt } });
+            const data = await res.json();
+            if (data.ok) {
+                const pending = (data.data || []).filter(c => c.status === 'pending').length;
+                const badge = document.getElementById('contracts-pending-badge');
+                if (badge && pending > 0) badge.classList.remove('hidden');
+            }
+        } catch (_) {}
+    })();
     </script>
     <script src="js/settings-loader.js"></script>
     <script src="js/app.js"></script>
