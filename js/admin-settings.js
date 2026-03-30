@@ -4743,9 +4743,6 @@ function renderContractsList(list) {
 async function openContractModal(id) {
   $("contract-modal-id").value = id || "";
   $("contract-modal-title").textContent = id ? "Edit Contract" : "New Contract Template";
-async function openContractModal(id) {
-  $("contract-modal-id").value = id || "";
-  $("contract-modal-title").textContent = id ? "Edit Contract" : "New Contract Template";
   // Load deals for the multi-deal picker
   if (!_contractsDealsCache.length) {
     try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); } catch (_) {}

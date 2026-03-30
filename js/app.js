@@ -93,6 +93,7 @@ async function buildNotifications() {
     let dismissed = [];
     let events = null;
     let adminPending = null; // { pending_affiliates, pending_kyc }
+    let pendingContracts = []; // contracts pending signature
 
     const isAdmin = localStorage.getItem('is_admin') === 'true';
 
@@ -100,15 +101,18 @@ async function buildNotifications() {
     if (API) {
         try {
             const affiliateId = API.getAffiliateId();
-            // Fetch events + dismissed (+ admin pending) in parallel
+            // Fetch events + dismissed (+ admin pending + contracts) in parallel
             const promises = [
                 API.fetchNotifications(affiliateId).catch(() => null),
                 API.fetchDismissedNotifications(affiliateId).catch(() => null)
             ];
             if (isAdmin) {
                 promises.push(API.apiGet('/admin/pending-count').catch(() => null));
+            } else {
+                promises.push(null); // placeholder
             }
-            const [eventsRes, dismissedRes, pendingRes] = await Promise.all(promises);
+            promises.push(API.apiGet('/api/my-contracts').catch(() => null));
+            const [eventsRes, dismissedRes, pendingRes, contractsRes] = await Promise.all(promises);
 
             if (eventsRes && eventsRes.ok) events = eventsRes.data;
             // Merge backend + localStorage dismissed (backend may fail if table missing)
@@ -116,6 +120,9 @@ async function buildNotifications() {
             const localDismissed = JSON.parse(localStorage.getItem('notif-dismissed') || '[]');
             dismissed = [...new Set([...backendDismissed, ...localDismissed])];
             if (pendingRes && pendingRes.ok) adminPending = pendingRes;
+            if (contractsRes && contractsRes.ok) {
+                pendingContracts = (contractsRes.data || []).filter(c => c.status === 'pending');
+            }
         } catch (e) {
             console.warn("[Notif] Backend fetch failed, using local data");
             dismissed = JSON.parse(localStorage.getItem('notif-dismissed') || '[]');
@@ -225,22 +232,41 @@ async function buildNotifications() {
         }
     }
 
-    // Update badge count (unread = items from last 7 days that are not dismissed + admin pending items)
+    // Update badge count (unread = items from last 7 days + admin pending + pending contracts)
     const weekAgo = new Date(now.getTime() - 7 * 86400000);
-    const unreadCount = top.filter(n => n.date >= weekAgo).length + adminItems.length;
+    const unreadCount = top.filter(n => n.date >= weekAgo).length + adminItems.length + pendingContracts.length;
     const badge = document.getElementById('notif-badge');
     if (badge) {
         badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
         badge.style.display = unreadCount > 0 ? 'flex' : 'none';
     }
 
-    if (top.length === 0 && adminItems.length === 0) {
+    if (top.length === 0 && adminItems.length === 0 && pendingContracts.length === 0) {
         list.innerHTML = '<div class="text-xs text-gray-500 text-center py-4">No new notifications</div>';
         return;
     }
 
-    // ── Render admin pending items first (pinned, not dismissible) ──
     const esc = (window.TFXS_API && window.TFXS_API.escapeHtml) || (s => s);
+
+    // ── Render pending contract items first (pinned, not dismissible) ──
+    pendingContracts.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'flex gap-2.5 items-start py-2.5 px-2 -mx-2 border-b border-white/5 cursor-pointer hover:bg-white/5 rounded-lg transition-all';
+        item.innerHTML = `
+            <div style="width:20px;height:20px;border-radius:50%;background:rgba(220,38,38,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;font-size:11px">📋</div>
+            <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-center gap-2">
+                    <span class="text-[11px] font-semibold text-white truncate">${esc(c.title || 'Contract')}</span>
+                    <span class="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 uppercase whitespace-nowrap">Sign</span>
+                </div>
+                <p class="text-[10px] text-gray-400">Pending your signature — click to review</p>
+            </div>
+        `;
+        item.addEventListener('click', () => { window.location.href = '/settings#contracts'; });
+        list.appendChild(item);
+    });
+
+    // ── Render admin pending items (pinned, not dismissible) ──
     adminItems.forEach(a => {
         const item = document.createElement('div');
         item.className = 'flex gap-2.5 items-start py-2.5 px-2 -mx-2 border-b border-white/5 cursor-pointer hover:bg-white/5 rounded-lg transition-all';
@@ -412,6 +438,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Build notifications on load (for badge count)
     setTimeout(buildNotifications, 300);
+
+    // ── SSE: real-time contract notification listener ──
+    const _sseAPI = window.TFXS_API;
+    if (_sseAPI) {
+        try {
+            const _sseBase = _sseAPI.API_BASE || '';
+            const _sseJwt = localStorage.getItem(_sseAPI._lsKey ? _sseAPI._lsKey('jwt') : 'tfxs_jwt') || localStorage.getItem('tfxs_jwt') || '';
+            if (_sseJwt) {
+                const _es = new EventSource(`${_sseBase}/api/notifications/stream?token=${encodeURIComponent(_sseJwt)}`);
+                _es.addEventListener('new-contract', () => {
+                    buildNotifications();
+                    if (typeof playNotifSound === 'function') playNotifSound(660, 0.06, 0.18);
+                });
+                // Auto-close after 10min to avoid stale connections
+                setTimeout(() => { try { _es.close(); } catch(_) {} }, 600000);
+            }
+        } catch (_) {}
+    }
 
     // === MOBILE MENU TOGGLE (works on all pages) ===
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
