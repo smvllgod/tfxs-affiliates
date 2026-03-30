@@ -55,11 +55,27 @@ function copyBrokerLink(btn, link) {
 
   async function loadDeals() {
     try {
-      const res = await fetchDeals(affiliateId);
-      if (!res.ok) throw new Error("Backend error");
+      const jwt = localStorage.getItem(window.BRAND ? window.BRAND._lsKey('jwt') : 'tfxs_jwt') || '';
+      const API_BASE = (window.PLATFORM_API || window.TFXS_API)?.API_BASE || (window.BRAND && window.BRAND.urls?.api) || '';
+      const [dealsRes, contractsRes] = await Promise.allSettled([
+        fetchDeals(affiliateId),
+        fetch(API_BASE + '/api/my-contracts', { headers: { 'Authorization': 'Bearer ' + jwt } })
+          .then(r => r.json()).catch(() => ({ ok: false }))
+      ]);
+      if (dealsRes.status === 'rejected' || !dealsRes.value?.ok) throw new Error("Backend error");
       hideError();
       removeConnectingOverlay();
-      renderDeals(res.data || []);
+      // Build set of locked deal IDs (deals on pending/unsigned contracts)
+      const lockedDealIds = new Set();
+      if (contractsRes.status === 'fulfilled' && contractsRes.value?.ok) {
+        (contractsRes.value.data || [])
+          .filter(c => c.status === 'pending')
+          .forEach(c => {
+            const ids = c.deal_ids || (c.deal_id ? [c.deal_id] : []);
+            ids.forEach(id => lockedDealIds.add(String(id)));
+          });
+      }
+      renderDeals(dealsRes.value.data || [], lockedDealIds);
     } catch (err) {
       console.warn("[TFXS Deals] API unreachable:", err.message);
       removeConnectingOverlay();
@@ -88,7 +104,7 @@ function copyBrokerLink(btn, link) {
       </div>`;
   }
 
-  function renderDeals(deals) {
+  function renderDeals(deals, lockedDealIds = new Set()) {
     const container = document.getElementById("deals-container");
     if (!container) return;
 
@@ -112,7 +128,7 @@ function copyBrokerLink(btn, link) {
         const accent = deal.broker_theme_color
           ? buildAccentFromHex(deal.broker_theme_color)
           : fallbackAccent;
-        html += renderDealCard(deal, broker, accent);
+        html += renderDealCard(deal, broker, accent, lockedDealIds);
       });
     });
     container.innerHTML = html;
@@ -136,7 +152,7 @@ function copyBrokerLink(btn, link) {
     };
   }
 
-  function renderDealCard(deal, broker, accent) {
+  function renderDealCard(deal, broker, accent, lockedDealIds = new Set()) {
     const h = escapeHtml;
     const isDynamic = !!accent._hex;
     const brokerLogo = deal.broker_logo || deal.logo_url;
@@ -198,11 +214,18 @@ function copyBrokerLink(btn, link) {
                 <span class="text-[10px] text-gray-500 uppercase font-bold block mb-1">Type</span>
                 <span class="text-sm font-mono font-bold text-white">${h(dealType)}</span>
               </div>
-              ${deal.broker_link ? `<button onclick="copyBrokerLink(this, '${h(deal.broker_link).replace(/'/g, "\\'")}')"
-                class="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white px-3 py-2.5 rounded-lg transition-all duration-200 group">
-                <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                <span class="text-[11px] font-bold uppercase tracking-wider copy-label">Copy Broker Link</span>
-              </button>` : ''}
+              ${deal.broker_link
+                ? lockedDealIds.has(String(deal.id))
+                  ? `<div class="w-full flex items-center gap-2 bg-amber-500/5 border border-amber-500/20 text-amber-400/70 px-3 py-2.5 rounded-lg cursor-not-allowed select-none" title="Sign your pending contract to unlock this link">
+                      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                      <span class="text-[11px] font-bold uppercase tracking-wider">Link Locked — Sign Contract</span>
+                    </div>`
+                  : `<button onclick="copyBrokerLink(this, '${h(deal.broker_link).replace(/'/g, "\\'")}')"
+                    class="w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white px-3 py-2.5 rounded-lg transition-all duration-200 group">
+                    <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                    <span class="text-[11px] font-bold uppercase tracking-wider copy-label">Copy Broker Link</span>
+                  </button>`
+                : ''}
             </div>
           </div>
           ${tiersHtml}

@@ -2355,11 +2355,21 @@
                         <input type="text" id="contract-title" class="form-input w-full px-4 py-3 rounded-xl text-sm" placeholder="e.g. CPA Affiliate Agreement">
                     </div>
                     <div>
-                        <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Linked Deal <span class="text-gray-700 normal-case font-normal">(optional)</span></label>
-                        <select id="contract-deal-id" class="form-input w-full px-3 py-3 rounded-xl text-sm" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:white">
-                            <option value="" style="background:#111">&mdash; None &mdash;</option>
-                        </select>
+                        <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Linked Deals <span class="text-gray-700 normal-case font-normal">(optional, multi-select)</span></label>
+                        <div id="contract-deals-picker" class="max-h-32 overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-2 space-y-1 text-xs text-gray-400">
+                            <p class="text-center py-2 text-gray-600 text-[10px]">Loading deals…</p>
+                        </div>
                     </div>
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1 block">Admin Signature <span class="text-gray-700 normal-case font-normal">(optional — appears in signed contract)</span></label>
+                    <div class="flex items-center gap-3">
+                        <input type="file" id="contract-admin-sig-file" accept="image/*" class="hidden" onchange="previewAdminSig(this)">
+                        <button onclick="document.getElementById('contract-admin-sig-file').click()" class="px-3 py-2 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10 hover:bg-white/5 transition uppercase tracking-wider">Upload Signature</button>
+                        <span id="contract-admin-sig-name" class="text-[10px] text-gray-600 truncate">No file selected</span>
+                        <img id="contract-admin-sig-preview" src="" alt="sig" class="hidden h-8 max-w-[120px] object-contain rounded border border-white/10">
+                    </div>
+                    <input type="hidden" id="contract-admin-sig-data">
                 </div>
                 <div>
                     <div class="flex items-center justify-between mb-1">
@@ -2450,7 +2460,7 @@
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div id="contract-preview-content" class="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-mono bg-white/[0.02] border border-white/5 rounded-xl p-4 max-h-[55vh] overflow-y-auto"></div>
+            <div id="contract-preview-content" class="text-xs text-gray-300 leading-relaxed bg-white/[0.02] border border-white/5 rounded-xl p-4 max-h-[55vh] overflow-y-auto"></div>
             <button onclick="closeModal('contract-preview-modal')" class="mt-4 w-full py-2.5 rounded-xl text-xs font-bold text-gray-500 border border-white/10 hover:bg-white/5 transition uppercase tracking-wider">Close</button>
         </div>
     </div>
@@ -2464,7 +2474,7 @@
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            <div id="view-contract-content" class="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap font-mono bg-white/[0.02] border border-white/5 rounded-xl p-4 max-h-[60vh] overflow-y-auto"></div>
+            <div id="view-contract-content" class="text-xs text-gray-300 leading-relaxed bg-white/[0.02] border border-white/5 rounded-xl p-4 max-h-[60vh] overflow-y-auto"></div>
             <div class="mt-4 flex gap-3">
                 <button onclick="closeModal('view-contract-modal')" class="w-full py-3 rounded-xl text-xs font-bold text-gray-400 border border-white/10 hover:bg-white/5 transition uppercase tracking-wider">Close</button>
             </div>

@@ -97,6 +97,14 @@ async function api(path, opts = {}) {
   try {
     const res = await fetch(API + path, { ...opts, headers });
     const json = await res.json().catch(() => null);
+    if (res.status === 401) {
+      // JWT expired/invalid — clear session and redirect to login
+      localStorage.removeItem(_LS_A("jwt"));
+      localStorage.removeItem(_LS_A("is_admin"));
+      toast("Session expired. Please log in again.", "warn");
+      setTimeout(() => { window.location.href = "/login.html"; }, 1500);
+      throw new Error("Session expired");
+    }
     if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`);
     return json;
   } catch (e) {
@@ -4168,24 +4176,456 @@ let _contractsDealsCache = [];
 const CONTRACT_TEMPLATES = {
   cpa_agreement: {
     name: "CPA Affiliate Agreement",
-    description: "Standard CPA commission agreement between broker and affiliate.",
-    icon: "📄",
-    title: "CPA Affiliate Agreement",
-    content: "CPA AFFILIATE AGREEMENT\n\nThis CPA Affiliate Agreement (\"Agreement\") is entered into as of {{Date}} between {{BrokerName}} (\"Company\") and {{AffiliateName}} (\"Affiliate\").\n\n1. APPOINTMENT\nThe Company appoints the Affiliate as a non-exclusive independent marketing affiliate to promote the Company's services under the {{DealName}} program.\n\n2. COMMISSION\nThe Affiliate shall earn a CPA commission of {{Commission}} per Qualified Client introduced who meets the qualification criteria defined by the Company.\n\n3. QUALIFICATION CRITERIA\nA \"Qualified Client\" must:\n- Register a live account through the Affiliate's referral link;\n- Make a minimum first deposit of {{MinDeposit}};\n- Complete the required trading activity as specified.\n\n4. PAYMENT TERMS\nCommissions are calculated monthly and paid within 30 days of month close, subject to verification and fraud review.\n\n5. AFFILIATE OBLIGATIONS\nThe Affiliate agrees to:\n- Promote services honestly and in compliance with applicable laws;\n- Not engage in fraudulent, misleading, or abusive marketing;\n- Maintain an active and compliant marketing channel.\n\n6. CONFIDENTIALITY\nThe Affiliate shall keep all non-public Company information strictly confidential.\n\n7. TERM AND TERMINATION\nThis Agreement commences on {{Date}} and may be terminated by either party with 30 days written notice, or immediately for cause.\n\n8. INDEPENDENT CONTRACTOR\nThe Affiliate is an independent contractor, not an employee or agent of the Company.\n\nBy signing, the Affiliate confirms they have read and agreed to all terms.\n\nAffiliate: {{AffiliateName}}\nDate: {{Date}}"
+    description: "Full professional CPA commission agreement with representations, warranties, and compliance clauses.",
+    icon: `<svg class="w-5 h-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`,
+    title: "CPA Affiliate Marketing Agreement",
+    content: `CPA AFFILIATE MARKETING AGREEMENT
+
+This CPA Affiliate Marketing Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
+
+THE FOREX SKYLINE ("Company"), a financial services marketing platform operating at theforexskyline.com; and
+
+{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the TFXS Affiliates Platform.
+
+RECITALS
+
+WHEREAS, the Company operates an affiliate marketing programme in connection with regulated financial brokers; and
+
+WHEREAS, the Affiliate desires to participate in the Company's affiliate programme on the terms and conditions set forth herein;
+
+NOW, THEREFORE, in consideration of the mutual covenants contained herein, the parties agree as follows:
+
+─────────────────────────────────────────
+ARTICLE 1 — DEFINITIONS
+─────────────────────────────────────────
+
+1.1 "Qualified Client" means a new, unique individual who (i) registers a live trading account through the Affiliate's unique tracking link, (ii) makes a minimum qualifying deposit as defined in Appendix A, and (iii) satisfies any additional trading activity requirements specified by the Broker.
+
+1.2 "Commission" means the cost-per-acquisition fee payable per Qualified Client, as detailed in Appendix A of this Agreement.
+
+1.3 "Tracking Link" means the unique URL assigned to the Affiliate through the TFXS Platform for the purpose of referral attribution.
+
+1.4 "Platform" means the TFXS Affiliates management system accessible at affiliates.theforexskyline.com.
+
+─────────────────────────────────────────
+ARTICLE 2 — APPOINTMENT
+─────────────────────────────────────────
+
+2.1 The Company hereby appoints the Affiliate as a non-exclusive, independent marketing affiliate to promote the services of the Broker identified in Appendix A under the {{DealName}} programme.
+
+2.2 Nothing in this Agreement shall be construed to create an employment, partnership, joint venture, or agency relationship between the parties.
+
+─────────────────────────────────────────
+ARTICLE 3 — COMPENSATION
+─────────────────────────────────────────
+
+3.1 Subject to the terms herein, the Company shall pay the Affiliate a Commission for each Qualified Client introduced during the term of this Agreement. The full compensation structure is detailed in Appendix A.
+
+3.2 Commission rates are calculated on a per-calendar-month basis and are subject to fraud review, chargeback adjustments, and applicable withholding requirements.
+
+3.3 The Company reserves the right to modify Commission rates with 14 days' written notice. Continued participation after such notice constitutes acceptance.
+
+─────────────────────────────────────────
+ARTICLE 4 — PAYMENT TERMS
+─────────────────────────────────────────
+
+4.1 Commissions are calculated and verified by the 5th business day of the following month for all Qualified Clients confirmed during the preceding calendar month.
+
+4.2 Payment shall be made within 30 days of month-end confirmation via the payment method registered on the Platform, subject to a minimum payout threshold of $100 USD (or equivalent).
+
+4.3 The Company may withhold payment pending investigation of any suspected fraud, abuse, or policy violation.
+
+─────────────────────────────────────────
+ARTICLE 5 — AFFILIATE OBLIGATIONS
+─────────────────────────────────────────
+
+5.1 The Affiliate agrees to:
+(a) promote the Broker's services truthfully, accurately, and in compliance with all applicable laws and regulations;
+(b) not make any representations about potential investment returns or guaranteed profits;
+(c) clearly disclose the affiliate relationship in all marketing materials;
+(d) not target restricted jurisdictions or individuals classified as vulnerable persons;
+(e) not engage in spam, unsolicited communications, or fraudulent click generation;
+(f) maintain an active, compliant, and verifiable marketing channel throughout the term.
+
+5.2 The Affiliate shall not create, publish, or distribute marketing materials that could be deemed misleading, defamatory, or otherwise harmful to the Company or Broker brand.
+
+─────────────────────────────────────────
+ARTICLE 6 — REPRESENTATIONS AND WARRANTIES
+─────────────────────────────────────────
+
+6.1 The Affiliate represents and warrants that:
+(a) they have the legal capacity to enter into this Agreement;
+(b) the execution and performance of this Agreement do not violate any applicable law or existing contractual obligation;
+(c) all information provided to the Company is accurate and complete;
+(d) they will comply with all applicable data protection, privacy, and financial promotion regulations.
+
+─────────────────────────────────────────
+ARTICLE 7 — REGULATORY COMPLIANCE
+─────────────────────────────────────────
+
+7.1 The Affiliate acknowledges that the promotion of financial services is subject to regulatory requirements in many jurisdictions. The Affiliate shall:
+(a) obtain any required regulatory approvals or permissions before commencing marketing activities;
+(b) comply with the financial promotion rules of any jurisdiction in which they operate;
+(c) promptly notify the Company of any regulatory inquiry or complaint related to their affiliate activities.
+
+7.2 The Company may suspend or terminate this Agreement immediately and without notice if it determines that the Affiliate's activities create a regulatory risk.
+
+─────────────────────────────────────────
+ARTICLE 8 — INTELLECTUAL PROPERTY
+─────────────────────────────────────────
+
+8.1 The Company grants the Affiliate a limited, non-exclusive, non-transferable licence to use approved marketing materials, logos, and brand assets solely for the purpose of promoting the Broker under this Agreement.
+
+8.2 The Affiliate shall not modify, sublicence, or use any Company or Broker intellectual property outside the scope of this Agreement.
+
+─────────────────────────────────────────
+ARTICLE 9 — CONFIDENTIALITY
+─────────────────────────────────────────
+
+9.1 Each party agrees to keep confidential all non-public information disclosed by the other party, including but not limited to: commission structures, client data, marketing strategies, technology, and business plans.
+
+9.2 This obligation of confidentiality shall survive the termination of this Agreement for a period of 3 (three) years.
+
+─────────────────────────────────────────
+ARTICLE 10 — DATA PROTECTION
+─────────────────────────────────────────
+
+10.1 The Affiliate shall process any personal data in connection with this Agreement in compliance with applicable data protection legislation, including the GDPR where applicable.
+
+10.2 The Affiliate shall not store, transfer, or use referral client data for any purpose other than the fulfilment of this Agreement.
+
+─────────────────────────────────────────
+ARTICLE 11 — TERM AND TERMINATION
+─────────────────────────────────────────
+
+11.1 This Agreement commences on the Effective Date and continues indefinitely unless terminated in accordance with this Article.
+
+11.2 Either party may terminate this Agreement for convenience with 30 (thirty) days' written notice.
+
+11.3 The Company may terminate this Agreement immediately, without notice and without liability, in the event of:
+(a) the Affiliate's material breach of any provision herein;
+(b) suspected or confirmed fraudulent activity;
+(c) regulatory directive or legal requirement.
+
+11.4 Upon termination, the Affiliate's Tracking Link will be deactivated. Commissions already verified and due for payment shall remain payable in accordance with Article 4.
+
+─────────────────────────────────────────
+ARTICLE 12 — LIMITATION OF LIABILITY
+─────────────────────────────────────────
+
+12.1 TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COMPANY'S AGGREGATE LIABILITY TO THE AFFILIATE UNDER THIS AGREEMENT SHALL NOT EXCEED THE TOTAL COMMISSIONS PAID TO THE AFFILIATE IN THE 3 MONTHS PRECEDING THE CLAIM.
+
+12.2 IN NO EVENT SHALL EITHER PARTY BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES.
+
+─────────────────────────────────────────
+ARTICLE 13 — INDEMNIFICATION
+─────────────────────────────────────────
+
+13.1 The Affiliate agrees to indemnify and hold harmless the Company, its officers, directors, employees, and agents from and against any claims, damages, losses, or expenses (including reasonable legal fees) arising from: (a) the Affiliate's breach of this Agreement; (b) the Affiliate's marketing activities; or (c) the Affiliate's violation of any applicable law.
+
+─────────────────────────────────────────
+ARTICLE 14 — GOVERNING LAW AND DISPUTES
+─────────────────────────────────────────
+
+14.1 This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which the Company operates, without regard to its conflict of law provisions.
+
+14.2 Any dispute arising out of or in connection with this Agreement shall first be subject to good-faith negotiation between the parties. If unresolved within 30 days, the dispute shall be referred to binding arbitration under the rules of a mutually agreed arbitration body.
+
+─────────────────────────────────────────
+ARTICLE 15 — MISCELLANEOUS
+─────────────────────────────────────────
+
+15.1 Entire Agreement. This Agreement, together with Appendix A, constitutes the entire agreement between the parties with respect to its subject matter and supersedes all prior agreements, representations, and understandings.
+
+15.2 Amendments. This Agreement may only be amended by a written instrument signed by authorised representatives of both parties.
+
+15.3 Severability. If any provision of this Agreement is held invalid or unenforceable, the remaining provisions shall continue in full force and effect.
+
+15.4 Waiver. Failure to enforce any provision of this Agreement shall not constitute a waiver of the right to do so in the future.
+
+15.5 Notices. All notices under this Agreement shall be delivered via email to the addresses registered on the TFXS Platform, or as otherwise notified in writing.
+
+─────────────────────────────────────────
+
+The compensation structure applicable to this Agreement is set forth in Appendix A, which is incorporated herein by reference.
+
+AFFILIATE: {{AffiliateName}}
+DATE: {{Date}}`
+  },
+  revenue_share: {
+    name: "Revenue Share Agreement",
+    description: "RevShare agreement: affiliate earns a percentage of ongoing client revenue.",
+    icon: `<svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    title: "Revenue Share Affiliate Agreement",
+    content: `REVENUE SHARE AFFILIATE AGREEMENT
+
+This Revenue Share Affiliate Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
+
+THE FOREX SKYLINE ("Company"), a financial services marketing platform; and
+
+{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the TFXS Affiliates Platform.
+
+─────────────────────────────────────────
+ARTICLE 1 — REVENUE SHARE PROGRAMME
+─────────────────────────────────────────
+
+1.1 Subject to the terms herein, the Company shall pay the Affiliate a percentage of the net revenue generated by Referred Clients in connection with the {{DealName}} programme with {{BrokerName}}.
+
+1.2 "Referred Client" means a new, unique individual who registers a live account through the Affiliate's Tracking Link and generates net revenue for the Broker.
+
+1.3 "Net Revenue" means the gross revenue generated by Referred Clients less bonuses, refunds, adjustments, and applicable processing fees, as calculated by the Broker.
+
+─────────────────────────────────────────
+ARTICLE 2 — REVENUE SHARE RATE
+─────────────────────────────────────────
+
+2.1 The applicable revenue share rate and any tiers, caps, or minimums are detailed in Appendix A of this Agreement.
+
+2.2 Revenue share payments are calculated on a monthly basis. The Company shall provide monthly commission statements via the Platform by the 10th business day of the following month.
+
+2.3 Revenue share rates may be revised by the Company with 14 days' notice. Rates apply to revenue generated after the effective date of any change.
+
+─────────────────────────────────────────
+ARTICLE 3 — PAYMENT TERMS
+─────────────────────────────────────────
+
+3.1 Payments shall be made monthly, within 30 days of month-end settlement confirmation, via the payment method registered on the Platform.
+
+3.2 A minimum monthly payout threshold of $100 USD applies. Amounts below this threshold are carried forward to the following month.
+
+3.3 The Company reserves the right to withhold payment pending investigation of any disputed activity, fraud, or policy breach.
+
+─────────────────────────────────────────
+ARTICLE 4 — AFFILIATE OBLIGATIONS
+─────────────────────────────────────────
+
+4.1 The Affiliate shall:
+(a) promote the Broker's services truthfully, accurately, and in compliance with all applicable laws;
+(b) not make any representations about guaranteed returns or investment performance;
+(c) clearly disclose the affiliate relationship in all promotional materials;
+(d) not engage in abusive, deceptive, or unsolicited marketing practices.
+
+─────────────────────────────────────────
+ARTICLE 5 — TERM, TERMINATION AND CLAWBACK
+─────────────────────────────────────────
+
+5.1 This Agreement commences on the Effective Date and continues until terminated by either party with 30 days' written notice.
+
+5.2 Upon termination, revenue share on Referred Clients acquired before the termination date shall continue to accrue for a period not exceeding 90 days post-termination, subject to any outstanding fraud or compliance review.
+
+5.3 The Company may apply a clawback to previously paid commissions where a Referred Client's activity is subsequently found to be fraudulent, abusive, or in breach of the Broker's terms.
+
+─────────────────────────────────────────
+ARTICLE 6 — REGULATORY COMPLIANCE AND DATA PROTECTION
+─────────────────────────────────────────
+
+6.1 The Affiliate shall comply with all applicable financial promotion, data protection, and anti-money laundering regulations.
+
+6.2 The Affiliate shall process any personal data in connection with this Agreement in compliance with applicable data protection legislation, including the GDPR where applicable, and shall not share, sell, or use Referred Client data for any unauthorised purpose.
+
+─────────────────────────────────────────
+ARTICLE 7 — CONFIDENTIALITY
+─────────────────────────────────────────
+
+7.1 Each party agrees to keep confidential all non-public information disclosed by the other party, including revenue share rates, client data, and trading volumes. This obligation survives termination for 3 years.
+
+─────────────────────────────────────────
+ARTICLE 8 — LIMITATION OF LIABILITY AND GOVERNING LAW
+─────────────────────────────────────────
+
+8.1 The Company's aggregate liability shall not exceed total commissions paid in the preceding 3 months. Neither party shall be liable for indirect or consequential losses.
+
+8.2 This Agreement is governed by the laws applicable to the Company's operating jurisdiction. Disputes shall be resolved by binding arbitration following a 30-day good-faith negotiation period.
+
+─────────────────────────────────────────
+
+The full revenue share rate structure is set out in Appendix A, incorporated herein by reference.
+
+AFFILIATE: {{AffiliateName}}
+DATE: {{Date}}`
   },
   exclusivity: {
-    name: "Exclusivity Agreement",
-    description: "Exclusive partnership — affiliate promotes this broker only.",
-    icon: "🔒",
-    title: "Exclusivity Agreement",
-    content: "EXCLUSIVITY AGREEMENT\n\nThis Exclusivity Agreement (\"Agreement\") is entered into as of {{Date}} between {{BrokerName}} (\"Company\") and {{AffiliateName}} (\"Affiliate\").\n\n1. EXCLUSIVE PARTNERSHIP\nThe Affiliate agrees to exclusively promote the Company's trading services under the {{DealName}} program and shall not promote competing brokers or platforms without prior written consent.\n\n2. EXCLUSIVE BENEFITS\nIn consideration for exclusivity, the Company offers:\n- Priority CPA commission of {{Commission}} per Qualified Client;\n- Dedicated account manager and priority support;\n- Early access to new promotions and marketing materials.\n\n3. DEFINITION OF COMPETING SERVICES\n\"Competing Services\" means any online trading, investment, or brokerage service that directly competes with the Company's core offerings.\n\n4. AFFILIATE OBLIGATIONS\nThe Affiliate shall:\n- Actively promote the Company's services in good faith;\n- Report any conflicts of interest promptly;\n- Maintain compliance with all applicable marketing regulations.\n\n5. BREACH\nAny breach of the exclusivity clause entitles the Company to terminate this Agreement and withhold commissions earned after the date of breach.\n\n6. TERM\nThis Agreement is effective from {{Date}} and may be renewed annually by mutual written agreement.\n\nAffiliate: {{AffiliateName}}\nCompany: {{BrokerName}}\nDate: {{Date}}"
+    name: "Exclusivity & Non-Compete Agreement",
+    description: "Exclusive partnership — affiliate promotes this broker only; enhanced commissions in exchange.",
+    icon: `<svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`,
+    title: "Exclusivity & Non-Compete Agreement",
+    content: `EXCLUSIVITY AND NON-COMPETE AGREEMENT
+
+This Exclusivity and Non-Compete Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
+
+THE FOREX SKYLINE ("Company"), a financial services marketing platform; and
+
+{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the TFXS Affiliates Platform.
+
+RECITALS
+
+WHEREAS, the Company provides exclusive affiliate arrangements to select partners who agree to dedicate their marketing activities to promoting the designated Broker; and
+
+WHEREAS, in exchange for exclusivity, the Company offers the Affiliate enhanced commission structures and premium support;
+
+NOW, THEREFORE, the parties agree as follows:
+
+─────────────────────────────────────────
+ARTICLE 1 — EXCLUSIVE PARTNERSHIP
+─────────────────────────────────────────
+
+1.1 The Affiliate agrees to exclusively promote the services of {{BrokerName}} under the {{DealName}} programme as detailed in Appendix A, and shall not, during the term of this Agreement, directly or indirectly promote, market, or introduce clients to any Competing Service without the prior written consent of the Company.
+
+1.2 "Competing Service" means any online forex, CFD, cryptocurrency, or financial trading brokerage, platform, or service that is competitive with the Broker's core business operations.
+
+─────────────────────────────────────────
+ARTICLE 2 — ENHANCED COMPENSATION
+─────────────────────────────────────────
+
+2.1 In consideration for the exclusivity commitment, the Company shall offer the Affiliate the enhanced compensation structure set out in Appendix A, which may include priority CPA tiers, revenue share bonuses, or accelerated payment schedules.
+
+2.2 Enhanced compensation is conditional upon the Affiliate maintaining compliance with the exclusivity obligations in Article 1 at all times.
+
+─────────────────────────────────────────
+ARTICLE 3 — AFFILIATE OBLIGATIONS
+─────────────────────────────────────────
+
+3.1 The Affiliate shall:
+(a) actively and in good faith promote the Broker's services throughout the term;
+(b) immediately disclose any potential conflict of interest in writing;
+(c) comply with all applicable laws, regulations, and financial promotion rules;
+(d) not redirect, cloak, or otherwise manipulate Tracking Links in any way.
+
+─────────────────────────────────────────
+ARTICLE 4 — NON-SOLICITATION
+─────────────────────────────────────────
+
+4.1 During the term and for a period of 6 (six) months following termination, the Affiliate shall not solicit, recruit, or facilitate the migration of any Referred Client to any Competing Service.
+
+─────────────────────────────────────────
+ARTICLE 5 — BREACH AND REMEDIES
+─────────────────────────────────────────
+
+5.1 Any material breach of the exclusivity or non-compete provisions of this Agreement shall entitle the Company to:
+(a) immediately terminate this Agreement without notice;
+(b) withhold and reclaim all commissions earned from the date of breach; and
+(c) seek injunctive relief and damages in a court of competent jurisdiction.
+
+─────────────────────────────────────────
+ARTICLE 6 — TERM
+─────────────────────────────────────────
+
+6.1 This Agreement is effective from the Effective Date and shall remain in force for a minimum term of 12 (twelve) months, thereafter renewing automatically on a 12-month basis unless either party provides 60 days' written notice of non-renewal.
+
+─────────────────────────────────────────
+ARTICLE 7 — REPRESENTATIONS AND WARRANTIES
+─────────────────────────────────────────
+
+7.1 The Affiliate represents and warrants that entering into this exclusivity arrangement does not conflict with any existing agreement to which the Affiliate is a party.
+
+─────────────────────────────────────────
+ARTICLE 8 — CONFIDENTIALITY AND DATA PROTECTION
+─────────────────────────────────────────
+
+8.1 The Affiliate shall keep all non-public Company and Broker information strictly confidential. This obligation survives termination for 3 years.
+
+8.2 The Affiliate shall comply with all applicable data protection regulations, including the GDPR where applicable.
+
+─────────────────────────────────────────
+ARTICLE 9 — GOVERNING LAW
+─────────────────────────────────────────
+
+9.1 This Agreement is governed by the laws applicable to the Company's operating jurisdiction. Disputes shall be resolved by binding arbitration following a 30-day negotiation period.
+
+─────────────────────────────────────────
+
+The compensation structure and deal specifics are set out in Appendix A, incorporated herein by reference.
+
+AFFILIATE: {{AffiliateName}}
+COMPANY: {{BrokerName}}
+DATE: {{Date}}`
   },
   nda: {
     name: "Non-Disclosure Agreement (NDA)",
-    description: "Protects confidential information shared with the affiliate.",
-    icon: "🔐",
-    title: "Non-Disclosure Agreement",
-    content: "NON-DISCLOSURE AGREEMENT\n\nThis Non-Disclosure Agreement (\"NDA\") is entered into as of {{Date}} between {{BrokerName}} (\"Disclosing Party\") and {{AffiliateName}} (\"Receiving Party\").\n\n1. CONFIDENTIAL INFORMATION\n\"Confidential Information\" includes all non-public information disclosed by the Disclosing Party, including but not limited to: commission structures, client data, marketing strategies, technology, business plans, and information related to the {{DealName}} program.\n\n2. OBLIGATIONS\nThe Receiving Party agrees to:\n- Hold all Confidential Information in strict confidence;\n- Use Confidential Information solely for the purpose of the affiliate partnership;\n- Not disclose Confidential Information to any third party without prior written consent;\n- Take reasonable security precautions to prevent unauthorized disclosure.\n\n3. EXCLUSIONS\nThis NDA does not apply to information that:\n- Is or becomes publicly available through no breach of this Agreement;\n- Was already known to the Receiving Party prior to disclosure;\n- Is required to be disclosed by law or valid court order.\n\n4. TERM\nThis Agreement is effective from {{Date}} and remains in force for 2 (two) years, or until terminated by mutual agreement.\n\n5. REMEDIES\nThe parties acknowledge that breach may cause irreparable harm, entitling the Disclosing Party to seek injunctive relief.\n\nAffiliate: {{AffiliateName}}\nDate: {{Date}}"
+    description: "Mutual NDA protecting confidential information shared in connection with the affiliate relationship.",
+    icon: `<svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>`,
+    title: "Mutual Non-Disclosure Agreement",
+    content: `MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Mutual Non-Disclosure Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
+
+THE FOREX SKYLINE ("Company"), a financial services marketing platform operating at theforexskyline.com; and
+
+{{AffiliateName}} ("Affiliate"), an independent marketing partner.
+
+RECITALS
+
+WHEREAS, the parties intend to enter into or have entered into an affiliate marketing relationship in connection with the {{DealName}} programme with {{BrokerName}};
+
+WHEREAS, in connection with this relationship, each party may disclose certain Confidential Information to the other;
+
+NOW, THEREFORE, the parties agree as follows:
+
+─────────────────────────────────────────
+ARTICLE 1 — DEFINITION OF CONFIDENTIAL INFORMATION
+─────────────────────────────────────────
+
+1.1 "Confidential Information" means any non-public information disclosed by either party (the "Disclosing Party") to the other (the "Receiving Party"), whether orally, in writing, electronically, or in any other form, that is designated as confidential or that reasonably should be understood to be confidential given the nature of the information and circumstances of disclosure.
+
+1.2 Without limiting the foregoing, Confidential Information includes: commission structures and rate cards, client and referral data, marketing strategies, proprietary technology, source code, business plans, financial projections, and the existence and terms of this Agreement.
+
+─────────────────────────────────────────
+ARTICLE 2 — EXCLUSIONS
+─────────────────────────────────────────
+
+2.1 The obligations in this Agreement do not apply to information that:
+(a) is or becomes publicly available through no act or omission of the Receiving Party;
+(b) was already known to the Receiving Party at the time of disclosure, without restriction;
+(c) is independently developed by the Receiving Party without reference to Confidential Information;
+(d) is required to be disclosed by applicable law, regulation, or valid court or regulatory order, provided the Receiving Party gives the Disclosing Party prompt written notice (where legally permitted) and reasonable assistance to seek a protective order.
+
+─────────────────────────────────────────
+ARTICLE 3 — OBLIGATIONS OF THE RECEIVING PARTY
+─────────────────────────────────────────
+
+3.1 The Receiving Party agrees to:
+(a) hold all Confidential Information in strict confidence using at least the same degree of care it uses to protect its own confidential information, and in no event less than reasonable care;
+(b) use Confidential Information solely for the purpose of evaluating or performing the affiliate marketing relationship described in the Recitals;
+(c) not disclose Confidential Information to any third party without the prior written consent of the Disclosing Party;
+(d) limit access to Confidential Information to those of its personnel who have a genuine need to know and who are bound by confidentiality obligations at least as protective as those in this Agreement;
+(e) promptly notify the Disclosing Party upon becoming aware of any actual or suspected unauthorised disclosure.
+
+─────────────────────────────────────────
+ARTICLE 4 — OWNERSHIP AND RETURN OF INFORMATION
+─────────────────────────────────────────
+
+4.1 All Confidential Information disclosed under this Agreement remains the exclusive property of the Disclosing Party. Nothing in this Agreement grants any licence or right, whether by implication or otherwise, over any intellectual property of the Disclosing Party.
+
+4.2 Upon written request by the Disclosing Party, or upon termination of the relationship, the Receiving Party shall promptly return or securely destroy all Confidential Information and certify in writing that it has done so.
+
+─────────────────────────────────────────
+ARTICLE 5 — TERM
+─────────────────────────────────────────
+
+5.1 This Agreement is effective from the Effective Date and remains in force for the duration of the affiliate relationship and for a period of 3 (three) years thereafter.
+
+─────────────────────────────────────────
+ARTICLE 6 — REMEDIES
+─────────────────────────────────────────
+
+6.1 Each party acknowledges that a breach of this Agreement would cause irreparable harm for which monetary damages would be an inadequate remedy. Accordingly, the Disclosing Party shall be entitled to seek equitable relief, including injunction and specific performance, in addition to all other remedies available at law.
+
+─────────────────────────────────────────
+ARTICLE 7 — GENERAL PROVISIONS
+─────────────────────────────────────────
+
+7.1 This Agreement is governed by the laws applicable to the Company's operating jurisdiction.
+
+7.2 This Agreement constitutes the entire agreement between the parties with respect to the subject matter hereof and supersedes all prior discussions and agreements.
+
+7.3 Any amendment to this Agreement must be in writing and signed by authorised representatives of both parties.
+
+7.4 If any provision of this Agreement is held invalid or unenforceable, the remaining provisions shall continue in full force and effect.
+
+─────────────────────────────────────────
+
+AFFILIATE: {{AffiliateName}}
+DATE: {{Date}}`
   }
 };
 
@@ -4207,7 +4647,7 @@ function openTemplatePickerModal() {
   list.innerHTML = Object.entries(CONTRACT_TEMPLATES).map(([key, t]) => `
     <button onclick="applyContractTemplate('${key}')"
             class="w-full text-left p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-brand-500/30 hover:bg-white/[0.04] transition group flex items-start gap-3">
-      <span class="text-xl mt-0.5 shrink-0">${t.icon}</span>
+      <span class="shrink-0 mt-0.5">${t.icon}</span>
       <div class="flex-1">
         <p class="text-xs font-bold text-white group-hover:text-brand-300 transition">${esc(t.name)}</p>
         <p class="text-[10px] text-gray-500 mt-0.5">${esc(t.description)}</p>
@@ -4265,20 +4705,22 @@ function renderContractsList(list) {
   }
   const el = $("contracts-list");
   el.innerHTML = list.map(c => {
-    const linkedDeal = c.deal_id ? _contractsDealsCache.find(d => d.id === c.deal_id) : null;
+    const dealIds = Array.isArray(c.deal_ids) && c.deal_ids.length ? c.deal_ids : (c.deal_id ? [c.deal_id] : []);
+    const linkedDeals = dealIds.map(did => _contractsDealsCache.find(d => d.id === did)).filter(Boolean);
     const varNames = detectContractVars(c.content);
+    const dealBadges = linkedDeals.map(d => `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-400">🔗 ${esc(d.broker)}</span>`).join("");
     return `
     <div class="glass-panel rounded-2xl p-4 border border-white/5 flex flex-col sm:flex-row sm:items-center gap-3">
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-1 flex-wrap">
           <span class="text-sm font-semibold text-white truncate">${esc(c.title)}</span>
           ${c.require_before_links ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-400 uppercase">Locks Links</span>` : ""}
-          ${linkedDeal ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-400">🔗 ${esc(linkedDeal.broker)}</span>` : ""}
+          ${dealBadges}
           ${varNames.length ? `<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 text-gray-500">${varNames.length} var${varNames.length !== 1 ? "s" : ""}</span>` : ""}
         </div>
         <p class="text-[10px] text-gray-500 line-clamp-2">${esc((c.content || "").substring(0, 120))}${c.content?.length > 120 ? "…" : ""}</p>
         <p class="text-[9px] text-gray-600 mt-1">${fmtDate(c.created_at)}</p>
-      </div>`;
+      </div>
       <div class="flex items-center gap-2 shrink-0">
         <button onclick="viewContractText('${c.id}')" title="Preview" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -4301,36 +4743,67 @@ function renderContractsList(list) {
 async function openContractModal(id) {
   $("contract-modal-id").value = id || "";
   $("contract-modal-title").textContent = id ? "Edit Contract" : "New Contract Template";
-  // Load deals for the linked deal dropdown
-  const dealSel = $("contract-deal-id");
-  if (dealSel) {
-    if (!_contractsDealsCache.length) {
-      try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); } catch (_) {}
-    }
-    dealSel.innerHTML = '<option value="" style="background:#111">— None —</option>' +
-      _contractsDealsCache.map(d => {
-        const label = [d.broker, d.name || d.deal_type || "CPA", d.cpa_amount ? `$${d.cpa_amount}` : ""].filter(Boolean).join(" — ");
-        return `<option value="${d.id}" style="background:#111">${esc(label)}</option>`;
-      }).join("");
+async function openContractModal(id) {
+  $("contract-modal-id").value = id || "";
+  $("contract-modal-title").textContent = id ? "Edit Contract" : "New Contract Template";
+  // Load deals for the multi-deal picker
+  if (!_contractsDealsCache.length) {
+    try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); } catch (_) {}
   }
+  const picker = $("contract-deals-picker");
+  if (picker) {
+    const existingDealIds = id ? (_contractsCache.find(x => x.id === id)?.deal_ids || []) : [];
+    picker.innerHTML = _contractsDealsCache.length
+      ? _contractsDealsCache.map(d => {
+          const label = [d.broker, d.title || d.deal_type || "CPA", d.cpa_amount ? `$${d.cpa_amount}` : ""].filter(Boolean).join(" — ");
+          const checked = existingDealIds.includes(d.id) ? "checked" : "";
+          return `<label class="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-white/5 cursor-pointer">
+            <input type="checkbox" value="${d.id}" class="contract-deal-check w-3.5 h-3.5 rounded accent-brand-500" ${checked}>
+            <span class="text-[11px] text-gray-300">${esc(label)}</span>
+          </label>`;
+        }).join("")
+      : `<p class="text-center py-2 text-gray-600 text-[10px]">No active deals</p>`;
+  }
+  // Reset admin sig preview
+  $("contract-admin-sig-data").value = "";
+  $("contract-admin-sig-name").textContent = "No file selected";
+  $("contract-admin-sig-preview")?.classList.add("hidden");
+
   if (id) {
     const c = _contractsCache.find(x => x.id === id);
     if (c) {
       $("contract-title").value = c.title || "";
       $("contract-content").value = c.content || "";
       $("contract-lock-links").checked = !!c.require_before_links;
-      if (dealSel) dealSel.value = c.deal_id || "";
+      if (c.admin_signature_url) {
+        $("contract-admin-sig-data").value = c.admin_signature_url;
+        $("contract-admin-sig-name").textContent = "Signature on file";
+        const prev = $("contract-admin-sig-preview");
+        if (prev) { prev.src = c.admin_signature_url; prev.classList.remove("hidden"); }
+      }
       updateContractVarsDetected();
     }
   } else {
     $("contract-title").value = "";
     $("contract-content").value = "";
     $("contract-lock-links").checked = false;
-    if (dealSel) dealSel.value = "";
     const varsEl = $("contract-vars-detected");
     if (varsEl) varsEl.textContent = "—";
   }
   openModal("contract-modal");
+}
+
+function previewAdminSig(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  $("contract-admin-sig-name").textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    $("contract-admin-sig-data").value = e.target.result;
+    const prev = $("contract-admin-sig-preview");
+    if (prev) { prev.src = e.target.result; prev.classList.remove("hidden"); }
+  };
+  reader.readAsDataURL(file);
 }
 
 async function saveContract() {
@@ -4338,16 +4811,18 @@ async function saveContract() {
   const title = $("contract-title").value.trim();
   const content = $("contract-content").value.trim();
   const require_before_links = $("contract-lock-links").checked;
-  const deal_id = $("contract-deal-id")?.value || null;
+  const admin_signature_url = $("contract-admin-sig-data")?.value || null;
+  // Collect all checked deal IDs
+  const deal_ids = [...document.querySelectorAll(".contract-deal-check:checked")].map(c => c.value).filter(Boolean);
   if (!title) return toast("Title required", "warn");
   if (!content) return toast("Contract content required", "warn");
   const variables = detectContractVars(content);
   try {
     if (id) {
-      await api(`/admin/contracts/${id}`, { method: "PATCH", body: JSON.stringify({ title, content, require_before_links, deal_id: deal_id || null, variables }) });
+      await api(`/admin/contracts/${id}`, { method: "PATCH", body: JSON.stringify({ title, content, require_before_links, deal_ids, admin_signature_url, variables }) });
       toast("Contract updated");
     } else {
-      await api("/admin/contracts", { method: "POST", body: JSON.stringify({ title, content, require_before_links, deal_id: deal_id || null, variables }) });
+      await api("/admin/contracts", { method: "POST", body: JSON.stringify({ title, content, require_before_links, deal_ids, admin_signature_url, variables }) });
       toast("Contract created");
     }
     closeModal("contract-modal");
@@ -4356,7 +4831,7 @@ async function saveContract() {
 }
 
 async function deleteContract(id) {
-  const confirmed = await confirm2("Delete this contract template? All assignments will also be removed.");
+  const confirmed = await styledConfirm({ title: "Delete Contract", message: "Delete this contract template? All assignments will also be removed.", okText: "Delete", type: "danger" });
   if (!confirmed) return;
   try {
     await api(`/admin/contracts/${id}`, { method: "DELETE" });
@@ -4369,27 +4844,32 @@ function viewContractText(id) {
   const c = _contractsCache.find(x => x.id === id);
   if (!c) return;
   $("view-contract-title").textContent = c.title;
-  $("view-contract-content").textContent = c.content;
+  // Render as HTML: escape and convert newlines
+  const escaped = (c.content || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  $("view-contract-content").innerHTML = `<div style="white-space:pre-wrap;font-family:Georgia,serif;line-height:1.8;font-size:13px">${escaped}</div>`;
   openModal("view-contract-modal");
 }
 
 async function openAssignContractModal(contractId, contractTitle) {
   $("assign-contract-id").value = contractId;
   $("assign-contract-name").textContent = contractTitle;
-  // Detect variables from contract content + pre-fill from linked deal
+  // Detect variables from contract content + pre-fill from first linked deal
   const c = _contractsCache.find(x => x.id === contractId);
   const vars = c ? detectContractVars(c.content) : [];
   const presets = {};
   presets["Date"] = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-  if (c?.deal_id) {
-    let deal = _contractsDealsCache.find(d => d.id === c.deal_id);
-    if (!deal) {
-      try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); deal = _contractsDealsCache.find(d => d.id === c.deal_id); } catch (_) {}
+  // Get deal_ids (multi-deal support)
+  const dealIds = Array.isArray(c?.deal_ids) && c.deal_ids.length ? c.deal_ids : (c?.deal_id ? [c.deal_id] : []);
+  if (dealIds.length) {
+    if (!_contractsDealsCache.length) {
+      try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); } catch (_) {}
     }
-    if (deal) {
-      presets["BrokerName"] = deal.broker || "";
-      presets["DealName"] = deal.name || deal.deal_type || "";
-      presets["Commission"] = deal.cpa_amount ? `$${deal.cpa_amount}` : "";
+    const firstDeal = _contractsDealsCache.find(d => d.id === dealIds[0]);
+    if (firstDeal) {
+      presets["BrokerName"] = firstDeal.broker || "";
+      presets["DealName"] = firstDeal.title || firstDeal.deal_type || "";
+      presets["Commission"] = firstDeal.cpa_amount ? `$${firstDeal.cpa_amount}` : "";
     }
   }
   // Render dynamic variable fields
@@ -4458,8 +4938,14 @@ function previewContract() {
     const val = el.value.trim();
     if (val) variables[el.dataset.varKey] = val;
   });
-  const rendered = c.content.replace(/\{\{(\w+)\}\}/g, (_, k) => variables[k] !== undefined ? variables[k] : `{{${k}}}`);
-  $("contract-preview-content").textContent = rendered;
+  // Render: escape + substitute vars + newlines → <br>
+  const escaped = (c.content || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const rendered = escaped.replace(/\{\{(\w+)\}\}/g, (_, k) =>
+    variables[k] !== undefined
+      ? `<mark style="background:rgba(59,130,246,0.15);color:#93c5fd;padding:0 2px;border-radius:2px">${variables[k].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</mark>`
+      : `<mark style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:0 2px;border-radius:2px">{{${k}}}</mark>`
+  );
+  $("contract-preview-content").innerHTML = `<div style="white-space:pre-wrap;font-family:Georgia,serif;line-height:1.85;font-size:13px">${rendered}</div>`;
   openModal("contract-preview-modal");
 }
 
