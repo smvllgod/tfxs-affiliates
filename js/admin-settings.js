@@ -266,6 +266,15 @@ const tabBtns = document.querySelectorAll(".admin-tab");
 tabBtns.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
 
 function switchTab(name) {
+  if (name === "affiliate-stats") {
+    // Sub-panel: keep affiliates tab active, but swap content to stats
+    tabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === "affiliates"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("hidden", c.id !== "tab-affiliate-stats"));
+    $("conv-bulk-bar")?.classList.add("hidden");
+    $("pay-bulk-bar")?.classList.add("hidden");
+    initAffiliateStatsPanel();
+    return;
+  }
   tabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("hidden", c.id !== "tab-" + name));
   // Hide bulk bars when switching tabs
@@ -273,6 +282,9 @@ function switchTab(name) {
   $("pay-bulk-bar")?.classList.add("hidden");
   loadActiveTab();
 }
+
+// Exposed globally so back-buttons / hash links can call it
+window.switchAdminTab = switchTab;
 
 async function loadActiveTab() {
   const active = document.querySelector(".admin-tab.active")?.dataset.tab;
@@ -3021,7 +3033,7 @@ async function rejectKyc(affiliateId) {
   // Hash-based tab routing (e.g. /admin-settings#kyc, #affiliates, #payouts)
   const hash = window.location.hash.replace("#", "");
   if (hash) {
-    const validTabs = ["affiliates", "deals", "conversions", "payouts", "kyc", "users", "audit", "notifications", "integrations", "analytics"];
+    const validTabs = ["affiliates", "deals", "conversions", "payouts", "kyc", "users", "audit", "notifications", "integrations", "analytics", "affiliate-stats"];
     if (validTabs.includes(hash)) {
       switchTab(hash);
       // If navigating to affiliates from notification, auto-filter pending
@@ -4183,15 +4195,15 @@ const CONTRACT_TEMPLATES = {
 
 This CPA Affiliate Marketing Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
 
-THE FOREX SKYLINE ("Company"), a financial services marketing platform operating at theforexskyline.com; and
+{{BrandName}} ("Company"), a financial services marketing platform; and
 
-{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the TFXS Affiliates Platform.
+{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the {{BrandName}} Affiliates Platform.
 
 RECITALS
 
-WHEREAS, the Company operates an affiliate marketing programme in connection with regulated financial brokers; and
+WHEREAS, the Company operates an affiliate marketing program in connection with regulated financial brokers; and
 
-WHEREAS, the Affiliate desires to participate in the Company's affiliate programme on the terms and conditions set forth herein;
+WHEREAS, the Affiliate desires to participate in the Company's affiliate program on the terms and conditions set forth herein;
 
 NOW, THEREFORE, in consideration of the mutual covenants contained herein, the parties agree as follows:
 
@@ -4203,15 +4215,15 @@ ARTICLE 1 — DEFINITIONS
 
 1.2 "Commission" means the cost-per-acquisition fee payable per Qualified Client, as detailed in Appendix A of this Agreement.
 
-1.3 "Tracking Link" means the unique URL assigned to the Affiliate through the TFXS Platform for the purpose of referral attribution.
+1.3 "Tracking Link" means the unique URL assigned to the Affiliate through the {{BrandName}} Platform for the purpose of referral attribution.
 
-1.4 "Platform" means the TFXS Affiliates management system accessible at affiliates.theforexskyline.com.
+1.4 "Platform" means the {{BrandName}} Affiliates management system accessible at {{BrandSite}}.
 
 ─────────────────────────────────────────
 ARTICLE 2 — APPOINTMENT
 ─────────────────────────────────────────
 
-2.1 The Company hereby appoints the Affiliate as a non-exclusive, independent marketing affiliate to promote the services of the Broker identified in Appendix A under the {{DealName}} programme.
+2.1 The Company hereby appoints the Affiliate as a non-exclusive, independent marketing affiliate to promote the services of the Broker identified in Appendix A under the {{DealName}} program.
 
 2.2 Nothing in this Agreement shall be construed to create an employment, partnership, joint venture, or agency relationship between the parties.
 
@@ -4343,103 +4355,11 @@ ARTICLE 15 — MISCELLANEOUS
 
 15.4 Waiver. Failure to enforce any provision of this Agreement shall not constitute a waiver of the right to do so in the future.
 
-15.5 Notices. All notices under this Agreement shall be delivered via email to the addresses registered on the TFXS Platform, or as otherwise notified in writing.
+15.5 Notices. All notices under this Agreement shall be delivered via email to the addresses registered on the {{BrandName}} Platform, or as otherwise notified in writing.
 
 ─────────────────────────────────────────
 
 The compensation structure applicable to this Agreement is set forth in Appendix A, which is incorporated herein by reference.
-
-AFFILIATE: {{AffiliateName}}
-DATE: {{Date}}`
-  },
-  revenue_share: {
-    name: "Revenue Share Agreement",
-    description: "RevShare agreement: affiliate earns a percentage of ongoing client revenue.",
-    icon: `<svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
-    title: "Revenue Share Affiliate Agreement",
-    content: `REVENUE SHARE AFFILIATE AGREEMENT
-
-This Revenue Share Affiliate Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
-
-THE FOREX SKYLINE ("Company"), a financial services marketing platform; and
-
-{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the TFXS Affiliates Platform.
-
-─────────────────────────────────────────
-ARTICLE 1 — REVENUE SHARE PROGRAMME
-─────────────────────────────────────────
-
-1.1 Subject to the terms herein, the Company shall pay the Affiliate a percentage of the net revenue generated by Referred Clients in connection with the {{DealName}} programme with {{BrokerName}}.
-
-1.2 "Referred Client" means a new, unique individual who registers a live account through the Affiliate's Tracking Link and generates net revenue for the Broker.
-
-1.3 "Net Revenue" means the gross revenue generated by Referred Clients less bonuses, refunds, adjustments, and applicable processing fees, as calculated by the Broker.
-
-─────────────────────────────────────────
-ARTICLE 2 — REVENUE SHARE RATE
-─────────────────────────────────────────
-
-2.1 The applicable revenue share rate and any tiers, caps, or minimums are detailed in Appendix A of this Agreement.
-
-2.2 Revenue share payments are calculated on a monthly basis. The Company shall provide monthly commission statements via the Platform by the 10th business day of the following month.
-
-2.3 Revenue share rates may be revised by the Company with 14 days' notice. Rates apply to revenue generated after the effective date of any change.
-
-─────────────────────────────────────────
-ARTICLE 3 — PAYMENT TERMS
-─────────────────────────────────────────
-
-3.1 Payments shall be made monthly, within 30 days of month-end settlement confirmation, via the payment method registered on the Platform.
-
-3.2 A minimum monthly payout threshold of $100 USD applies. Amounts below this threshold are carried forward to the following month.
-
-3.3 The Company reserves the right to withhold payment pending investigation of any disputed activity, fraud, or policy breach.
-
-─────────────────────────────────────────
-ARTICLE 4 — AFFILIATE OBLIGATIONS
-─────────────────────────────────────────
-
-4.1 The Affiliate shall:
-(a) promote the Broker's services truthfully, accurately, and in compliance with all applicable laws;
-(b) not make any representations about guaranteed returns or investment performance;
-(c) clearly disclose the affiliate relationship in all promotional materials;
-(d) not engage in abusive, deceptive, or unsolicited marketing practices.
-
-─────────────────────────────────────────
-ARTICLE 5 — TERM, TERMINATION AND CLAWBACK
-─────────────────────────────────────────
-
-5.1 This Agreement commences on the Effective Date and continues until terminated by either party with 30 days' written notice.
-
-5.2 Upon termination, revenue share on Referred Clients acquired before the termination date shall continue to accrue for a period not exceeding 90 days post-termination, subject to any outstanding fraud or compliance review.
-
-5.3 The Company may apply a clawback to previously paid commissions where a Referred Client's activity is subsequently found to be fraudulent, abusive, or in breach of the Broker's terms.
-
-─────────────────────────────────────────
-ARTICLE 6 — REGULATORY COMPLIANCE AND DATA PROTECTION
-─────────────────────────────────────────
-
-6.1 The Affiliate shall comply with all applicable financial promotion, data protection, and anti-money laundering regulations.
-
-6.2 The Affiliate shall process any personal data in connection with this Agreement in compliance with applicable data protection legislation, including the GDPR where applicable, and shall not share, sell, or use Referred Client data for any unauthorised purpose.
-
-─────────────────────────────────────────
-ARTICLE 7 — CONFIDENTIALITY
-─────────────────────────────────────────
-
-7.1 Each party agrees to keep confidential all non-public information disclosed by the other party, including revenue share rates, client data, and trading volumes. This obligation survives termination for 3 years.
-
-─────────────────────────────────────────
-ARTICLE 8 — LIMITATION OF LIABILITY AND GOVERNING LAW
-─────────────────────────────────────────
-
-8.1 The Company's aggregate liability shall not exceed total commissions paid in the preceding 3 months. Neither party shall be liable for indirect or consequential losses.
-
-8.2 This Agreement is governed by the laws applicable to the Company's operating jurisdiction. Disputes shall be resolved by binding arbitration following a 30-day good-faith negotiation period.
-
-─────────────────────────────────────────
-
-The full revenue share rate structure is set out in Appendix A, incorporated herein by reference.
 
 AFFILIATE: {{AffiliateName}}
 DATE: {{Date}}`
@@ -4453,9 +4373,9 @@ DATE: {{Date}}`
 
 This Exclusivity and Non-Compete Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
 
-THE FOREX SKYLINE ("Company"), a financial services marketing platform; and
+{{BrandName}} ("Company"), a financial services marketing platform; and
 
-{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the TFXS Affiliates Platform.
+{{AffiliateName}} ("Affiliate"), an independent marketing partner registered on the {{BrandName}} Affiliates Platform.
 
 RECITALS
 
@@ -4469,7 +4389,7 @@ NOW, THEREFORE, the parties agree as follows:
 ARTICLE 1 — EXCLUSIVE PARTNERSHIP
 ─────────────────────────────────────────
 
-1.1 The Affiliate agrees to exclusively promote the services of {{BrokerName}} under the {{DealName}} programme as detailed in Appendix A, and shall not, during the term of this Agreement, directly or indirectly promote, market, or introduce clients to any Competing Service without the prior written consent of the Company.
+1.1 The Affiliate agrees to exclusively promote the services of {{BrokerName}} under the {{DealName}} program as detailed in Appendix A, and shall not, during the term of this Agreement, directly or indirectly promote, market, or introduce clients to any Competing Service without the prior written consent of the Company.
 
 1.2 "Competing Service" means any online forex, CFD, cryptocurrency, or financial trading brokerage, platform, or service that is competitive with the Broker's core business operations.
 
@@ -4537,7 +4457,7 @@ ARTICLE 9 — GOVERNING LAW
 The compensation structure and deal specifics are set out in Appendix A, incorporated herein by reference.
 
 AFFILIATE: {{AffiliateName}}
-COMPANY: {{BrokerName}}
+COMPANY: {{BrandName}}
 DATE: {{Date}}`
   },
   nda: {
@@ -4549,13 +4469,13 @@ DATE: {{Date}}`
 
 This Mutual Non-Disclosure Agreement ("Agreement") is entered into as of {{Date}} (the "Effective Date") by and between:
 
-THE FOREX SKYLINE ("Company"), a financial services marketing platform operating at theforexskyline.com; and
+{{BrandName}} ("Company"), a financial services marketing platform; and
 
 {{AffiliateName}} ("Affiliate"), an independent marketing partner.
 
 RECITALS
 
-WHEREAS, the parties intend to enter into or have entered into an affiliate marketing relationship in connection with the {{DealName}} programme with {{BrokerName}};
+WHEREAS, the parties intend to enter into or have entered into an affiliate marketing relationship in connection with the {{DealName}} program with {{BrokerName}};
 
 WHEREAS, in connection with this relationship, each party may disclose certain Confidential Information to the other;
 
@@ -4628,6 +4548,7 @@ AFFILIATE: {{AffiliateName}}
 DATE: {{Date}}`
   }
 };
+};
 
 function detectContractVars(content) {
   const matches = [...(content || "").matchAll(/\{\{(\w+)\}\}/g)];
@@ -4660,14 +4581,8 @@ function openTemplatePickerModal() {
 function applyContractTemplate(key) {
   const t = CONTRACT_TEMPLATES[key];
   if (!t) return;
-  const brandName = (window.BRAND?.company || window.BRAND?.nameFull || 'THE FOREX SKYLINE').toUpperCase();
-  const brandDomain = (window.BRAND?.urls?.frontend || 'https://affiliates.theforexskyline.com').replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const content = t.content
-    .replace(/THE FOREX SKYLINE/g, brandName)
-    .replace(/theforexskyline\.com/g, brandDomain)
-    .replace(/TFXS Affiliates Platform/g, brandName + ' Affiliates Platform');
   $("contract-title").value = t.title;
-  $("contract-content").value = content;
+  $("contract-content").value = t.content;
   updateContractVarsDetected();
   closeModal("template-picker-modal");
 }
@@ -5020,6 +4935,9 @@ async function openAssignContractModal(contractId, contractTitle) {
   const vars = c ? detectContractVars(c.content) : [];
   const presets = {};
   presets["Date"] = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+  // Auto-fill brand variables from window.BRAND
+  presets["BrandName"] = window.BRAND?.company || window.BRAND?.nameFull || "";
+  presets["BrandSite"] = (window.BRAND?.urls?.frontend || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
   // Get deal_ids (multi-deal support)
   const dealIds = Array.isArray(c?.deal_ids) && c.deal_ids.length ? c.deal_ids : (c?.deal_id ? [c.deal_id] : []);
   if (dealIds.length) {
@@ -5144,3 +5062,113 @@ async function loadContractAssignments() {
     $("assignments-loading")?.classList.add("hidden");
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// AFFILIATE PERFORMANCE STATS PANEL
+// ══════════════════════════════════════════════════════════════
+
+let _statsPicker = null;
+let _statsPickerInit = false;
+
+function initAffiliateStatsPanel() {
+  if (!_statsPickerInit) {
+    _statsPickerInit = true;
+    const pickerEl = $("stats-date-picker");
+    if (pickerEl && window.flatpickr) {
+      _statsPicker = flatpickr(pickerEl, {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        defaultDate: [
+          new Date(Date.now() - 30 * 86400000).toISOString().substring(0, 10),
+          new Date().toISOString().substring(0, 10)
+        ],
+        onChange() { loadAffiliateStats(); }
+      });
+    }
+    // Populate broker filter
+    const brokerSel = $("stats-broker-filter");
+    if (brokerSel && brokerSel.options.length === 1) {
+      api("/admin/deals").then(r => {
+        (r?.data || []).filter(d => d.is_active !== false).forEach(d => {
+          const opt = document.createElement("option");
+          opt.value = d.broker || d.title;
+          opt.textContent = d.broker || d.title;
+          brokerSel.appendChild(opt);
+        });
+      }).catch(() => {});
+    }
+    loadAffiliateStats();
+  }
+}
+
+window.loadAffiliateStats = async function() {
+  const tbody = $("stats-perf-tbody");
+  const tfoot = $("stats-perf-tfoot");
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-xs text-gray-600">Loading...</td></tr>';
+  try {
+    const brokerFilter = $("stats-broker-filter")?.value || "";
+    const params = [];
+    if (brokerFilter) params.push(`broker=${encodeURIComponent(brokerFilter)}`);
+    if (_statsPicker && _statsPicker.selectedDates?.length >= 1) {
+      const sd = _statsPicker.selectedDates[0];
+      const ed = _statsPicker.selectedDates[1] || sd;
+      params.push(`from=${sd.toISOString().substring(0, 10)}`);
+      params.push(`to=${ed.toISOString().substring(0, 10)}`);
+    }
+    let url = "/admin/affiliate-performance" + (params.length ? "?" + params.join("&") : "");
+    const res = await api(url);
+    if (!res?.ok) throw new Error("Failed");
+
+    const { affiliates, totals } = res;
+    if (!affiliates?.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-xs text-gray-600">No data for selected period</td></tr>';
+      if (tfoot) tfoot.innerHTML = "";
+      return;
+    }
+
+    tbody.innerHTML = affiliates.map(a => {
+      const profitClass = a.profit >= 0 ? "text-emerald-400" : "text-red-400";
+      const marginClass = a.margin >= 50 ? "text-emerald-400" : a.margin >= 20 ? "text-yellow-400" : "text-red-400";
+      const isUnattributed = a.affiliate_code === "UNATTRIBUTED";
+      const nameClass = isUnattributed ? "text-gray-500 italic" : "text-white";
+      const roi = (a.deposits > 0) ? ((a.raw_revenue / a.deposits) * 100).toFixed(1) + "%" : "—";
+      return `<tr class="hover:bg-white/[0.02] transition-colors">
+        <td class="px-4 py-3">
+          <div class="flex flex-col">
+            <span class="text-xs font-medium ${nameClass}">${esc(a.display_name)}</span>
+            ${!isUnattributed ? `<span class="text-[9px] text-gray-600 font-mono">${esc(a.affiliate_code)}</span>` : ""}
+          </div>
+        </td>
+        <td class="px-4 py-3 text-xs text-center text-gray-300">${a.registrations}</td>
+        <td class="px-4 py-3 text-xs text-center text-gray-300">${a.ftd}</td>
+        <td class="px-4 py-3 text-xs text-center text-gray-300">${a.qualified_cpa}</td>
+        <td class="px-4 py-3 text-xs text-center font-mono text-sky-400">${roi}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono text-gray-300">$${a.deposits.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold text-green-400">$${a.raw_revenue.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono text-orange-400">$${a.affiliate_cost.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold ${profitClass}">$${a.profit.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold ${marginClass}">${a.margin.toFixed(1)}%</td>
+      </tr>`;
+    }).join("");
+
+    if (tfoot) {
+      const profitClass = totals.profit >= 0 ? "text-emerald-400" : "text-red-400";
+      const totalRoi = (totals.deposits > 0) ? ((totals.raw_revenue / totals.deposits) * 100).toFixed(1) + "%" : "—";
+      tfoot.innerHTML = `<tr>
+        <td class="px-4 py-3 text-xs font-bold text-white uppercase">Total — ${affiliates.length} affiliates</td>
+        <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.registrations}</td>
+        <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.ftd}</td>
+        <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.qualified_cpa}</td>
+        <td class="px-4 py-3 text-xs text-center font-mono font-bold text-sky-400">${totalRoi}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold text-white">$${totals.deposits.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold text-green-400">$${totals.raw_revenue.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold text-orange-400">$${totals.affiliate_cost.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold ${profitClass}">$${totals.profit.toFixed(2)}</td>
+        <td class="px-4 py-3 text-xs text-right font-mono font-bold text-white">${totals.margin.toFixed(1)}%</td>
+      </tr>`;
+    }
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-xs text-red-400">${esc(e.message)}</td></tr>`;
+  }
+};

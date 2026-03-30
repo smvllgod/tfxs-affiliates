@@ -374,7 +374,59 @@
             <div id="aff-pagination" class="mt-3"></div>
         </div>
 
-        <!-- ═══════ DEALS TAB ═══════ -->
+        <!-- ═══════ AFFILIATE STATS TAB (hidden sub-page) ═══════ -->
+        <div id="tab-affiliate-stats" class="tab-content hidden">
+            <!-- Header with back button -->
+            <div class="flex items-center justify-between mb-5">
+                <div class="flex items-center gap-3">
+                    <button onclick="switchAdminTab('affiliates')" class="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Affiliate Performance Stats</h2>
+                        <p class="text-[10px] text-gray-500 mt-0.5">Full breakdown by affiliate — all time periods</p>
+                    </div>
+                </div>
+                <!-- Timeframe selector -->
+                <div class="flex items-center gap-2">
+                    <input type="text" id="stats-date-picker" readonly placeholder="Select date range..."
+                           class="form-input text-xs px-3 py-2 rounded-lg w-52 cursor-pointer" />
+                    <select id="stats-broker-filter" onchange="loadAffiliateStats()" class="form-input text-xs px-3 py-2 rounded-lg">
+                        <option value="">All Brokers</option>
+                    </select>
+                    <button onclick="loadAffiliateStats()" class="btn-gradient px-3 py-2 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Table -->
+            <div class="glass-panel rounded-2xl overflow-hidden border border-white/5">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] uppercase tracking-wider text-gray-500 border-b border-white/5">
+                                <th class="px-4 py-3 font-semibold">Affiliate</th>
+                                <th class="px-4 py-3 font-semibold text-center">Reg</th>
+                                <th class="px-4 py-3 font-semibold text-center">FTD</th>
+                                <th class="px-4 py-3 font-semibold text-center">QFTD</th>
+                                <th class="px-4 py-3 font-semibold text-center">ROI</th>
+                                <th class="px-4 py-3 font-semibold text-right">Deposits</th>
+                                <th class="px-4 py-3 font-semibold text-right">Revenue</th>
+                                <th class="px-4 py-3 font-semibold text-right">Aff. Cost</th>
+                                <th class="px-4 py-3 font-semibold text-right">Profit</th>
+                                <th class="px-4 py-3 font-semibold text-right">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-perf-tbody" class="divide-y divide-white/5">
+                            <tr><td colspan="10" class="px-4 py-8 text-center text-xs text-gray-600">Select a date range and click Refresh</td></tr>
+                        </tbody>
+                        <tfoot id="stats-perf-tfoot" class="border-t border-white/10 bg-white/[0.02]"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
         <div id="tab-deals" class="tab-content hidden">
             <div class="flex flex-wrap items-center justify-between mb-4 gap-3">
                 <div class="flex items-center gap-3">
@@ -2390,6 +2442,8 @@
                         <button type="button" onclick="insertContractVar('DealName')" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-brand-500/10 text-brand-400 hover:bg-brand-500/20 border border-brand-500/20 transition">{{DealName}}</button>
                         <button type="button" onclick="insertContractVar('MinDeposit')" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-white/5 text-gray-500 hover:bg-white/10 border border-white/10 transition">{{MinDeposit}}</button>
                         <button type="button" onclick="insertContractVar('CompanyName')" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-white/5 text-gray-500 hover:bg-white/10 border border-white/10 transition">{{CompanyName}}</button>
+                        <button type="button" onclick="insertContractVar('BrandName')" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition">{{BrandName}}</button>
+                        <button type="button" onclick="insertContractVar('BrandSite')" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition">{{BrandSite}}</button>
                         <button type="button" onclick="promptCustomVar()" class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-white/5 text-gray-500 hover:bg-white/10 border border-white/10 transition">+ Custom…</button>
                     </div>
                     <textarea id="contract-content" rows="13" oninput="updateContractVarsDetected()" class="form-input w-full px-4 py-3 rounded-xl text-sm font-mono leading-relaxed" placeholder="Enter full contract text, or click 'Use Template' above..."></textarea>

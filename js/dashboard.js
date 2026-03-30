@@ -542,16 +542,20 @@
       const { affiliates, totals } = res;
 
       if (!affiliates.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-xs text-gray-600">No data for selected period</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-xs text-gray-600">No data for selected period</td></tr>';
         if (tfoot) tfoot.innerHTML = '';
         return;
       }
 
-      tbody.innerHTML = affiliates.map(a => {
+      const MAX_ROWS = 10;
+      const displayList = affiliates.slice(0, MAX_ROWS);
+
+      tbody.innerHTML = displayList.map(a => {
         const profitClass = a.profit >= 0 ? "text-emerald-400" : "text-red-400";
         const marginClass = a.margin >= 50 ? "text-emerald-400" : a.margin >= 20 ? "text-yellow-400" : "text-red-400";
         const isUnattributed = a.affiliate_code === "UNATTRIBUTED";
         const nameClass = isUnattributed ? "text-gray-500 italic" : "text-white";
+        const roi = (a.deposits > 0) ? ((a.raw_revenue / a.deposits) * 100).toFixed(1) + "%" : "—";
         return `<tr class="hover:bg-white/[0.02] transition-colors">
           <td class="px-4 py-3">
             <div class="flex flex-col">
@@ -562,6 +566,7 @@
           <td class="px-4 py-3 text-xs text-center text-gray-300">${a.registrations}</td>
           <td class="px-4 py-3 text-xs text-center text-gray-300">${a.ftd}</td>
           <td class="px-4 py-3 text-xs text-center text-gray-300">${a.qualified_cpa}</td>
+          <td class="px-4 py-3 text-xs text-center font-mono text-sky-400">${roi}</td>
           <td class="px-4 py-3 text-xs text-right font-mono text-gray-300">$${a.deposits.toFixed(2)}</td>
           <td class="px-4 py-3 text-xs text-right font-mono font-bold text-green-400">$${a.raw_revenue.toFixed(2)}</td>
           <td class="px-4 py-3 text-xs text-right font-mono text-orange-400">$${a.affiliate_cost.toFixed(2)}</td>
@@ -570,14 +575,28 @@
         </tr>`;
       }).join("");
 
+      // "See all" row if more than MAX_ROWS
+      if (affiliates.length > MAX_ROWS) {
+        tbody.innerHTML += `<tr>
+          <td colspan="10" class="px-4 py-3 border-t border-white/5">
+            <a href="/admin-settings#affiliate-stats" class="text-xs text-brand-400 hover:text-brand-300 flex items-center justify-center gap-1.5 transition">
+              See all ${affiliates.length} affiliates
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            </a>
+          </td>
+        </tr>`;
+      }
+
       // Totals footer
       if (tfoot) {
         const profitClass = totals.profit >= 0 ? "text-emerald-400" : "text-red-400";
+        const totalRoi = (totals.deposits > 0) ? ((totals.raw_revenue / totals.deposits) * 100).toFixed(1) + "%" : "—";
         tfoot.innerHTML = `<tr>
           <td class="px-4 py-3 text-xs font-bold text-white uppercase">Total (${affiliates.length} affiliates)</td>
           <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.registrations}</td>
           <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.ftd}</td>
           <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.qualified_cpa}</td>
+          <td class="px-4 py-3 text-xs text-center font-mono font-bold text-sky-400">${totalRoi}</td>
           <td class="px-4 py-3 text-xs text-right font-mono font-bold text-white">$${totals.deposits.toFixed(2)}</td>
           <td class="px-4 py-3 text-xs text-right font-mono font-bold text-green-400">$${totals.raw_revenue.toFixed(2)}</td>
           <td class="px-4 py-3 text-xs text-right font-mono font-bold text-orange-400">$${totals.affiliate_cost.toFixed(2)}</td>
@@ -587,7 +606,7 @@
       }
     } catch (err) {
       console.warn("[TFXS] Affiliate performance load failed:", err.message);
-      tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-xs text-red-400">Could not load data</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-xs text-red-400">Could not load data</td></tr>';
     }
   }
 

@@ -678,6 +678,7 @@
                                 <th class="px-4 py-3 font-semibold text-center">Reg</th>
                                 <th class="px-4 py-3 font-semibold text-center">FTD</th>
                                 <th class="px-4 py-3 font-semibold text-center">QFTD</th>
+                                <th class="px-4 py-3 font-semibold text-center">ROI</th>
                                 <th class="px-4 py-3 font-semibold text-right">Deposits</th>
                                 <th class="px-4 py-3 font-semibold text-right">Revenue</th>
                                 <th class="px-4 py-3 font-semibold text-right">Aff. Cost</th>
@@ -686,7 +687,7 @@
                             </tr>
                         </thead>
                         <tbody id="affiliate-perf-tbody" class="divide-y divide-white/5">
-                            <tr><td colspan="9" class="px-4 py-8 text-center text-xs text-gray-600">Loading...</td></tr>
+                            <tr><td colspan="10" class="px-4 py-8 text-center text-xs text-gray-600">Loading...</td></tr>
                         </tbody>
                         <tfoot id="affiliate-perf-tfoot" class="border-t border-white/10 bg-white/[0.02]">
                         </tfoot>
@@ -1619,22 +1620,12 @@
             const buckets = {};
             let curr = new Date(startDate); curr.setHours(0,0,0,0);
             const end = new Date(endDate); end.setHours(23,59,59,999);
-            const groupByWeek = daySpan > 45;
+            const groupByWeek = false; // Always daily — never bucket by week
 
             function getBucketKey(d) {
-                if (groupByWeek) {
-                    const dt = new Date(d); const day = dt.getDay();
-                    dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
-                    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-                }
                 return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             }
             function getBucketLabel(d) {
-                if (groupByWeek) {
-                    const dt = new Date(d); const day = dt.getDay();
-                    dt.setDate(dt.getDate() - day + (day === 0 ? -6 : 1));
-                    return dt.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
-                }
                 return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
             }
 
@@ -2073,7 +2064,7 @@
 
             async function loadBrokerLinks() {
                 try {
-                    const { fetchDeals, getAffiliateId } = window.TFXS_API || {};
+                    const { fetchDeals, getAffiliateId, apiGet } = window.TFXS_API || {};
                     if (!fetchDeals) return;
                     const aid = getAffiliateId ? getAffiliateId() : null;
                     const afp = aid || localStorage.getItem(BRAND._lsKey('affiliate_id')) || '';
@@ -2086,13 +2077,20 @@
                         if (d.broker_link && !seen.has(d.broker)) {
                             seen.add(d.broker);
                             const resolved = resolveLink(d.broker_link, afp);
-                            dealLinks.push({ broker: d.broker, link: resolved, title: d.title || d.broker });
+                            dealLinks.push({ broker: d.broker, link: resolved, title: d.title || d.broker, dealId: d.id });
                         }
                     });
                     if (!dealLinks.length) {
                         brokerLabel.textContent = 'No broker links available';
                         linkDisplay.textContent = 'No links configured — ask admin to set broker links';
                         return;
+                    }
+                    // Pre-fetch contract lock state
+                    if (apiGet && !window._myContracts) {
+                        try {
+                            const cr = await apiGet('/api/my-contracts');
+                            window._myContracts = cr?.data || [];
+                        } catch (_) { window._myContracts = []; }
                     }
                     brokerHidden.value = '0';
                     brokerLabel.textContent = dealLinks[0].broker;
@@ -2122,6 +2120,25 @@
                 copyBtn.addEventListener('click', () => {
                     const link = copyBtn.getAttribute('data-copy');
                     if (!link) return;
+                    // Contract lock check
+                    const idx = parseInt(brokerHidden.value) || 0;
+                    const currentDeal = dealLinks[idx];
+                    if (currentDeal && window._myContracts) {
+                        const locked = window._myContracts.find(c =>
+                            c.status === 'pending' && c.require_before_links &&
+                            (c.deal_ids?.includes(currentDeal.dealId) || c.deal_id === currentDeal.dealId)
+                        );
+                        if (locked) {
+                            const orig = copyBtn.innerHTML;
+                            copyBtn.innerHTML = '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> Sign Contract First';
+                            copyBtn.classList.add('border-amber-500/30', 'text-amber-400');
+                            setTimeout(() => {
+                                copyBtn.innerHTML = orig;
+                                copyBtn.classList.remove('border-amber-500/30', 'text-amber-400');
+                            }, 3000);
+                            return;
+                        }
+                    }
                     navigator.clipboard.writeText(link).then(() => {
                         const orig = copyBtn.innerHTML;
                         copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Copied!';

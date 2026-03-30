@@ -221,6 +221,37 @@
     <script src="js/settings-loader.js"></script>
     <script src="js/app.js"></script>
     <script>
+    // Contract-aware link copy
+    async function _ensureContracts() {
+        if (window._myContracts) return;
+        try {
+            const apiGet = window.TFXS_API?.apiGet;
+            if (!apiGet) { window._myContracts = []; return; }
+            const r = await apiGet('/api/my-contracts');
+            window._myContracts = r?.data || [];
+        } catch (_) { window._myContracts = []; }
+    }
+    async function copyAssetLink(btn, dealId, link) {
+        await _ensureContracts();
+        const locked = window._myContracts.find(c =>
+            c.status === 'pending' && c.require_before_links &&
+            (c.deal_ids?.includes(dealId) || c.deal_id === dealId)
+        );
+        if (locked) {
+            const orig = btn.textContent;
+            btn.textContent = '🔒 Sign Contract';
+            btn.style.background = '#d97706';
+            setTimeout(() => { btn.textContent = orig; btn.style.background = btn.dataset.color; }, 3000);
+            return;
+        }
+        navigator.clipboard.writeText(link).then(() => {
+            const orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.style.background = '#16a34a';
+            setTimeout(() => { btn.textContent = orig; btn.style.background = btn.dataset.color; }, 2000);
+        });
+    }
+
     (async function loadBrokerLinks() {
         const grid = document.getElementById('broker-links-grid');
         if (!grid) return;
@@ -268,7 +299,7 @@
                         </div>
                         <div class="relative">
                             <input type="text" value="${link}" readonly class="w-full px-3 py-2.5 text-[11px] font-mono bg-black/30 border border-white/10 rounded-lg text-gray-300 pr-20 truncate">
-                            <button onclick="navigator.clipboard.writeText('${link.replace(/'/g, "\\'")}').then(()=>{if(window.showToast)showToast('Link copied!','success');else alert('Copied!')})" class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition" style="background:${color}; color:white;">Copy</button>
+                            <button onclick="copyAssetLink(this,'${deal.id}','${link.replace(/'/g, "\\'")}')" data-color="${color}" class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition" style="background:${color}; color:white;">Copy</button>
                         </div>
                     </div>
                 </div>`;
