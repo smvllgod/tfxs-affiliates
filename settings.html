@@ -946,7 +946,26 @@
                 if (btnContracts) btnContracts.className = 'px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 relative ' + activeClasses;
                 loadAffiliateContracts();
             }
+            // Keep URL hash in sync
+            try { history.replaceState(null, "", tab === 'general' ? window.location.pathname : '#' + tab); } catch(_) {}
         }
+
+        // ── Hash-based tab routing (handles bell notification clicks) ──
+        (function() {
+            function routeFromHash() {
+                const hash = window.location.hash.replace('#', '').trim();
+                if (hash === 'contracts' || hash === 'notifications') {
+                    switchSettingsTab(hash);
+                }
+            }
+            // Run on page load after DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', routeFromHash);
+            } else {
+                routeFromHash();
+            }
+            window.addEventListener('hashchange', routeFromHash);
+        })();
     </script>
     <script>
         // --- KYC Doc Type Custom Dropdown ---

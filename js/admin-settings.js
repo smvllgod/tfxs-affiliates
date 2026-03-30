@@ -4660,8 +4660,14 @@ function openTemplatePickerModal() {
 function applyContractTemplate(key) {
   const t = CONTRACT_TEMPLATES[key];
   if (!t) return;
+  const brandName = (window.BRAND?.company || window.BRAND?.nameFull || 'THE FOREX SKYLINE').toUpperCase();
+  const brandDomain = (window.BRAND?.urls?.frontend || 'https://affiliates.theforexskyline.com').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const content = t.content
+    .replace(/THE FOREX SKYLINE/g, brandName)
+    .replace(/theforexskyline\.com/g, brandDomain)
+    .replace(/TFXS Affiliates Platform/g, brandName + ' Affiliates Platform');
   $("contract-title").value = t.title;
-  $("contract-content").value = t.content;
+  $("contract-content").value = content;
   updateContractVarsDetected();
   closeModal("template-picker-modal");
 }
@@ -4790,17 +4796,139 @@ async function openContractModal(id) {
   openModal("contract-modal");
 }
 
-function previewAdminSig(input) {
+/* ── Admin Signature Modal ──────────────────────────────── */
+let _adminSigCanvas = null, _adminSigCtx = null, _adminSigDrawing = false, _adminSigLastX = 0, _adminSigLastY = 0, _adminSigHasStroke = false;
+
+function openAdminSigModal() {
+  setAdminSigTab("draw");
+  closeAdminSigUploadPreview();
+  openModal("admin-sig-modal");
+  requestAnimationFrame(() => {
+    initAdminSigCanvas();
+    clearAdminSigCanvas();
+  });
+}
+
+function setAdminSigTab(tab) {
+  const drawPanel = $("asig-panel-draw");
+  const uploadPanel = $("asig-panel-upload");
+  const drawBtn = $("asig-tab-draw");
+  const uploadBtn = $("asig-tab-upload");
+  if (drawPanel) drawPanel.classList.toggle("hidden", tab !== "draw");
+  if (uploadPanel) uploadPanel.classList.toggle("hidden", tab !== "upload");
+  if (drawBtn) { drawBtn.classList.toggle("bg-white/10", tab === "draw"); drawBtn.classList.toggle("text-white", tab === "draw"); drawBtn.classList.toggle("text-gray-500", tab !== "draw"); }
+  if (uploadBtn) { uploadBtn.classList.toggle("bg-white/10", tab === "upload"); uploadBtn.classList.toggle("text-white", tab === "upload"); uploadBtn.classList.toggle("text-gray-500", tab !== "upload"); }
+  if (tab === "draw") { requestAnimationFrame(() => initAdminSigCanvas()); }
+}
+
+function initAdminSigCanvas() {
+  const canvas = $("admin-sig-canvas");
+  if (!canvas) return;
+  _adminSigCanvas = canvas;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width || 280;
+  canvas.height = rect.height || 120;
+  _adminSigCtx = canvas.getContext("2d");
+  _adminSigCtx.fillStyle = "#fff";
+  _adminSigCtx.fillRect(0, 0, canvas.width, canvas.height);
+  _adminSigCtx.strokeStyle = "#1a1a2e";
+  _adminSigCtx.lineWidth = 2.2;
+  _adminSigCtx.lineCap = "round";
+  _adminSigCtx.lineJoin = "round";
+  _adminSigHasStroke = false;
+  if (canvas._adminSigBound) return;
+  canvas._adminSigBound = true;
+  const pos = (e) => { const r = canvas.getBoundingClientRect(); return [(e.touches?.[0]||e).clientX - r.left, (e.touches?.[0]||e).clientY - r.top]; };
+  canvas.addEventListener("pointerdown", e => { _adminSigDrawing = true; [_adminSigLastX, _adminSigLastY] = pos(e); _adminSigHasStroke = true; e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("pointermove", e => { if (!_adminSigDrawing) return; const [x, y] = pos(e); _adminSigCtx.beginPath(); _adminSigCtx.moveTo(_adminSigLastX, _adminSigLastY); _adminSigCtx.lineTo(x, y); _adminSigCtx.stroke(); [_adminSigLastX, _adminSigLastY] = [x, y]; e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("pointerup", () => { _adminSigDrawing = false; });
+  canvas.addEventListener("pointerleave", () => { _adminSigDrawing = false; });
+}
+
+function clearAdminSigCanvas() {
+  if (!_adminSigCtx || !_adminSigCanvas) return;
+  _adminSigCtx.fillStyle = "#fff";
+  _adminSigCtx.fillRect(0, 0, _adminSigCanvas.width, _adminSigCanvas.height);
+  _adminSigHasStroke = false;
+}
+
+function confirmAdminSigDraw() {
+  if (!_adminSigCanvas) return;
+  if (!_adminSigHasStroke) return toast("Please draw your signature first", "warn");
+  const dataUrl = _adminSigCanvas.toDataURL("image/png");
+  applyAdminSig(dataUrl, "Drawn signature");
+  closeModal("admin-sig-modal");
+}
+
+function handleAdminSigUpload(input) {
   const file = input.files?.[0];
   if (!file) return;
-  $("contract-admin-sig-name").textContent = file.name;
   const reader = new FileReader();
   reader.onload = e => {
-    $("contract-admin-sig-data").value = e.target.result;
-    const prev = $("contract-admin-sig-preview");
-    if (prev) { prev.src = e.target.result; prev.classList.remove("hidden"); }
+    const img = $("asig-upload-img");
+    const wrap = $("asig-upload-preview");
+    const name = $("asig-upload-name");
+    if (img) img.src = e.target.result;
+    if (wrap) { wrap.classList.remove("hidden"); wrap.classList.add("flex"); }
+    if (name) name.textContent = file.name;
+    // Store pending data URL
+    input._pendingDataUrl = e.target.result;
+    input._pendingName = file.name;
   };
   reader.readAsDataURL(file);
+}
+
+function confirmAdminSigUpload() {
+  const input = $("admin-sig-file-input");
+  if (!input?._pendingDataUrl) return toast("Please select an image first", "warn");
+  applyAdminSig(input._pendingDataUrl, input._pendingName || "Uploaded signature");
+  closeAdminSigUploadPreview();
+  closeModal("admin-sig-modal");
+}
+
+function applyAdminSig(dataUrl, label) {
+  $("contract-admin-sig-data").value = dataUrl;
+  $("contract-admin-sig-name").textContent = label;
+  const prev = $("contract-admin-sig-preview");
+  const wrap = $("contract-admin-sig-preview-wrap");
+  if (prev) prev.src = dataUrl;
+  if (wrap) { wrap.classList.remove("hidden"); wrap.classList.add("flex"); }
+}
+
+function clearAdminSig() {
+  $("contract-admin-sig-data").value = "";
+  $("contract-admin-sig-name").textContent = "No signature";
+  const prev = $("contract-admin-sig-preview");
+  const wrap = $("contract-admin-sig-preview-wrap");
+  if (prev) prev.src = "";
+  if (wrap) { wrap.classList.add("hidden"); wrap.classList.remove("flex"); }
+}
+
+function closeAdminSigUploadPreview() {
+  const input = $("admin-sig-file-input");
+  if (input) { input.value = ""; delete input._pendingDataUrl; delete input._pendingName; }
+  const wrap = $("asig-upload-preview");
+  if (wrap) { wrap.classList.add("hidden"); wrap.classList.remove("flex"); }
+}
+
+/* ── Contract Variable Chips ───────────────────────────── */
+function insertContractVar(varName) {
+  const ta = $("contract-content");
+  if (!ta) return;
+  const val = `{{${varName}}}`;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.slice(0, start) + val + ta.value.slice(end);
+  ta.selectionStart = ta.selectionEnd = start + val.length;
+  ta.focus();
+  updateContractVarsDetected();
+}
+
+function promptCustomVar() {
+  const name = window.prompt("Variable name (letters/digits only):");
+  if (!name) return;
+  const clean = name.replace(/[^a-zA-Z0-9]/g, "");
+  if (!clean) return toast("Invalid variable name", "warn");
+  insertContractVar(clean);
 }
 
 async function saveContract() {
@@ -4837,14 +4965,50 @@ async function deleteContract(id) {
   } catch (e) { toast(e.message, "err"); }
 }
 
-function viewContractText(id) {
+async function viewContractText(id) {
   const c = _contractsCache.find(x => x.id === id);
   if (!c) return;
   $("view-contract-title").textContent = c.title;
-  // Render as HTML: escape and convert newlines
+  // Render contract body
   const escaped = (c.content || "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  $("view-contract-content").innerHTML = `<div style="white-space:pre-wrap;font-family:Georgia,serif;line-height:1.8;font-size:13px">${escaped}</div>`;
+  let html = `<div style="white-space:pre-wrap;font-family:Georgia,serif;line-height:1.8;font-size:13px">${escaped}</div>`;
+  // Append deal tables if linked
+  const dealIds = Array.isArray(c?.deal_ids) && c.deal_ids.length ? c.deal_ids : (c?.deal_id ? [c.deal_id] : []);
+  if (dealIds.length) {
+    if (!_contractsDealsCache.length) {
+      try { const r = await api("/admin/deals"); _contractsDealsCache = (r.data || []).filter(d => d.is_active !== false); } catch (_) {}
+    }
+    const deals = _contractsDealsCache.filter(d => dealIds.includes(d.id));
+    if (deals.length) {
+      html += `<hr style="margin:24px 0;border:none;border-top:1px solid rgba(255,255,255,0.1)">`;
+      html += `<h3 style="color:#a78bfa;font-family:Georgia,serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;margin:0 0 12px">📋 Appendix A — Compensation Plan</h3>`;
+      for (const deal of deals) {
+        const tiers = Array.isArray(deal.tiers) ? deal.tiers : [];
+        html += `<div style="margin-bottom:16px">`;
+        html += `<p style="color:#e2e8f0;font-size:12px;font-weight:700;margin:0 0 6px">${esc(deal.title || deal.deal_type || deal.broker || 'Deal')}</p>`;
+        if (tiers.length) {
+          html += `<table style="width:100%;border-collapse:collapse;font-size:11px">`;
+          html += `<thead><tr style="background:rgba(167,139,250,0.1)">`;
+          html += `<th style="text-align:left;padding:6px 8px;color:#a78bfa;border:1px solid rgba(255,255,255,0.06)">Lot Range</th>`;
+          html += `<th style="text-align:right;padding:6px 8px;color:#a78bfa;border:1px solid rgba(255,255,255,0.06)">Commission</th></tr></thead><tbody>`;
+          tiers.forEach(tier => {
+            const range = tier.lots_max ? `${tier.lots_min||0}–${tier.lots_max}` : `${tier.lots_min||0}+`;
+            html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">`;
+            html += `<td style="padding:5px 8px;color:#cbd5e1;border:1px solid rgba(255,255,255,0.06)">${esc(String(range))}</td>`;
+            html += `<td style="text-align:right;padding:5px 8px;color:#10b981;border:1px solid rgba(255,255,255,0.06)">$${esc(String(tier.commission_usd||0))}/lot</td></tr>`;
+          });
+          html += `</tbody></table>`;
+        } else if (deal.cpa_amount) {
+          html += `<p style="color:#10b981;font-size:11px;margin:2px 0">CPA: $${esc(String(deal.cpa_amount))} per qualified client</p>`;
+        } else if (deal.rev_share_pct) {
+          html += `<p style="color:#10b981;font-size:11px;margin:2px 0">Revenue Share: ${esc(String(deal.rev_share_pct))}%</p>`;
+        }
+        html += `</div>`;
+      }
+    }
+  }
+  $("view-contract-content").innerHTML = html;
   openModal("view-contract-modal");
 }
 
