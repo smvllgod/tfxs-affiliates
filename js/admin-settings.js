@@ -4548,7 +4548,6 @@ AFFILIATE: {{AffiliateName}}
 DATE: {{Date}}`
   }
 };
-};
 
 function detectContractVars(content) {
   const matches = [...(content || "").matchAll(/\{\{(\w+)\}\}/g)];
@@ -5132,7 +5131,7 @@ window.loadAffiliateStats = async function() {
       const marginClass = a.margin >= 50 ? "text-emerald-400" : a.margin >= 20 ? "text-yellow-400" : "text-red-400";
       const isUnattributed = a.affiliate_code === "UNATTRIBUTED";
       const nameClass = isUnattributed ? "text-gray-500 italic" : "text-white";
-      const roi = (a.deposits > 0) ? ((a.raw_revenue / a.deposits) * 100).toFixed(1) + "%" : "—";
+      const roi = (a.affiliate_cost > 0) ? (a.deposits / a.affiliate_cost).toFixed(2) : "—";
       return `<tr class="hover:bg-white/[0.02] transition-colors">
         <td class="px-4 py-3">
           <div class="flex flex-col">
@@ -5154,7 +5153,7 @@ window.loadAffiliateStats = async function() {
 
     if (tfoot) {
       const profitClass = totals.profit >= 0 ? "text-emerald-400" : "text-red-400";
-      const totalRoi = (totals.deposits > 0) ? ((totals.raw_revenue / totals.deposits) * 100).toFixed(1) + "%" : "—";
+      const totalRoi = (totals.affiliate_cost > 0) ? (totals.deposits / totals.affiliate_cost).toFixed(2) : "—";
       tfoot.innerHTML = `<tr>
         <td class="px-4 py-3 text-xs font-bold text-white uppercase">Total — ${affiliates.length} affiliates</td>
         <td class="px-4 py-3 text-xs text-center font-bold text-white">${totals.registrations}</td>
