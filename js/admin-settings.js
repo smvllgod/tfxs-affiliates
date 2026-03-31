@@ -5074,13 +5074,13 @@ function initAffiliateStatsPanel() {
     _statsPickerInit = true;
     const pickerEl = $("stats-date-picker");
     if (pickerEl && window.flatpickr) {
+      const _now = new Date();
+      const _mtdStart = new Date(_now.getFullYear(), _now.getMonth(), 1).toISOString().substring(0, 10);
+      const _mtdEnd = _now.toISOString().substring(0, 10);
       _statsPicker = flatpickr(pickerEl, {
         mode: "range",
         dateFormat: "Y-m-d",
-        defaultDate: [
-          new Date(Date.now() - 30 * 86400000).toISOString().substring(0, 10),
-          new Date().toISOString().substring(0, 10)
-        ],
+        defaultDate: [_mtdStart, _mtdEnd],
         onChange() { loadAffiliateStats(); }
       });
     }

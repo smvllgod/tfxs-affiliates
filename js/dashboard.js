@@ -282,6 +282,8 @@
 
         // Load affiliate performance table (non-blocking)
         loadAffiliatePerformance().catch(() => {});
+        // Expose globally so updateDashboardData can call it on timeframe change
+        window.loadAffiliatePerformance = loadAffiliatePerformance;
       }
 
       // Expose total_deposit for index.html calculations

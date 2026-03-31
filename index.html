@@ -1154,6 +1154,10 @@
                                 kpiProfit.classList.add(s.profit >= 0 ? 'text-emerald-400' : 'text-red-400');
                             }
                             if (kpiMargin) animateValue(kpiMargin, 0, s.margin, 700, v => v.toFixed(1) + '%');
+                            // Refresh affiliate performance table with new date range (non-blocking)
+                            if (typeof window.loadAffiliatePerformance === 'function') {
+                                window.loadAffiliatePerformance().catch(() => {});
+                            }
                         }
                     }
                 } catch (e) {
