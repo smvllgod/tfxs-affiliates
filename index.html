@@ -1659,11 +1659,10 @@
                 if (!revenueChart) return;
                 const maxReg = Math.max(...regData, 0);
                 const regTick = _smartRegTick(maxReg);
-                // Thin x-axis labels so they never compress: show ~12 evenly spaced labels
+                // Show every day up to 30 days; space labels progressively beyond that
                 const n = labels.length;
-                const labelStep = n <= 14 ? 1
-                                : n <= 30 ? 3
-                                : n <= 60 ? 7
+                const labelStep = n <= 30  ? 1
+                                : n <= 60  ? 7
                                 : n <= 120 ? 14
                                 : Math.ceil(n / 12);
                 revenueChart.xAxis[0].update({ labels: { step: labelStep } }, false);
