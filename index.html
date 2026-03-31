@@ -1663,11 +1663,11 @@
                 if (!revenueChart) return;
                 const maxReg = Math.max(...regData, 0);
                 const regTick = _smartRegTick(maxReg);
-                // Show every day up to 30 days; space labels progressively beyond that
+                // Show every day up to 35 days (covers full months like March=31 days); space labels progressively beyond that
                 const n = labels.length;
-                const labelStep = n <= 30  ? 1
-                                : n <= 60  ? 7
-                                : n <= 120 ? 14
+                const labelStep = n <= 35  ? 1
+                                : n <= 70  ? 7
+                                : n <= 140 ? 14
                                 : Math.ceil(n / 12);
                 revenueChart.xAxis[0].update({ labels: { step: labelStep } }, false);
                 revenueChart.xAxis[0].setCategories(labels, false);
@@ -4018,11 +4018,11 @@
 
     <!-- Auth Guard + Live Data Connectors -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="js/theme.js"></script>
-    <script src="js/i18n.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/settings-loader.js"></script>
-    <script src="js/dashboard.js"></script>
+    <script src="js/theme.js?v=20260331"></script>
+    <script src="js/i18n.js?v=20260331"></script>
+    <script src="js/auth.js?v=20260331"></script>
+    <script src="js/api.js?v=20260331"></script>
+    <script src="js/settings-loader.js?v=20260331"></script>
+    <script src="js/dashboard.js?v=20260331"></script>
 </body>
 </html>
