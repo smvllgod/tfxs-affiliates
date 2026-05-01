@@ -76,29 +76,81 @@
       .light-theme .halo-bg { background:
         radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.06), transparent 60%); }
 
-      /* KPI hero cards */
+      /* KPI cards — per-card accent color via CSS vars */
       .kpi {
+        --kpi-accent: rgba(255,255,255,0.4);
+        --kpi-accent-soft: rgba(255,255,255,0.05);
+        --kpi-glow: rgba(255,255,255,0.1);
         position:relative; padding:1.1rem 1.2rem; border-radius:1rem;
         background:rgba(255,255,255,0.03);
         border:1px solid rgba(255,255,255,0.06);
-        overflow:hidden; transition:transform .18s, border-color .18s, background .18s;
+        overflow:hidden;
+        transition:transform .18s ease, border-color .18s, background .18s, box-shadow .18s;
       }
-      .kpi:hover { transform:translateY(-2px); border-color:rgba(239,68,68,0.4); background:rgba(255,255,255,0.045); }
+      .kpi::before {
+        content:""; position:absolute; top:0; left:0; right:0; height:2px;
+        background:linear-gradient(90deg, var(--kpi-accent), transparent 80%);
+        opacity:.85;
+      }
+      .kpi::after {
+        content:""; position:absolute; top:-40%; right:-30%;
+        width:140px; height:140px; border-radius:50%;
+        background:radial-gradient(circle, var(--kpi-accent-soft) 0%, transparent 70%);
+        pointer-events:none;
+      }
+      .kpi:hover {
+        transform:translateY(-2px);
+        border-color:var(--kpi-accent);
+        background:rgba(255,255,255,0.045);
+        box-shadow:0 12px 28px -10px var(--kpi-glow), 0 0 0 1px var(--kpi-accent-soft);
+      }
       .light-theme .kpi { background:white; border-color:rgba(0,0,0,0.06); }
-      .light-theme .kpi:hover { border-color:rgba(220,38,38,0.4); }
-      .kpi-label { font-size:.65rem; color:#71717a; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
-      .kpi-value { font-size:1.85rem; font-weight:700; margin-top:.25rem; font-family:'JetBrains Mono',monospace; letter-spacing:-.02em; line-height:1.1; }
-      .kpi-sub { font-size:.7rem; color:#71717a; margin-top:.4rem; font-family:'JetBrains Mono',monospace; }
-      .kpi-spark { position:absolute; right:0.5rem; bottom:0.5rem; opacity:.45; pointer-events:none; }
+      .light-theme .kpi:hover { border-color:var(--kpi-accent); }
 
-      /* Hero highlight (revenue est) */
-      .kpi-hero {
-        background:
-          linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.04) 60%, transparent 100%),
-          rgba(255,255,255,0.03);
-        border-color:rgba(239,68,68,0.25);
+      .kpi-label {
+        font-size:.65rem; color:var(--kpi-accent); text-transform:uppercase;
+        letter-spacing:.1em; font-weight:600; opacity:.92;
+        display:flex; align-items:center; gap:.45rem;
       }
-      .kpi-hero .kpi-value { color:#ef4444; }
+      .kpi-label-dot {
+        width:.45rem; height:.45rem; border-radius:50%;
+        background:var(--kpi-accent); box-shadow:0 0 8px var(--kpi-accent);
+        flex-shrink:0;
+      }
+      .kpi-value {
+        font-size:1.85rem; font-weight:700; margin-top:.35rem;
+        font-family:'JetBrains Mono',monospace; letter-spacing:-.02em; line-height:1.1;
+        color:#fafafa;
+      }
+      .light-theme .kpi-value { color:#18181b; }
+      .kpi-sub {
+        font-size:.7rem; color:#71717a; margin-top:.4rem;
+        font-family:'JetBrains Mono',monospace;
+      }
+      .kpi-spark { position:absolute; right:0.5rem; bottom:0.5rem; opacity:.55; pointer-events:none; }
+
+      /* Per-KPI color tokens */
+      .kpi-spend { --kpi-accent:#a78bfa; --kpi-accent-soft:rgba(167,139,250,0.10); --kpi-glow:rgba(167,139,250,0.30); }
+      .kpi-joins { --kpi-accent:#fb923c; --kpi-accent-soft:rgba(251,146,60,0.10); --kpi-glow:rgba(251,146,60,0.30); }
+      .kpi-dms   { --kpi-accent:#22d3ee; --kpi-accent-soft:rgba(34,211,238,0.10); --kpi-glow:rgba(34,211,238,0.30); }
+      .kpi-regs  { --kpi-accent:#facc15; --kpi-accent-soft:rgba(250,204,21,0.10); --kpi-glow:rgba(250,204,21,0.30); }
+      .kpi-qftds { --kpi-accent:#34d399; --kpi-accent-soft:rgba(52,211,153,0.10); --kpi-glow:rgba(52,211,153,0.30); }
+
+      /* Hero highlight (revenue est) — keeps the brand red gradient */
+      .kpi-hero {
+        --kpi-accent:#ef4444;
+        --kpi-accent-soft:rgba(239,68,68,0.14);
+        --kpi-glow:rgba(239,68,68,0.40);
+        background:
+          linear-gradient(135deg, rgba(239,68,68,0.14) 0%, rgba(220,38,38,0.05) 60%, transparent 100%),
+          rgba(255,255,255,0.03);
+        border-color:rgba(239,68,68,0.30);
+      }
+      .kpi-hero .kpi-value {
+        background:linear-gradient(135deg, #ef4444 0%, #fca5a5 100%);
+        -webkit-background-clip:text; background-clip:text;
+        -webkit-text-fill-color:transparent; color:transparent;
+      }
 
       /* Matrix table */
       .matrix { width:100%; border-collapse:separate; border-spacing:0; font-family:'JetBrains Mono',monospace; }
@@ -453,19 +505,25 @@ function computeTotals(summary, daily) {
 /* ── Render: KPI grid ────────────────────────────────────────── */
 function renderKPIs(t) {
   const cards = [
-    { label: "Spend",       value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
-    { label: "Real Joins",  value: fmt.int(t.joins),      sub: `${fmt.int(t.pixel)} Meta Leads` },
-    { label: "DMs",         value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
-    { label: "Regs",        value: fmt.int(t.regs),       sub: t.dms ? fmt.pct(100*t.regs/t.dms) + " of DMs" : "—" },
-    { label: "QFTDs",       value: fmt.int(t.qftds),      sub: t.regs ? fmt.pctF(100*t.qftds/t.regs) + " of regs" : "—" },
-    { label: "Revenue est", value: fmt.money(t.revenue),  sub: t.roas ? fmt.x(t.roas) + " ROAS" : "—", hero: true },
+    { label: "Spend",       cls: "kpi-spend", spark: "#a78bfa",
+      value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
+    { label: "Real Joins",  cls: "kpi-joins",
+      value: fmt.int(t.joins),      sub: `${fmt.int(t.pixel)} Meta Leads` },
+    { label: "DMs",         cls: "kpi-dms",
+      value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
+    { label: "Regs",        cls: "kpi-regs",
+      value: fmt.int(t.regs),       sub: t.dms ? fmt.pct(100*t.regs/t.dms) + " of DMs" : "—" },
+    { label: "QFTDs",       cls: "kpi-qftds",
+      value: fmt.int(t.qftds),      sub: t.regs ? fmt.pctF(100*t.qftds/t.regs) + " of regs" : "—" },
+    { label: "Revenue est", cls: "kpi-hero", hero: true,
+      value: fmt.money(t.revenue),  sub: t.roas ? fmt.x(t.roas) + " ROAS" : "—" },
   ];
   document.getElementById("kpi-grid").innerHTML = cards.map(c => `
-    <div class="kpi ${c.hero ? "kpi-hero" : ""}">
-      <div class="kpi-label">${c.label}</div>
+    <div class="kpi ${c.cls || ""}">
+      <div class="kpi-label"><span class="kpi-label-dot"></span>${c.label}</div>
       <div class="kpi-value">${c.value}</div>
       <div class="kpi-sub">${c.sub}</div>
-      ${c.label === "Spend" && t.spendSpark.length ? sparkline(t.spendSpark, "#ef4444", 70, 26) : ""}
+      ${c.spark && t.spendSpark.length ? sparkline(t.spendSpark, c.spark, 70, 26) : ""}
     </div>
   `).join("");
 }
