@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<!--
+  TFXS Ads Dashboard
+  ───────────────────────────────────────────────────────────────
+  Per-source ads matrix joining Meta spend (synced every 6h by the
+  ad-tracker bot from Meta Marketing API into ad_spend) with
+  Supabase funnel data (joins, DMs, regs, FTDs, QFTDs from
+  v_source_funnel). Computes real CPL, Meta CPL, CPA QFTD, ROAS,
+  profit estimate, and a verdict (scale / hold / kill / learning)
+  per source.
+
+  Gated client-side via BRAND.features.adsDashboard so this page is
+  invisible to white-label tenant clones (they get redirected to /
+  on load). The data lives in the TFXS Supabase project only —
+  even if a tenant copies this file, they cannot query it.
+  ─────────────────────────────────────────────────────────────── -->
+<html lang="en">
+<head>
+    <meta name="theme-color" content="#f5f5f7">
+    <script src="js/brand.config.js"></script>
+    <script>
+      // ─── Feature flag gate (white-label tenant lockout) ──────
+      // If the host BRAND config does not enable adsDashboard, redirect
+      // to the dashboard root. Done before render so tenant users do
+      // not even glimpse the page.
+      if (!window.BRAND || !window.BRAND.features || !window.BRAND.features.adsDashboard) {
+        window.location.replace("/index.html");
+      }
+      ((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?BRAND.colors.bgLight:BRAND.colors.bgDark})(localStorage.getItem(BRAND._lsKey("theme"))||"light")
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title id="page-title">TFXS Affiliate | Ads Dashboard</title>
+    <script>document.getElementById('page-title').textContent=BRAND._title('ads')</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <meta property="og:title" content="TFXS Affiliates — Ads Dashboard">
+    <meta property="og:description" content="Real-time ads performance: CPL, CPA, ROAS by source.">
+    <meta property="og:image" content="assets/logo.svg">
+    <meta property="og:type" content="website">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/shared.css">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+            colors: { brand: BRAND._tailwindBrand() },
+            animation: { 'fade-in-up': 'fadeInUp 0.5s ease-out forwards' },
+            keyframes: { fadeInUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } } }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family: 'Inter', sans-serif; background: var(--brand-dark); color: #e4e4e7; }
+      .light-theme body { background: var(--brand-light); color: #18181b; }
+      .kpi-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.75rem; padding: 1rem; }
+      .light-theme .kpi-card { background: white; border-color: rgba(0,0,0,0.06); }
+      .kpi-label { font-size: 0.7rem; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+      .kpi-value { font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; font-family: 'JetBrains Mono', monospace; }
+      .kpi-delta { font-size: 0.7rem; margin-top: 0.25rem; }
+      .matrix-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }
+      .matrix-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.65rem; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .matrix-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+      .light-theme .matrix-table th, .light-theme .matrix-table td { border-color: rgba(0,0,0,0.05); }
+      .matrix-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+      .light-theme .matrix-table tbody tr:hover { background: rgba(0,0,0,0.02); }
+      .verdict-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 0.4rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+      .verdict-scale    { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+      .verdict-hold     { background: rgba(234,179,8,0.15);  color: #eab308; border: 1px solid rgba(234,179,8,0.3); }
+      .verdict-kill     { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+      .verdict-learning { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+      .alert-row { padding: 0.6rem 0.8rem; border-radius: 0.5rem; margin-bottom: 0.4rem; font-size: 0.8rem; display: flex; gap: 0.6rem; align-items: flex-start; }
+      .alert-good { background: rgba(34,197,94,0.08); border-left: 3px solid #22c55e; }
+      .alert-warn { background: rgba(234,179,8,0.08); border-left: 3px solid #eab308; }
+      .period-btn { padding: 0.4rem 0.9rem; font-size: 0.75rem; font-weight: 600; border-radius: 0.5rem; cursor: pointer; transition: all 0.15s; border: 1px solid rgba(255,255,255,0.06); color: #a1a1aa; }
+      .period-btn:hover { color: white; background: rgba(255,255,255,0.04); }
+      .period-btn.active { background: rgba(239,68,68,0.12); color: #ef4444; border-color: rgba(239,68,68,0.3); }
+      .light-theme .period-btn { color: #71717a; }
+      .light-theme .period-btn:hover { color: #18181b; background: rgba(0,0,0,0.04); }
+      .light-theme .period-btn.active { background: rgba(220,38,38,0.1); color: #dc2626; border-color: rgba(220,38,38,0.3); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- ─── HEADER / NAV ─────────────────────────────────────── -->
+    <header class="border-b border-white/5 bg-black/20 backdrop-blur sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-8">
+          <a href="/" class="flex items-center gap-2 group cursor-pointer no-underline">
+            <img src="assets/logo.svg" alt="TFXS" class="h-7 w-auto" />
+          </a>
+          <nav class="hidden md:flex items-center gap-1">
+            <a href="/" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Dashboard</a>
+            <a href="/reports" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Reports</a>
+            <a href="/deals" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Deals</a>
+            <a href="/assets" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Assets</a>
+            <a href="/ads-dashboard" class="px-4 py-1.5 text-xs font-semibold text-brand-500 bg-white/10 rounded-md shadow-sm">Ads</a>
+            <a href="/settings" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Settings</a>
+          </nav>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-md hover:bg-white/5 transition" title="Refresh">↻ Refresh</button>
+          <span id="last-updated" class="text-[10px] text-gray-500"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+
+      <!-- ─── PAGE TITLE + PERIOD ─────────────────────────── -->
+      <div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight">📊 Ads Dashboard</h1>
+          <p class="text-xs text-gray-400 mt-1">
+            Per-source matrix · real CPL & CPA · scale / kill verdict ·
+            data refreshes every 6h from Meta + live from Supabase
+          </p>
+        </div>
+        <div class="flex gap-1">
+          <button class="period-btn" data-days="7">7d</button>
+          <button class="period-btn active" data-days="14">14d</button>
+          <button class="period-btn" data-days="30">30d</button>
+        </div>
+      </div>
+
+      <!-- ─── KPI ROW ────────────────────────────────────────── -->
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8" id="kpi-row">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- ─── PER-COUNTRY MATRIX ─────────────────────────────── -->
+      <section class="kpi-card mb-8 overflow-x-auto">
+        <h2 class="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3">
+          Per-source matrix · 30 days
+        </h2>
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th class="text-right">Spend</th>
+              <th class="text-right">Joins</th>
+              <th class="text-right">DMs</th>
+              <th class="text-right">J→DM</th>
+              <th class="text-right">Regs</th>
+              <th class="text-right">FTDs</th>
+              <th class="text-right">QFTDs</th>
+              <th class="text-right">CPL real</th>
+              <th class="text-right">CPL Meta</th>
+              <th class="text-right">CPA QFTD</th>
+              <th class="text-right">ROAS</th>
+              <th class="text-right">Profit</th>
+              <th class="text-center">Verdict</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-body">
+            <tr><td colspan="14" class="text-center text-gray-500 py-8">Loading…</td></tr>
+          </tbody>
+        </table>
+        <div class="text-[10px] text-gray-500 mt-3 flex flex-wrap gap-3">
+          <span>🟢 Scale: CPL ≤ $0.80 + J→DM ≥ 25%</span>
+          <span>🟡 Hold</span>
+          <span>🔴 Kill: CPL > $1.50 OR J→DM < 15%</span>
+          <span>🔵 Learning: spend < $50</span>
+          <span class="ml-auto">Revenue est = $500 × QFTDs (WWA $500-999 tier)</span>
+        </div>
+      </section>
+
+      <!-- ─── DAILY TREND CHART ───────────────────────────────── -->
+      <section class="kpi-card mb-8">
+        <h2 class="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3">
+          Daily spend by source · <span id="chart-period-label">last 14 days</span>
+        </h2>
+        <div style="height: 280px"><canvas id="trend-chart"></canvas></div>
+      </section>
+
+      <!-- ─── ALERTS ──────────────────────────────────────────── -->
+      <section class="kpi-card">
+        <h2 class="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3">
+          Auto-alerts
+        </h2>
+        <div id="alerts-body"><p class="text-xs text-gray-500">Loading…</p></div>
+      </section>
+
+    </main>
+
+    <script>
+    /* ─── Auth + helpers ─────────────────────────────────────── */
+    const API_BASE = (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
+    const JWT_KEY  = window.BRAND ? BRAND._lsKey("jwt") : "tfxs_jwt";
+    const jwt = localStorage.getItem(JWT_KEY);
+    if (!jwt) { window.location.replace("/login.html"); }
+
+    const fmt = {
+      int:   (n) => (n == null ? "—" : Number(n).toLocaleString("en-US")),
+      money: (n) => (n == null || isNaN(Number(n)) ? "—" : "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })),
+      pct:   (n) => (n == null ? "—" : Number(n).toFixed(0) + "%"),
+      x:     (n) => (n == null ? "—" : Number(n).toFixed(1) + "×"),
+    };
+
+    const flagOf = (source) => {
+      if (!source || !source.includes("_")) return "🌐";
+      const cc = source.split("_").pop().toUpperCase();
+      if (cc.length !== 2) return "🌐";
+      const A = 0x1F1E6;
+      return String.fromCodePoint(A + cc.charCodeAt(0) - 65) + String.fromCodePoint(A + cc.charCodeAt(1) - 65);
+    };
+
+    /* ─── State ──────────────────────────────────────────────── */
+    let chartInstance = null;
+    let currentDays = 14;
+
+    /* ─── Fetch ──────────────────────────────────────────────── */
+    async function fetchDashboard(days) {
+      const url = new URL("/admin/ads-dashboard", API_BASE);
+      url.searchParams.set("days", days);
+      const resp = await fetch(url, { headers: { Authorization: "Bearer " + jwt } });
+      if (resp.status === 401 || resp.status === 403) {
+        localStorage.removeItem(JWT_KEY);
+        window.location.replace("/login.html");
+        return null;
+      }
+      if (!resp.ok) {
+        const t = await resp.text();
+        throw new Error("Dashboard fetch failed: " + resp.status + " " + t.slice(0, 200));
+      }
+      return (await resp.json()).data;
+    }
+
+    /* ─── Render KPIs ────────────────────────────────────────── */
+    function renderKPIs(summary) {
+      const t = summary.reduce((a, r) => {
+        a.spend  += Number(r.spend_usd  || 0);
+        a.joins  += Number(r.joins      || 0);
+        a.dms    += Number(r.dms        || 0);
+        a.regs   += Number(r.regs       || 0);
+        a.ftds   += Number(r.ftds       || 0);
+        a.qftds  += Number(r.qftds      || 0);
+        return a;
+      }, { spend: 0, joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0 });
+      const revenue = t.qftds * 500;
+      const profit  = revenue - t.spend;
+      const roas    = t.spend > 0 ? revenue / t.spend : null;
+      const cards = [
+        { label: "Spend",   value: fmt.money(t.spend) },
+        { label: "Joins",   value: fmt.int(t.joins) },
+        { label: "DMs",     value: fmt.int(t.dms) },
+        { label: "Regs",    value: fmt.int(t.regs) },
+        { label: "QFTDs",   value: fmt.int(t.qftds) },
+        { label: "Revenue est", value: fmt.money(revenue) },
+        { label: "ROAS",    value: roas == null ? "—" : fmt.x(roas) },
+      ];
+      document.getElementById("kpi-row").innerHTML = cards.map(c => `
+        <div class="kpi-card">
+          <div class="kpi-label">${c.label}</div>
+          <div class="kpi-value">${c.value}</div>
+        </div>
+      `).join("");
+    }
+
+    /* ─── Render matrix ──────────────────────────────────────── */
+    function renderMatrix(summary) {
+      const tbody = document.getElementById("matrix-body");
+      if (!summary.length) {
+        tbody.innerHTML = `<tr><td colspan="14" class="text-center text-gray-500 py-8">No data yet — waiting for ads to launch and data to flow.</td></tr>`;
+        return;
+      }
+      // Filter sources with at least 1 join OR 1 spend dollar
+      const rows = summary
+        .filter(r => Number(r.joins || 0) > 0 || Number(r.spend_usd || 0) > 0)
+        .sort((a, b) => Number(b.spend_usd || 0) - Number(a.spend_usd || 0));
+      tbody.innerHTML = rows.map(r => {
+        const verdictClass = `verdict-${r.verdict || 'learning'}`;
+        const profit = Number(r.profit_est_usd || 0);
+        const profitClass = profit > 0 ? "text-green-400" : profit < 0 ? "text-red-400" : "text-gray-500";
+        return `
+          <tr>
+            <td><span class="mr-2">${flagOf(r.source)}</span><code class="text-[11px]">${r.source}</code></td>
+            <td class="text-right">${fmt.money(r.spend_usd)}</td>
+            <td class="text-right">${fmt.int(r.joins)}</td>
+            <td class="text-right">${fmt.int(r.dms)}</td>
+            <td class="text-right">${fmt.pct(r.join_to_dm_pct)}</td>
+            <td class="text-right">${fmt.int(r.regs)}</td>
+            <td class="text-right">${fmt.int(r.ftds)}</td>
+            <td class="text-right font-bold">${fmt.int(r.qftds)}</td>
+            <td class="text-right">${fmt.money(r.cpl_real_usd)}</td>
+            <td class="text-right text-gray-500">${fmt.money(r.cpl_meta_usd)}</td>
+            <td class="text-right">${fmt.money(r.cpa_qftd_usd)}</td>
+            <td class="text-right">${fmt.x(r.roas)}</td>
+            <td class="text-right ${profitClass}">${fmt.money(profit)}</td>
+            <td class="text-center"><span class="verdict-badge ${verdictClass}">${r.verdict || 'learning'}</span></td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    /* ─── Render trend chart ─────────────────────────────────── */
+    function renderChart(daily) {
+      const ctx = document.getElementById("trend-chart").getContext("2d");
+      // Build sorted unique date list
+      const dates = [...new Set(daily.map(d => d.spend_date))].sort();
+      const sources = [...new Set(daily.map(d => d.source))];
+      const palette = ["#ef4444","#f97316","#eab308","#22c55e","#06b6d4","#3b82f6","#8b5cf6","#ec4899","#a855f7","#10b981"];
+      const datasets = sources.map((src, i) => ({
+        label: src,
+        data: dates.map(d => {
+          const row = daily.find(x => x.spend_date === d && x.source === src);
+          return row ? Number(row.spend_usd || 0) : 0;
+        }),
+        backgroundColor: palette[i % palette.length] + "55",
+        borderColor: palette[i % palette.length],
+        borderWidth: 2,
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2,
+      }));
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: { labels: dates, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#a1a1aa", boxWidth: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: $${Number(ctx.raw).toFixed(2)}` } },
+          },
+          scales: {
+            x: { ticks: { color: "#71717a", font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: "#71717a", font: { size: 10 }, callback: (v) => "$" + v }, grid: { color: "rgba(255,255,255,0.04)" }, beginAtZero: true },
+          },
+        },
+      });
+    }
+
+    /* ─── Render auto-alerts ─────────────────────────────────── */
+    function renderAlerts(summary) {
+      const alerts = [];
+      summary.forEach(r => {
+        const v = r.verdict;
+        const flag = flagOf(r.source);
+        if (v === "scale" && Number(r.qftds || 0) >= 1) {
+          alerts.push({ kind: "good", text: `${flag} <code>${r.source}</code> meets scale criteria — suggest <b>+50% budget</b>. Current: CPL ${fmt.money(r.cpl_real_usd)}, J→DM ${fmt.pct(r.join_to_dm_pct)}, ${r.qftds} QFTD.` });
+        }
+        if (v === "kill") {
+          alerts.push({ kind: "warn", text: `${flag} <code>${r.source}</code> in <b>kill range</b>. CPL ${fmt.money(r.cpl_real_usd)}, J→DM ${fmt.pct(r.join_to_dm_pct)} — pause and reallocate.` });
+        }
+        if (Number(r.cpa_qftd_usd) > 30 && Number(r.qftds || 0) >= 2) {
+          alerts.push({ kind: "warn", text: `${flag} <code>${r.source}</code> CPA QFTD ${fmt.money(r.cpa_qftd_usd)} above $30 target — review creative or audience.` });
+        }
+      });
+      const body = document.getElementById("alerts-body");
+      if (!alerts.length) {
+        body.innerHTML = `<p class="text-xs text-gray-500">No alerts — wait for data to accumulate or run more spend.</p>`;
+        return;
+      }
+      body.innerHTML = alerts.map(a => `
+        <div class="alert-row alert-${a.kind === 'good' ? 'good' : 'warn'}">
+          <span>${a.kind === 'good' ? '✅' : '⚠️'}</span>
+          <span>${a.text}</span>
+        </div>
+      `).join("");
+    }
+
+    /* ─── Loader ─────────────────────────────────────────────── */
+    async function load(days) {
+      try {
+        document.getElementById("chart-period-label").textContent = `last ${days} days`;
+        const data = await fetchDashboard(days);
+        if (!data) return;
+        renderKPIs(data.summary);
+        renderMatrix(data.summary);
+        renderChart(data.daily);
+        renderAlerts(data.summary);
+        document.getElementById("last-updated").textContent =
+          "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+      } catch (err) {
+        console.error(err);
+        document.getElementById("matrix-body").innerHTML =
+          `<tr><td colspan="14" class="text-center text-red-400 py-8">Failed to load: ${err.message}</td></tr>`;
+      }
+    }
+
+    /* ─── Wire-up ────────────────────────────────────────────── */
+    document.querySelectorAll(".period-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentDays = parseInt(btn.dataset.days);
+        load(currentDays);
+      });
+    });
+    document.getElementById("refresh-btn").addEventListener("click", () => load(currentDays));
+
+    // Initial load + 5-min auto-refresh
+    load(currentDays);
+    setInterval(() => load(currentDays), 5 * 60 * 1000);
+    </script>
+</body>
+</html>

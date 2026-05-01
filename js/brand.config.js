@@ -84,6 +84,17 @@ const BRAND = {
     admin:    "Control Center",
     assets:   "Marketing Assets",
     email:    "Email Templates Preview",
+    ads:      "Ads Dashboard",
+  },
+
+  /* ── Feature flags ─────────────────────────────────────────── */
+  /* Per-tenant feature gate. White-label tenants should set false
+     for any feature that is not part of their plan. Read at runtime
+     by ads-dashboard.html (and any nav include) — pages gated by a
+     disabled flag redirect to /index.html on load.
+     ─ adsDashboard: TFXS-internal Meta ads tracking dashboard.     */
+  features: {
+    adsDashboard: true,   // TFXS only — set to false on tenant clones
   },
 
   /* ── OG descriptions per page ──────────────────────────────── */
@@ -93,6 +104,7 @@ const BRAND = {
     deals:    "Active CPA commission structures and broker partnerships.",
     settings: "Account settings and preferences.",
     assets:   "Download banners, landing pages and creatives.",
+    ads:      "Meta ads tracking — real CPL, CPA, ROAS by source.",
   },
 };
 
