@@ -261,7 +261,18 @@
                 <button onclick="switchTab('earnings')" id="tab-earnings" class="tab-btn active px-4 sm:px-6 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white transition-all uppercase tracking-wider whitespace-nowrap" data-i18n="rep.earningsReport">Earnings Report</button>
                 <button onclick="switchTab('registrations')" id="tab-registrations" class="tab-btn px-4 sm:px-6 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white transition-all uppercase tracking-wider whitespace-nowrap" data-i18n="rep.registrationReport">Registration Report</button>
                 <button onclick="switchTab('payouts')" id="tab-payouts" class="tab-btn px-4 sm:px-6 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white transition-all uppercase tracking-wider whitespace-nowrap" data-i18n="rep.payoutReport">Payout Report</button>
+                <a href="/ads-report" id="tab-ads" class="tab-btn hidden px-4 sm:px-6 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-brand-500 hover:text-white transition-all uppercase tracking-wider whitespace-nowrap items-center gap-1.5 no-underline" title="Meta ads performance dashboard (TFXS only)">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg>
+                    <span>Ads Performance</span>
+                </a>
             </div>
+            <script>
+              // Reveal the Ads Performance link only on TFXS (feature-gated)
+              if (window.BRAND && window.BRAND.features && window.BRAND.features.adsDashboard) {
+                document.getElementById('tab-ads')?.classList.remove('hidden');
+                document.getElementById('tab-ads')?.classList.add('inline-flex');
+              }
+            </script>
 
             <!-- Timeframe Controls — stacks on mobile -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">

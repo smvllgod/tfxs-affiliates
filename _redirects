@@ -7,4 +7,6 @@
 /assets         /assets.html    200
 /settings       /settings.html  200
 /admin-settings /admin-settings.html 200
+/ads-report     /ads-report.html 200
+/ads            /ads-report.html 200
 /login          /login.html     200

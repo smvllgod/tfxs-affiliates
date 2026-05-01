@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<!--
+  TFXS Ads Performance Report
+  ───────────────────────────────────────────────────────────────
+  Premium ads tracking dashboard — joins, DMs, regs, FTDs, QFTDs,
+  real CPL, CPA QFTD, ROAS, profit, and verdict (scale/hold/kill)
+  per source. Joins Meta spend (auto-synced every 6h from Meta
+  Marketing API by the ad-tracker bot into ad_spend) with Supabase
+  funnel (v_source_funnel) via the backend /admin/ads-dashboard
+  endpoint.
+
+  TFXS-only — gated client-side via BRAND.features.adsDashboard so
+  this page is invisible to white-label tenant clones (they get
+  redirected to /reports on load). Even if a tenant copies this
+  file, the data lives in the TFXS Supabase project only and the
+  backend endpoint requires an admin JWT.
+
+  Sister to reports.html (same design language: glass-panel cards,
+  btn-gradient, brand red, JetBrains Mono numerics).
+  ─────────────────────────────────────────────────────────────── -->
+<html lang="en">
+<head>
+    <meta name="theme-color" content="#0a0a0a">
+    <script src="js/brand.config.js"></script>
+    <script>
+      // ─── Feature flag gate (white-label tenant lockout) ──────
+      // If BRAND does not enable adsDashboard, redirect to /reports
+      // before any render so tenant users do not even glimpse the page.
+      if (!window.BRAND || !window.BRAND.features || !window.BRAND.features.adsDashboard) {
+        window.location.replace("/reports");
+      }
+      ((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?BRAND.colors.bgLight:BRAND.colors.bgDark})(localStorage.getItem(BRAND._lsKey("theme"))||"light")
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title id="page-title">TFXS Affiliate | Ads Performance</title>
+    <script>document.getElementById('page-title').textContent=BRAND._title('ads')</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <meta property="og:title" content="TFXS Affiliates — Ads Performance">
+    <meta property="og:description" content="Real CPL, CPA QFTD, ROAS by source. Live data from Meta Marketing API + Telegram joins.">
+    <meta property="og:image" content="assets/logo.svg">
+    <meta property="og:type" content="website">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/shared.css">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+            colors: { brand: BRAND._tailwindBrand() },
+            animation: { 'fade-in-up':'fadeInUp 0.5s ease-out forwards', 'fade-in':'fadeIn 0.4s ease-out forwards' },
+            keyframes: {
+              fadeInUp: { '0%':{opacity:0,transform:'translateY(12px)'}, '100%':{opacity:1,transform:'translateY(0)'} },
+              fadeIn: { '0%':{opacity:0}, '100%':{opacity:1} }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family:'Inter',sans-serif; background:var(--brand-dark); color:#e4e4e7; }
+      .light-theme body { background:var(--brand-light); color:#18181b; }
+
+      /* Halo backdrop matching reports.html */
+      .halo-bg {
+        position:fixed; inset:0; pointer-events:none; z-index:0;
+        background:
+          radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.16), transparent 60%),
+          radial-gradient(ellipse 800px 400px at 0% 50%, rgba(220,38,38,0.08), transparent 60%);
+      }
+      .light-theme .halo-bg { background:
+        radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.06), transparent 60%); }
+
+      /* KPI hero cards */
+      .kpi {
+        position:relative; padding:1.1rem 1.2rem; border-radius:1rem;
+        background:rgba(255,255,255,0.03);
+        border:1px solid rgba(255,255,255,0.06);
+        overflow:hidden; transition:transform .18s, border-color .18s, background .18s;
+      }
+      .kpi:hover { transform:translateY(-2px); border-color:rgba(239,68,68,0.4); background:rgba(255,255,255,0.045); }
+      .light-theme .kpi { background:white; border-color:rgba(0,0,0,0.06); }
+      .light-theme .kpi:hover { border-color:rgba(220,38,38,0.4); }
+      .kpi-label { font-size:.65rem; color:#71717a; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
+      .kpi-value { font-size:1.85rem; font-weight:700; margin-top:.25rem; font-family:'JetBrains Mono',monospace; letter-spacing:-.02em; line-height:1.1; }
+      .kpi-sub { font-size:.7rem; color:#71717a; margin-top:.4rem; font-family:'JetBrains Mono',monospace; }
+      .kpi-spark { position:absolute; right:0.5rem; bottom:0.5rem; opacity:.45; pointer-events:none; }
+
+      /* Hero highlight (revenue est) */
+      .kpi-hero {
+        background:
+          linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.04) 60%, transparent 100%),
+          rgba(255,255,255,0.03);
+        border-color:rgba(239,68,68,0.25);
+      }
+      .kpi-hero .kpi-value { color:#ef4444; }
+
+      /* Matrix table */
+      .matrix { width:100%; border-collapse:separate; border-spacing:0; font-family:'JetBrains Mono',monospace; }
+      .matrix thead th {
+        text-align:left; padding:.65rem .9rem; font-size:.6rem;
+        font-weight:600; color:#71717a; text-transform:uppercase; letter-spacing:.08em;
+        border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:5;
+        background:rgba(10,10,10,0.92); backdrop-filter:blur(12px);
+      }
+      .light-theme .matrix thead th { background:rgba(255,255,255,0.96); border-bottom-color:rgba(0,0,0,0.08); }
+      .matrix tbody td { padding:.7rem .9rem; font-size:.78rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+      .light-theme .matrix tbody td { border-bottom-color:rgba(0,0,0,0.05); }
+      .matrix tbody tr { transition:background .14s; }
+      .matrix tbody tr:hover { background:rgba(239,68,68,0.04); }
+      .matrix .num { text-align:right; }
+      .matrix .src-cell { font-family:'Inter',sans-serif; }
+      .matrix .src-flag { font-size:1.05rem; margin-right:.45rem; vertical-align:-2px; }
+      .matrix .src-code { font-family:'JetBrains Mono',monospace; font-size:.75rem; color:#a1a1aa; }
+      .light-theme .matrix .src-code { color:#52525b; }
+
+      /* J→DM mini-bar inside cell */
+      .jdm-bar { display:inline-block; width:48px; height:5px; background:rgba(255,255,255,0.06); border-radius:99px; vertical-align:middle; margin-left:.4rem; overflow:hidden; }
+      .light-theme .jdm-bar { background:rgba(0,0,0,0.06); }
+      .jdm-bar-fill { height:100%; background:linear-gradient(90deg,#ef4444,#f97316); border-radius:99px; transition:width .5s; }
+
+      /* Verdict badge */
+      .verdict { display:inline-flex; align-items:center; gap:.3rem; padding:.22rem .55rem; border-radius:.5rem; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; font-family:'Inter',sans-serif; }
+      .verdict::before { content:''; width:6px; height:6px; border-radius:50%; }
+      .verdict.scale    { background:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+      .verdict.scale::before    { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+      .verdict.hold     { background:rgba(234,179,8,0.12); color:#eab308; border:1px solid rgba(234,179,8,0.3); }
+      .verdict.hold::before     { background:#eab308; box-shadow:0 0 6px #eab308; }
+      .verdict.kill     { background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
+      .verdict.kill::before     { background:#ef4444; box-shadow:0 0 6px #ef4444; }
+      .verdict.learning { background:rgba(59,130,246,0.12); color:#3b82f6; border:1px solid rgba(59,130,246,0.3); }
+      .verdict.learning::before { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
+
+      /* Period selector — segmented pill */
+      .period-group { display:inline-flex; padding:.25rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.06); border-radius:.7rem; }
+      .light-theme .period-group { background:rgba(0,0,0,0.04); border-color:rgba(0,0,0,0.06); }
+      .period-btn { padding:.45rem .95rem; font-size:.7rem; font-weight:700; border-radius:.5rem; cursor:pointer; transition:all .15s; color:#a1a1aa; text-transform:uppercase; letter-spacing:.08em; border:none; background:transparent; }
+      .period-btn:hover { color:white; }
+      .light-theme .period-btn:hover { color:#18181b; }
+      .period-btn.active { background:rgba(239,68,68,0.15); color:#ef4444; box-shadow:0 0 0 1px rgba(239,68,68,0.3); }
+      .light-theme .period-btn.active { background:rgba(220,38,38,0.1); }
+
+      /* Funnel stages */
+      .funnel { display:grid; grid-template-columns:repeat(5,1fr); gap:.5rem; }
+      .funnel-stage { padding:1rem; border-radius:.8rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); position:relative; }
+      .light-theme .funnel-stage { background:white; border-color:rgba(0,0,0,0.06); }
+      .funnel-stage-label { font-size:.6rem; color:#71717a; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
+      .funnel-stage-value { font-size:1.6rem; font-weight:800; font-family:'JetBrains Mono',monospace; margin-top:.2rem; line-height:1; }
+      .funnel-stage-pct { font-size:.65rem; color:#a1a1aa; margin-top:.4rem; font-family:'JetBrains Mono',monospace; }
+      .funnel-arrow { position:absolute; top:50%; right:-1.1rem; width:1.5rem; height:1.5rem; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; color:#52525b; z-index:2; }
+      @media (max-width:768px) { .funnel { grid-template-columns:repeat(2,1fr); } .funnel-arrow { display:none; } }
+
+      /* Alert cards */
+      .alert { display:flex; gap:.8rem; padding:.85rem 1rem; border-radius:.75rem; margin-bottom:.5rem; align-items:flex-start; transition:transform .15s; }
+      .alert:hover { transform:translateX(2px); }
+      .alert-icon { flex-shrink:0; width:2rem; height:2rem; border-radius:.5rem; display:flex; align-items:center; justify-content:center; font-size:.95rem; }
+      .alert.good { background:rgba(34,197,94,0.07); border-left:3px solid #22c55e; }
+      .alert.good .alert-icon { background:rgba(34,197,94,0.18); color:#22c55e; }
+      .alert.warn { background:rgba(234,179,8,0.07); border-left:3px solid #eab308; }
+      .alert.warn .alert-icon { background:rgba(234,179,8,0.18); color:#eab308; }
+      .alert.danger { background:rgba(239,68,68,0.07); border-left:3px solid #ef4444; }
+      .alert.danger .alert-icon { background:rgba(239,68,68,0.18); color:#ef4444; }
+      .alert-title { font-size:.78rem; font-weight:600; color:#e4e4e7; line-height:1.4; }
+      .light-theme .alert-title { color:#18181b; }
+      .alert-meta { font-size:.7rem; color:#a1a1aa; margin-top:.2rem; font-family:'JetBrains Mono',monospace; }
+
+      /* Skeleton loader */
+      .skeleton { background:linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:.4rem; }
+      @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+      /* Empty state */
+      .empty-state { padding:3rem 1.5rem; text-align:center; }
+      .empty-state svg { margin:0 auto 1rem; opacity:.4; }
+      .empty-state h3 { font-size:.95rem; font-weight:600; color:#e4e4e7; margin-bottom:.4rem; }
+      .empty-state p { font-size:.78rem; color:#71717a; max-width:320px; margin:0 auto; line-height:1.5; }
+
+      /* Tab buttons (matches reports.html .tab-btn) */
+      .tab-btn { background:transparent; border:1px solid transparent; }
+      .tab-btn.active { background:rgba(255,255,255,0.1); color:white; border-color:#ef4444; }
+
+      /* Chart container */
+      .chart-wrap { position:relative; height:300px; }
+
+      /* Profit color coding */
+      .profit-pos { color:#22c55e; }
+      .profit-neg { color:#ef4444; }
+      .profit-zero { color:#71717a; }
+
+      /* Mobile fixes */
+      @media (max-width:768px) {
+        .kpi-value { font-size:1.45rem; }
+        .matrix tbody td { padding:.55rem .55rem; font-size:.7rem; }
+        .matrix thead th { padding:.5rem .55rem; font-size:.55rem; }
+      }
+    </style>
+</head>
+<body class="antialiased font-sans min-h-screen relative overflow-x-hidden selection:bg-brand-500 selection:text-white pb-20">
+
+    <div class="halo-bg"></div>
+    <div class="relative">
+
+    <!-- ─── NAV (matches reports.html) ───────────────────────── -->
+    <nav class="sticky top-0 z-50 w-full glass-panel border-b-0 border-white/5 py-3 sm:py-4">
+      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sm:gap-4">
+        <div class="flex items-center gap-4 sm:gap-10">
+          <a href="/" class="flex items-center gap-2 group cursor-pointer no-underline">
+            <img src="assets/logo.svg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+            <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors"><script>document.write(BRAND.name);</script><span class="opacity-50 font-light"> <script>document.write(BRAND.nameFull.replace(BRAND.name,'').trim());</script></span></span>
+          </a>
+          <div class="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
+            <a href="/" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Dashboard</a>
+            <a href="/reports" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Reports</a>
+            <a href="/deals" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Deals</a>
+            <a href="/assets" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Assets</a>
+            <a href="/settings" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Settings</a>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition" title="Refresh">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.85-3.36L20 7M20 15a9 9 0 01-14.85 3.36L4 17"/></svg>
+            <span class="font-semibold uppercase tracking-wider text-[10px]">Refresh</span>
+          </button>
+          <span id="last-updated" class="text-[10px] text-gray-500 font-mono hidden lg:inline"></span>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 mt-8 sm:mt-12 space-y-8 animate-fade-in-up relative">
+
+      <!-- ─── HEADER ────────────────────────────────────────── -->
+      <header class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 sm:gap-8">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-1 rounded bg-brand-500/10 border border-brand-500/30">📊 ADS</span>
+            <a href="/reports" class="text-[10px] text-gray-500 hover:text-gray-300 transition uppercase tracking-wider">← Back to Reports</a>
+          </div>
+          <h1 class="text-2xl sm:text-4xl font-bold text-white tracking-tight">Ads Performance</h1>
+          <p class="text-sm sm:text-base text-gray-400 mt-1 sm:mt-2 font-light">
+            Real CPL, CPA QFTD, ROAS by source · Meta spend × Telegram joins · live every 6h
+          </p>
+        </div>
+        <div class="period-group">
+          <button class="period-btn" data-days="7">7d</button>
+          <button class="period-btn active" data-days="14">14d</button>
+          <button class="period-btn" data-days="30">30d</button>
+        </div>
+      </header>
+
+      <!-- ─── HERO KPI GRID ──────────────────────────────────── -->
+      <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" id="kpi-grid">
+        <!-- Filled by JS, with skeleton placeholder -->
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi kpi-hero"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+      </section>
+
+      <!-- ─── FUNNEL FLOW ───────────────────────────────────── -->
+      <section class="glass-panel p-5 sm:p-6 animate-fade-in" id="funnel-section">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Funnel · last 30 days
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono" id="funnel-date-range">—</span>
+        </div>
+        <div class="funnel" id="funnel-stages">
+          <!-- Filled by JS -->
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+        </div>
+      </section>
+
+      <!-- ─── DAILY SPEND TREND ─────────────────────────────── -->
+      <section class="glass-panel p-5 sm:p-6">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Daily spend by source
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono" id="trend-period-label">last 14 days</span>
+        </div>
+        <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+      </section>
+
+      <!-- ─── PER-SOURCE MATRIX ─────────────────────────────── -->
+      <section class="glass-panel p-0 overflow-hidden">
+        <div class="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center justify-between flex-wrap gap-2">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Per-source matrix · last 30 days
+          </h2>
+          <div class="flex items-center gap-3 text-[10px] text-gray-500 font-mono">
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Scale</span>
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Hold</span>
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Kill</span>
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Learning</span>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th class="num">Spend</th>
+                <th class="num">Joins</th>
+                <th class="num">DMs</th>
+                <th class="num">J→DM</th>
+                <th class="num">Regs</th>
+                <th class="num">FTDs</th>
+                <th class="num">QFTDs</th>
+                <th class="num">CPL real</th>
+                <th class="num">CPL Meta</th>
+                <th class="num">CPA QFTD</th>
+                <th class="num">ROAS</th>
+                <th class="num">Profit</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody id="matrix-body">
+              <tr><td colspan="14" class="empty-state">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <h3>Loading…</h3>
+                <p>Pulling Meta spend + Supabase funnel data.</p>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-5 sm:px-6 py-3 border-t border-white/5 text-[10px] text-gray-500 font-mono flex justify-between flex-wrap gap-2">
+          <span>Verdict rules: Scale · CPL ≤ $0.80 + J→DM ≥ 25% · Kill · CPL > $1.50 OR J→DM < 15% · Learning · spend < $50</span>
+          <span>Revenue est = $500 × QFTDs (WWA tier)</span>
+        </div>
+      </section>
+
+      <!-- ─── ALERTS ─────────────────────────────────────────── -->
+      <section class="glass-panel p-5 sm:p-6">
+        <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2 mb-4">
+          <span class="text-brand-500">●</span> Smart alerts
+        </h2>
+        <div id="alerts-body">
+          <div class="alert good">
+            <div class="alert-icon skeleton"></div>
+            <div class="flex-1"><div class="skeleton h-3 w-3/4 mb-2"></div><div class="skeleton h-2 w-1/2"></div></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+    </div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   DASHBOARD LOGIC
+   ════════════════════════════════════════════════════════════════ */
+const API_BASE = (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
+const JWT_KEY  = window.BRAND ? BRAND._lsKey("jwt") : "tfxs_jwt";
+const jwt = localStorage.getItem(JWT_KEY);
+if (!jwt) { window.location.replace("/login.html"); }
+
+/* ── Formatters ─────────────────────────────────────────────── */
+const fmt = {
+  int:   n => (n == null ? "—" : Number(n).toLocaleString("en-US")),
+  money: n => {
+    if (n == null || isNaN(Number(n))) return "—";
+    const v = Number(n);
+    if (Math.abs(v) >= 100000) return "$" + (v / 1000).toFixed(1) + "k";
+    return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  },
+  pct:   n => (n == null ? "—" : Number(n).toFixed(0) + "%"),
+  pctF:  n => (n == null ? "—" : Number(n).toFixed(1) + "%"),
+  x:     n => (n == null || !isFinite(Number(n)) ? "—" : Number(n).toFixed(1) + "×"),
+};
+
+const flagOf = src => {
+  if (!src || !src.includes("_")) return "🌐";
+  const cc = src.split("_").pop().toUpperCase();
+  if (cc.length !== 2) return "🌐";
+  return String.fromCodePoint(0x1F1E6 + cc.charCodeAt(0) - 65) +
+         String.fromCodePoint(0x1F1E6 + cc.charCodeAt(1) - 65);
+};
+
+/* ── Tiny inline sparkline SVG ─────────────────────────────── */
+function sparkline(values, color = "#ef4444", w = 80, h = 22) {
+  if (!values || values.length < 2) return "";
+  const max = Math.max(...values, 1), min = Math.min(...values, 0);
+  const range = (max - min) || 1;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(h - ((v - min) / range) * h).toFixed(1)}`).join(" ");
+  return `
+    <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="kpi-spark">
+      <defs><linearGradient id="g${color.slice(1)}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <polyline points="0,${h} ${pts} ${w},${h}" fill="url(#g${color.slice(1)})" stroke="none"/>
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>`;
+}
+
+/* ── State ──────────────────────────────────────────────────── */
+let currentDays = 14;
+let chartInstance = null;
+
+/* ── Fetch ──────────────────────────────────────────────────── */
+async function fetchDashboard(days) {
+  const url = new URL("/admin/ads-dashboard", API_BASE);
+  url.searchParams.set("days", days);
+  const resp = await fetch(url, { headers: { Authorization: "Bearer " + jwt } });
+  if (resp.status === 401 || resp.status === 403) {
+    localStorage.removeItem(JWT_KEY);
+    window.location.replace("/login.html");
+    return null;
+  }
+  if (!resp.ok) {
+    const t = await resp.text();
+    throw new Error("Dashboard fetch failed: " + resp.status + " " + t.slice(0, 200));
+  }
+  return (await resp.json()).data;
+}
+
+/* ── Compute totals + spark series ───────────────────────────── */
+function computeTotals(summary, daily) {
+  const t = summary.reduce((a, r) => {
+    a.spend  += +r.spend_usd  || 0;
+    a.joins  += +r.joins      || 0;
+    a.dms    += +r.dms        || 0;
+    a.regs   += +r.regs       || 0;
+    a.ftds   += +r.ftds       || 0;
+    a.qftds  += +r.qftds      || 0;
+    a.pixel  += +r.pixel_leads || 0;
+    return a;
+  }, { spend: 0, joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0, pixel: 0 });
+  t.revenue = t.qftds * 500;
+  t.profit  = t.revenue - t.spend;
+  t.roas    = t.spend > 0 ? t.revenue / t.spend : null;
+
+  // Build daily spend spark from daily data
+  const byDay = {};
+  daily.forEach(d => {
+    byDay[d.spend_date] = (byDay[d.spend_date] || 0) + (+d.spend_usd || 0);
+  });
+  t.spendSpark = Object.keys(byDay).sort().map(k => byDay[k]);
+  return t;
+}
+
+/* ── Render: KPI grid ────────────────────────────────────────── */
+function renderKPIs(t) {
+  const cards = [
+    { label: "Spend",       value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
+    { label: "Real Joins",  value: fmt.int(t.joins),      sub: `${fmt.int(t.pixel)} Meta Leads` },
+    { label: "DMs",         value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
+    { label: "Regs",        value: fmt.int(t.regs),       sub: t.dms ? fmt.pct(100*t.regs/t.dms) + " of DMs" : "—" },
+    { label: "QFTDs",       value: fmt.int(t.qftds),      sub: t.regs ? fmt.pctF(100*t.qftds/t.regs) + " of regs" : "—" },
+    { label: "Revenue est", value: fmt.money(t.revenue),  sub: t.roas ? fmt.x(t.roas) + " ROAS" : "—", hero: true },
+  ];
+  document.getElementById("kpi-grid").innerHTML = cards.map(c => `
+    <div class="kpi ${c.hero ? "kpi-hero" : ""}">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.value}</div>
+      <div class="kpi-sub">${c.sub}</div>
+      ${c.label === "Spend" && t.spendSpark.length ? sparkline(t.spendSpark, "#ef4444", 70, 26) : ""}
+    </div>
+  `).join("");
+}
+
+/* ── Render: Funnel ──────────────────────────────────────────── */
+function renderFunnel(t) {
+  const stages = [
+    { label: "Joins",  value: t.joins, pct: null },
+    { label: "DMs",    value: t.dms,   pct: t.joins ? 100*t.dms/t.joins : null },
+    { label: "Regs",   value: t.regs,  pct: t.dms ? 100*t.regs/t.dms : null },
+    { label: "FTDs",   value: t.ftds,  pct: t.regs ? 100*t.ftds/t.regs : null },
+    { label: "QFTDs",  value: t.qftds, pct: t.ftds ? 100*t.qftds/t.ftds : null },
+  ];
+  document.getElementById("funnel-stages").innerHTML = stages.map((s, i) => `
+    <div class="funnel-stage">
+      <div class="funnel-stage-label">${s.label}</div>
+      <div class="funnel-stage-value">${fmt.int(s.value)}</div>
+      <div class="funnel-stage-pct">${s.pct == null ? "starting point" : fmt.pct(s.pct) + " conv."}</div>
+      ${i < stages.length - 1 ? `
+        <div class="funnel-arrow">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7l7 7-7 7"/></svg>
+        </div>` : ""}
+    </div>
+  `).join("");
+}
+
+/* ── Render: Per-source matrix ───────────────────────────────── */
+function renderMatrix(summary) {
+  const tbody = document.getElementById("matrix-body");
+  const rows = (summary || [])
+    .filter(r => (+r.joins || 0) > 0 || (+r.spend_usd || 0) > 0)
+    .sort((a, b) => (+b.spend_usd || 0) - (+a.spend_usd || 0));
+  if (!rows.length) {
+    tbody.innerHTML = `
+      <tr><td colspan="14"><div class="empty-state">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+        <h3>No data yet</h3>
+        <p>Once your ads start spending and leads start joining, this matrix will populate. The bot pulls Meta spend every 6 hours.</p>
+      </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const profit = +r.profit_est_usd || 0;
+    const profitClass = profit > 0 ? "profit-pos" : profit < 0 ? "profit-neg" : "profit-zero";
+    const jdm = +r.join_to_dm_pct || 0;
+    const verdict = r.verdict || "learning";
+    return `
+      <tr>
+        <td class="src-cell">
+          <span class="src-flag">${flagOf(r.source)}</span>
+          <span class="src-code">${r.source}</span>
+        </td>
+        <td class="num font-bold">${fmt.money(r.spend_usd)}</td>
+        <td class="num">${fmt.int(r.joins)}</td>
+        <td class="num">${fmt.int(r.dms)}</td>
+        <td class="num">
+          ${fmt.pct(r.join_to_dm_pct)}
+          <span class="jdm-bar"><span class="jdm-bar-fill" style="width:${Math.min(jdm, 100)}%"></span></span>
+        </td>
+        <td class="num">${fmt.int(r.regs)}</td>
+        <td class="num">${fmt.int(r.ftds)}</td>
+        <td class="num font-bold text-white">${fmt.int(r.qftds)}</td>
+        <td class="num">${fmt.money(r.cpl_real_usd)}</td>
+        <td class="num text-gray-500">${fmt.money(r.cpl_meta_usd)}</td>
+        <td class="num">${fmt.money(r.cpa_qftd_usd)}</td>
+        <td class="num">${fmt.x(r.roas)}</td>
+        <td class="num ${profitClass}">${fmt.money(profit)}</td>
+        <td><span class="verdict ${verdict}">${verdict}</span></td>
+      </tr>
+    `;
+  }).join("");
+}
+
+/* ── Render: Trend chart ─────────────────────────────────────── */
+function renderChart(daily, days) {
+  const ctx = document.getElementById("trend-chart").getContext("2d");
+  document.getElementById("trend-period-label").textContent = `last ${days} days`;
+  if (!daily || !daily.length) {
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    return;
+  }
+  const dates = [...new Set(daily.map(d => d.spend_date))].sort();
+  const sources = [...new Set(daily.map(d => d.source))];
+  const palette = ["#ef4444","#f97316","#eab308","#22c55e","#06b6d4","#3b82f6","#8b5cf6","#ec4899","#a855f7","#10b981","#f43f5e","#84cc16"];
+  const datasets = sources.map((src, i) => ({
+    label: flagOf(src) + " " + src,
+    data: dates.map(d => {
+      const row = daily.find(x => x.spend_date === d && x.source === src);
+      return row ? +row.spend_usd || 0 : 0;
+    }),
+    backgroundColor: palette[i % palette.length] + "40",
+    borderColor: palette[i % palette.length],
+    borderWidth: 2,
+    fill: true,
+    tension: 0.35,
+    pointRadius: 0,
+    pointHoverRadius: 5,
+    pointHoverBackgroundColor: palette[i % palette.length],
+    pointHoverBorderColor: "#fff",
+    pointHoverBorderWidth: 2,
+  }));
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: "line",
+    data: { labels: dates.map(d => d.slice(5)), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#a1a1aa", boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: true, pointStyle: "circle", font: { size: 11, family: "Inter" } },
+        },
+        tooltip: {
+          backgroundColor: "rgba(10,10,10,0.95)",
+          borderColor: "rgba(239,68,68,0.3)",
+          borderWidth: 1,
+          padding: 10,
+          titleFont: { size: 11, weight: 700 },
+          bodyFont: { size: 11, family: "JetBrains Mono" },
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: $${(+ctx.raw).toFixed(2)}`,
+          },
+        },
+      },
+      scales: {
+        x: { ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" } }, grid: { display: false } },
+        y: { ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" }, callback: v => "$" + v }, grid: { color: "rgba(255,255,255,0.04)", drawBorder: false }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+/* ── Render: Smart alerts ───────────────────────────────────── */
+function renderAlerts(summary) {
+  const alerts = [];
+  (summary || []).forEach(r => {
+    const flag = flagOf(r.source);
+    const code = r.source;
+    const v = r.verdict;
+    if (v === "scale" && (+r.qftds || 0) >= 1) {
+      alerts.push({
+        kind: "good", icon: "🚀",
+        title: `${flag} <code>${code}</code> meets scale criteria`,
+        meta: `Suggest <b>+50% budget</b> · CPL ${fmt.money(r.cpl_real_usd)} · J→DM ${fmt.pct(r.join_to_dm_pct)} · ${r.qftds} QFTD · ROAS ${fmt.x(r.roas)}`,
+      });
+    }
+    if (v === "kill") {
+      alerts.push({
+        kind: "danger", icon: "⛔",
+        title: `${flag} <code>${code}</code> in kill range — pause and reallocate`,
+        meta: `CPL ${fmt.money(r.cpl_real_usd)} · J→DM ${fmt.pct(r.join_to_dm_pct)} · spend ${fmt.money(r.spend_usd)} · ${r.qftds || 0} QFTD`,
+      });
+    }
+    if ((+r.cpa_qftd_usd) > 30 && (+r.qftds || 0) >= 2 && v !== "kill") {
+      alerts.push({
+        kind: "warn", icon: "⚠️",
+        title: `${flag} <code>${code}</code> CPA above $30 target`,
+        meta: `CPA QFTD ${fmt.money(r.cpa_qftd_usd)} · review creative or audience targeting`,
+      });
+    }
+  });
+  const body = document.getElementById("alerts-body");
+  if (!alerts.length) {
+    body.innerHTML = `
+      <div class="empty-state" style="padding:1.8rem 1rem">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 12l2 2 4-4M21 12c0 5-4 9-9 9s-9-4-9-9 4-9 9-9 9 4 9 9z"/></svg>
+        <h3>All clear</h3>
+        <p>No alerts to flag — wait for more data to accumulate or run more spend.</p>
+      </div>`;
+    return;
+  }
+  body.innerHTML = alerts.map(a => `
+    <div class="alert ${a.kind}">
+      <div class="alert-icon">${a.icon}</div>
+      <div class="flex-1 min-w-0">
+        <div class="alert-title">${a.title}</div>
+        <div class="alert-meta">${a.meta}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+/* ── Render: header context ─────────────────────────────────── */
+function renderContext(t) {
+  const today = new Date(); const since = new Date();
+  since.setDate(since.getDate() - 30);
+  const fmtDate = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  document.getElementById("funnel-date-range").textContent = `${fmtDate(since)} → ${fmtDate(today)}`;
+  document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
+
+/* ── Loader ─────────────────────────────────────────────────── */
+async function load(days) {
+  try {
+    const data = await fetchDashboard(days);
+    if (!data) return;
+    const t = computeTotals(data.summary, data.daily);
+    renderKPIs(t);
+    renderFunnel(t);
+    renderChart(data.daily, days);
+    renderMatrix(data.summary);
+    renderAlerts(data.summary);
+    renderContext(t);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("matrix-body").innerHTML =
+      `<tr><td colspan="14"><div class="empty-state">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <h3 style="color:#ef4444">Failed to load</h3>
+        <p>${err.message}</p>
+      </div></td></tr>`;
+  }
+}
+
+/* ── Wire up ─────────────────────────────────────────────────── */
+document.querySelectorAll(".period-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentDays = parseInt(btn.dataset.days);
+    load(currentDays);
+  });
+});
+document.getElementById("refresh-btn").addEventListener("click", () => {
+  const btn = document.getElementById("refresh-btn");
+  btn.style.opacity = "0.5";
+  load(currentDays).finally(() => { btn.style.opacity = ""; });
+});
+
+/* Initial + 5-min auto-refresh */
+load(currentDays);
+setInterval(() => load(currentDays), 5 * 60 * 1000);
+</script>
+
+</body>
+</html>
