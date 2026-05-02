@@ -127,7 +127,14 @@
         font-family:'JetBrains Mono',monospace;
       }
       .light-theme .kpi-sub { color:#71717a; }
-      .kpi-spark { position:absolute; right:0.6rem; bottom:0.6rem; opacity:.55; pointer-events:none; }
+      /* Sparkline as a full-width ghosted background at the bottom of the card */
+      .kpi-spark {
+        position:absolute; left:0; right:0; bottom:0;
+        width:100%; height:auto; max-height:38px;
+        opacity:.45; pointer-events:none;
+        mask-image: linear-gradient(90deg, transparent 0%, black 25%, black 100%);
+        -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 25%, black 100%);
+      }
 
       /* Per-KPI color tokens — RGB triplets */
       .kpi-spend { --kpi-rgb: 167,139,250; }   /* indigo */
@@ -446,7 +453,9 @@ const fmt = {
   money: n => {
     if (n == null || isNaN(Number(n))) return "—";
     const v = Number(n);
-    if (Math.abs(v) >= 100000) return "$" + (v / 1000).toFixed(1) + "k";
+    // Compact for ≥ $10k so the KPI value never overflows the card
+    if (Math.abs(v) >= 1000000) return "$" + (v / 1000000).toFixed(2) + "M";
+    if (Math.abs(v) >= 10000)   return "$" + (v / 1000).toFixed(1)   + "k";
     return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   },
   pct:   n => (n == null ? "—" : Number(n).toFixed(0) + "%"),
@@ -561,7 +570,7 @@ function renderKPIs(t) {
       <div class="kpi-label"><span class="kpi-label-dot"></span>${c.label}</div>
       <div class="kpi-value">${c.value}</div>
       <div class="kpi-sub">${c.sub}</div>
-      ${c.spark && t.spendSpark.length ? sparkline(t.spendSpark, c.spark, 70, 26) : ""}
+      ${c.spark && t.spendSpark.length ? sparkline(t.spendSpark, c.spark, 240, 38) : ""}
     </div>
   `).join("");
 }
