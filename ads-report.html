@@ -76,35 +76,33 @@
       .light-theme .halo-bg { background:
         radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.06), transparent 60%); }
 
-      /* KPI cards — glassy dark base + visible colored border
-         (matches the toolbar buttons "BACKFILL HISTORICAL", etc.):
-         no fancy gradients, dark glass surface, accent color used
-         for the border, the dot, and the label text only. */
+      /* KPI cards — colored tint over the dark page (Tailwind toolbar
+         button pattern: bg-{color}/10 + border-{color}/20).
+         Background IS the accent color at low opacity, so the card sits
+         visibly tinted on the page — like BACKFILL UNLINKED is amber-tinted,
+         FULL STATS is red-tinted. No solid black, no flooding gradient. */
       .kpi {
         --kpi-rgb: 255,255,255;
         --kpi-accent: rgb(var(--kpi-rgb));
         position:relative; padding:1.2rem 1.3rem; border-radius:1rem;
-        background: rgba(10,10,12,0.55);
-        backdrop-filter: blur(14px) saturate(1.15);
-        -webkit-backdrop-filter: blur(14px) saturate(1.15);
-        border:1px solid rgba(var(--kpi-rgb),0.32);
+        background: rgba(var(--kpi-rgb), 0.08);
+        border: 1px solid rgba(var(--kpi-rgb), 0.20);
         overflow:hidden;
         transition: transform .22s ease, border-color .22s, background .22s, box-shadow .22s;
       }
       .kpi:hover {
         transform:translateY(-3px);
-        border-color: rgba(var(--kpi-rgb),0.55);
-        background: rgba(14,14,16,0.65);
-        box-shadow: 0 14px 36px -12px rgba(var(--kpi-rgb),0.40);
+        background: rgba(var(--kpi-rgb), 0.14);
+        border-color: rgba(var(--kpi-rgb), 0.40);
+        box-shadow: 0 14px 36px -12px rgba(var(--kpi-rgb), 0.35);
       }
       .light-theme .kpi {
-        background: rgba(255,255,255,0.78);
-        backdrop-filter: blur(14px) saturate(1.15);
-        border-color: rgba(var(--kpi-rgb),0.28);
+        background: rgba(var(--kpi-rgb), 0.07);
+        border-color: rgba(var(--kpi-rgb), 0.25);
       }
       .light-theme .kpi:hover {
-        background: rgba(255,255,255,0.92);
-        border-color: rgba(var(--kpi-rgb),0.50);
+        background: rgba(var(--kpi-rgb), 0.13);
+        border-color: rgba(var(--kpi-rgb), 0.45);
       }
 
       .kpi-label {
@@ -138,8 +136,16 @@
       .kpi-regs  { --kpi-rgb: 250,204,21;  }   /* yellow */
       .kpi-qftds { --kpi-rgb: 52,211,153;  }   /* emerald */
 
-      /* Hero (Revenue est) — brand red, gradient text only */
-      .kpi-hero { --kpi-rgb: 239,68,68; }
+      /* Hero (Revenue est) — brand red. Slightly stronger tint + gradient text. */
+      .kpi-hero {
+        --kpi-rgb: 239,68,68;
+        background: rgba(239,68,68, 0.10);
+        border-color: rgba(239,68,68, 0.30);
+      }
+      .kpi-hero:hover {
+        background: rgba(239,68,68, 0.16);
+        border-color: rgba(239,68,68, 0.50);
+      }
       .kpi-hero .kpi-value {
         background:linear-gradient(135deg, #ef4444 0%, #fca5a5 100%);
         -webkit-background-clip:text; background-clip:text;
