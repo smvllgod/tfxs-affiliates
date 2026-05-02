@@ -504,18 +504,26 @@ async function fetchDashboard(days) {
 /* ── Compute totals + spark series ───────────────────────────── */
 function computeTotals(summary, daily) {
   const t = summary.reduce((a, r) => {
-    a.spend  += +r.spend_usd  || 0;
-    a.joins  += +r.joins      || 0;
-    a.dms    += +r.dms        || 0;
-    a.regs   += +r.regs       || 0;
-    a.ftds   += +r.ftds       || 0;
-    a.qftds  += +r.qftds      || 0;
-    a.pixel  += +r.pixel_leads || 0;
+    a.spend           += +r.spend_usd            || 0;
+    a.joins           += +r.joins                || 0;
+    a.dms             += +r.dms                  || 0;
+    a.regs            += +r.regs                 || 0;
+    a.ftds            += +r.ftds                 || 0;
+    a.qftds           += +r.qftds                || 0;
+    a.pixel           += +r.pixel_leads          || 0;
+    a.commissionReal  += +r.commission_actual_usd || 0;
+    a.commissionCount += +r.commission_count     || 0;
+    // Per-source hybrid revenue (real if available, else estimate) — sum it
+    a.revenue         += +r.revenue_est_usd      || 0;
     return a;
-  }, { spend: 0, joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0, pixel: 0 });
-  t.revenue = t.qftds * 500;
+  }, { spend: 0, joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0, pixel: 0,
+       commissionReal: 0, commissionCount: 0, revenue: 0 });
   t.profit  = t.revenue - t.spend;
   t.roas    = t.spend > 0 ? t.revenue / t.spend : null;
+  // Estimate fraction: how much of total revenue is from the $500 fallback
+  // (i.e. QFTDs without a real commission booked yet) vs real commissions
+  t.revenueIsReal = t.commissionCount > 0;
+  t.revenueAvg    = t.commissionCount > 0 ? t.commissionReal / t.commissionCount : null;
 
   // Build daily spend spark from daily data
   const byDay = {};
@@ -539,8 +547,14 @@ function renderKPIs(t) {
       value: fmt.int(t.regs),       sub: t.dms ? fmt.pct(100*t.regs/t.dms) + " of DMs" : "—" },
     { label: "QFTDs",       cls: "kpi-qftds",
       value: fmt.int(t.qftds),      sub: t.regs ? fmt.pctF(100*t.qftds/t.regs) + " of regs" : "—" },
-    { label: "Revenue est", cls: "kpi-hero", hero: true,
-      value: fmt.money(t.revenue),  sub: t.roas ? fmt.x(t.roas) + " ROAS" : "—" },
+    { label: t.revenueIsReal ? "Revenue" : "Revenue est",
+      cls: "kpi-hero", hero: true,
+      value: fmt.money(t.revenue),
+      sub: t.revenueIsReal
+        ? `${t.commissionCount} comm · avg ${fmt.money(t.revenueAvg)}` + (t.roas ? ` · ${fmt.x(t.roas)} ROAS` : "")
+        : (t.qftds > 0
+            ? `est. $500/QFTD` + (t.roas ? ` · ${fmt.x(t.roas)} ROAS` : "")
+            : "—") },
   ];
   document.getElementById("kpi-grid").innerHTML = cards.map(c => `
     <div class="kpi ${c.cls || ""}">
