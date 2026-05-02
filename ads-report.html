@@ -76,75 +76,95 @@
       .light-theme .halo-bg { background:
         radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.06), transparent 60%); }
 
-      /* KPI cards — per-card accent color via CSS vars */
+      /* KPI cards — full-card color wash (Linear / Vercel style) */
       .kpi {
-        --kpi-accent: rgba(255,255,255,0.4);
-        --kpi-accent-soft: rgba(255,255,255,0.05);
-        --kpi-glow: rgba(255,255,255,0.1);
-        position:relative; padding:1.1rem 1.2rem; border-radius:1rem;
-        background:rgba(255,255,255,0.03);
-        border:1px solid rgba(255,255,255,0.06);
+        /* Per-card RGB triplet, set by .kpi-* utility classes below */
+        --kpi-rgb: 255,255,255;
+        --kpi-accent: rgb(var(--kpi-rgb));
+        position:relative; padding:1.2rem 1.3rem; border-radius:1rem;
+        background:
+          /* Strong wash from top-left (where the label lives) */
+          radial-gradient(ellipse 110% 90% at 0% 0%, rgba(var(--kpi-rgb),0.18) 0%, transparent 55%),
+          /* Diffuse glow bottom-right for depth */
+          radial-gradient(ellipse 90% 70% at 100% 100%, rgba(var(--kpi-rgb),0.10) 0%, transparent 65%),
+          /* Solid base — semi-transparent dark with a tiny tint */
+          linear-gradient(180deg, rgba(var(--kpi-rgb),0.04) 0%, rgba(255,255,255,0.015) 100%);
+        border:1px solid rgba(var(--kpi-rgb),0.22);
         overflow:hidden;
-        transition:transform .18s ease, border-color .18s, background .18s, box-shadow .18s;
+        transition:transform .22s ease, border-color .22s, box-shadow .22s, background .22s;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
       }
+      /* Top stripe in accent color */
       .kpi::before {
         content:""; position:absolute; top:0; left:0; right:0; height:2px;
-        background:linear-gradient(90deg, var(--kpi-accent), transparent 80%);
-        opacity:.85;
+        background:linear-gradient(90deg, var(--kpi-accent) 0%, transparent 90%);
+        opacity:.95; z-index:1;
       }
+      /* Floating soft orb in upper-right for premium feel */
       .kpi::after {
-        content:""; position:absolute; top:-40%; right:-30%;
-        width:140px; height:140px; border-radius:50%;
-        background:radial-gradient(circle, var(--kpi-accent-soft) 0%, transparent 70%);
-        pointer-events:none;
+        content:""; position:absolute; top:-30%; right:-20%;
+        width:180px; height:180px; border-radius:50%;
+        background:radial-gradient(circle, rgba(var(--kpi-rgb),0.15) 0%, transparent 70%);
+        filter: blur(30px);
+        pointer-events:none; z-index:0;
       }
+      .kpi > * { position:relative; z-index:2; }
       .kpi:hover {
-        transform:translateY(-2px);
-        border-color:var(--kpi-accent);
-        background:rgba(255,255,255,0.045);
-        box-shadow:0 12px 28px -10px var(--kpi-glow), 0 0 0 1px var(--kpi-accent-soft);
+        transform:translateY(-3px);
+        border-color:rgba(var(--kpi-rgb),0.45);
+        box-shadow:
+          0 16px 40px -12px rgba(var(--kpi-rgb),0.35),
+          0 0 0 1px rgba(var(--kpi-rgb),0.15);
       }
-      .light-theme .kpi { background:white; border-color:rgba(0,0,0,0.06); }
-      .light-theme .kpi:hover { border-color:var(--kpi-accent); }
+      .light-theme .kpi {
+        background:
+          radial-gradient(ellipse 110% 90% at 0% 0%, rgba(var(--kpi-rgb),0.14) 0%, transparent 55%),
+          radial-gradient(ellipse 90% 70% at 100% 100%, rgba(var(--kpi-rgb),0.07) 0%, transparent 65%),
+          white;
+        border-color:rgba(var(--kpi-rgb),0.25);
+      }
 
       .kpi-label {
-        font-size:.65rem; color:var(--kpi-accent); text-transform:uppercase;
-        letter-spacing:.1em; font-weight:600; opacity:.92;
-        display:flex; align-items:center; gap:.45rem;
+        font-size:.68rem; color:var(--kpi-accent); text-transform:uppercase;
+        letter-spacing:.12em; font-weight:700; opacity:.95;
+        display:flex; align-items:center; gap:.5rem;
+        text-shadow: 0 0 12px rgba(var(--kpi-rgb),0.3);
       }
       .kpi-label-dot {
-        width:.45rem; height:.45rem; border-radius:50%;
-        background:var(--kpi-accent); box-shadow:0 0 8px var(--kpi-accent);
+        width:.5rem; height:.5rem; border-radius:50%;
+        background:var(--kpi-accent);
+        box-shadow:0 0 10px var(--kpi-accent), 0 0 2px var(--kpi-accent);
         flex-shrink:0;
       }
       .kpi-value {
-        font-size:1.85rem; font-weight:700; margin-top:.35rem;
+        font-size:1.95rem; font-weight:700; margin-top:.45rem;
         font-family:'JetBrains Mono',monospace; letter-spacing:-.02em; line-height:1.1;
         color:#fafafa;
       }
       .light-theme .kpi-value { color:#18181b; }
       .kpi-sub {
-        font-size:.7rem; color:#71717a; margin-top:.4rem;
+        font-size:.7rem; color:#a1a1aa; margin-top:.45rem;
         font-family:'JetBrains Mono',monospace;
       }
-      .kpi-spark { position:absolute; right:0.5rem; bottom:0.5rem; opacity:.55; pointer-events:none; }
+      .light-theme .kpi-sub { color:#71717a; }
+      .kpi-spark { position:absolute; right:0.6rem; bottom:0.6rem; opacity:.6; pointer-events:none; z-index:1; }
 
-      /* Per-KPI color tokens */
-      .kpi-spend { --kpi-accent:#a78bfa; --kpi-accent-soft:rgba(167,139,250,0.10); --kpi-glow:rgba(167,139,250,0.30); }
-      .kpi-joins { --kpi-accent:#fb923c; --kpi-accent-soft:rgba(251,146,60,0.10); --kpi-glow:rgba(251,146,60,0.30); }
-      .kpi-dms   { --kpi-accent:#22d3ee; --kpi-accent-soft:rgba(34,211,238,0.10); --kpi-glow:rgba(34,211,238,0.30); }
-      .kpi-regs  { --kpi-accent:#facc15; --kpi-accent-soft:rgba(250,204,21,0.10); --kpi-glow:rgba(250,204,21,0.30); }
-      .kpi-qftds { --kpi-accent:#34d399; --kpi-accent-soft:rgba(52,211,153,0.10); --kpi-glow:rgba(52,211,153,0.30); }
+      /* Per-KPI color tokens — RGB triplets */
+      .kpi-spend { --kpi-rgb: 167,139,250; }   /* indigo */
+      .kpi-joins { --kpi-rgb: 251,146,60;  }   /* orange */
+      .kpi-dms   { --kpi-rgb: 34,211,238;  }   /* cyan   */
+      .kpi-regs  { --kpi-rgb: 250,204,21;  }   /* yellow */
+      .kpi-qftds { --kpi-rgb: 52,211,153;  }   /* emerald */
 
-      /* Hero highlight (revenue est) — keeps the brand red gradient */
+      /* Hero (Revenue est) — brand red, slightly stronger wash */
       .kpi-hero {
-        --kpi-accent:#ef4444;
-        --kpi-accent-soft:rgba(239,68,68,0.14);
-        --kpi-glow:rgba(239,68,68,0.40);
+        --kpi-rgb: 239,68,68;
         background:
-          linear-gradient(135deg, rgba(239,68,68,0.14) 0%, rgba(220,38,38,0.05) 60%, transparent 100%),
-          rgba(255,255,255,0.03);
-        border-color:rgba(239,68,68,0.30);
+          radial-gradient(ellipse 120% 100% at 0% 0%, rgba(239,68,68,0.28) 0%, transparent 55%),
+          radial-gradient(ellipse 100% 80% at 100% 100%, rgba(220,38,38,0.16) 0%, transparent 65%),
+          linear-gradient(180deg, rgba(239,68,68,0.08) 0%, rgba(255,255,255,0.02) 100%);
+        border-color:rgba(239,68,68,0.45);
       }
       .kpi-hero .kpi-value {
         background:linear-gradient(135deg, #ef4444 0%, #fca5a5 100%);
@@ -171,10 +191,27 @@
       .matrix .src-code { font-family:'JetBrains Mono',monospace; font-size:.75rem; color:#a1a1aa; }
       .light-theme .matrix .src-code { color:#52525b; }
 
-      /* J→DM mini-bar inside cell */
-      .jdm-bar { display:inline-block; width:48px; height:5px; background:rgba(255,255,255,0.06); border-radius:99px; vertical-align:middle; margin-left:.4rem; overflow:hidden; }
-      .light-theme .jdm-bar { background:rgba(0,0,0,0.06); }
-      .jdm-bar-fill { height:100%; background:linear-gradient(90deg,#ef4444,#f97316); border-radius:99px; transition:width .5s; }
+      /* J→DM mini-bar — bigger + value-based color (red/yellow/green) */
+      .jdm-bar {
+        display:inline-block; width:84px; height:7px;
+        background:rgba(255,255,255,0.05);
+        border-radius:99px; vertical-align:middle; margin-left:.5rem;
+        overflow:hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+      }
+      .light-theme .jdm-bar { background:rgba(0,0,0,0.06); box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+      .jdm-bar-fill {
+        height:100%; border-radius:99px; transition:width .6s ease, background .3s;
+        position:relative;
+      }
+      /* Glow at the leading edge of the fill */
+      .jdm-bar-fill::after {
+        content:""; position:absolute; right:0; top:0; bottom:0; width:8px;
+        background:linear-gradient(90deg, transparent, currentColor);
+        opacity:.6; border-radius:99px;
+      }
+      .jdm-kill  { background:linear-gradient(90deg,#dc2626,#ef4444); color:#ef4444; }
+      .jdm-hold  { background:linear-gradient(90deg,#ca8a04,#facc15); color:#facc15; }
+      .jdm-scale { background:linear-gradient(90deg,#059669,#34d399); color:#34d399; }
 
       /* Verdict badge */
       .verdict { display:inline-flex; align-items:center; gap:.3rem; padding:.22rem .55rem; border-radius:.5rem; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; font-family:'Inter',sans-serif; }
@@ -569,6 +606,7 @@ function renderMatrix(summary) {
     const profit = +r.profit_est_usd || 0;
     const profitClass = profit > 0 ? "profit-pos" : profit < 0 ? "profit-neg" : "profit-zero";
     const jdm = +r.join_to_dm_pct || 0;
+    const jdmCls = jdm >= 25 ? "jdm-scale" : jdm >= 15 ? "jdm-hold" : "jdm-kill";
     const verdict = r.verdict || "learning";
     return `
       <tr>
@@ -581,7 +619,7 @@ function renderMatrix(summary) {
         <td class="num">${fmt.int(r.dms)}</td>
         <td class="num">
           ${fmt.pct(r.join_to_dm_pct)}
-          <span class="jdm-bar"><span class="jdm-bar-fill" style="width:${Math.min(jdm, 100)}%"></span></span>
+          <span class="jdm-bar"><span class="jdm-bar-fill ${jdmCls}" style="width:${Math.min(jdm, 100)}%"></span></span>
         </td>
         <td class="num">${fmt.int(r.regs)}</td>
         <td class="num">${fmt.int(r.ftds)}</td>
