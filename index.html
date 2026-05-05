@@ -1433,7 +1433,22 @@
                     console.warn('[Dashboard] Could not load balance from API:', err.message);
                 }
 
+                // === PLAN FEATURE GATE: PAYOUT ===
+                let _planPayoutsEnabled = true;
+                try {
+                    const planRes = await fetch(`${API_BASE}/api/plan-info`);
+                    const planData = await planRes.json();
+                    if (planData?.features?.payouts === false) {
+                        _planPayoutsEnabled = false;
+                        const _payBtn = document.getElementById('request-payout-btn');
+                        const _kycWarn = document.getElementById('kyc-payout-warning');
+                        if (_payBtn) _payBtn.style.display = 'none';
+                        if (_kycWarn) _kycWarn.style.display = 'none';
+                    }
+                } catch (e) { console.warn('[Plan] Could not check plan features:', e.message); }
+
                 // === KYC PAYOUT GATE ===
+                if (_planPayoutsEnabled) {
                 const isAdmin = localStorage.getItem(BRAND._lsKey('is_admin')) === 'true';
                 if (isAdmin) {
                     // Admin manages withdrawals from Admin Settings → Payouts, not from dashboard
@@ -1467,6 +1482,7 @@
                         }
                     } catch (e) { console.warn('[KYC] Gate check failed:', e.message); }
                 }
+                } // end _planPayoutsEnabled
             }
 
         }
