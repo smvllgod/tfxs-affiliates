@@ -215,6 +215,8 @@
       .verdict.kill::before     { background:#ef4444; box-shadow:0 0 6px #ef4444; }
       .verdict.learning { background:rgba(59,130,246,0.12); color:#3b82f6; border:1px solid rgba(59,130,246,0.3); }
       .verdict.learning::before { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
+      .verdict.paused   { background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); }
+      .verdict.paused::before   { background:#94a3b8; box-shadow:none; }
 
       /* Period selector — segmented pill */
       .period-group { display:inline-flex; padding:.25rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.06); border-radius:.7rem; }
@@ -393,6 +395,7 @@
               <tr>
                 <th>Source</th>
                 <th class="num">Spend</th>
+                <th class="num" title="Current daily budget on Meta (sum of active ad sets for this source)">Daily</th>
                 <th class="num">Joins</th>
                 <th class="num">DMs</th>
                 <th class="num">J→DM</th>
@@ -408,7 +411,7 @@
               </tr>
             </thead>
             <tbody id="matrix-body">
-              <tr><td colspan="14" class="empty-state">
+              <tr><td colspan="15" class="empty-state">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 <h3>Loading…</h3>
                 <p>Pulling Meta spend + Supabase funnel data.</p>
@@ -417,7 +420,7 @@
           </table>
         </div>
         <div class="px-5 sm:px-6 py-3 border-t border-white/5 text-[10px] text-gray-500 font-mono flex justify-between flex-wrap gap-2">
-          <span>Verdict rules: Scale · ROAS ≥ 5× + ≥1 QFTD · Kill · spend ≥ $300 + 0 QFTD, or ROAS < 1× at $500+ · Learning · spend < $50 · Hold · everything else</span>
+          <span>Verdict rules: Paused · all ad sets off on Meta · Scale · ROAS ≥ 5× + ≥1 QFTD · Kill · spend ≥ $300 + 0 QFTD, or ROAS < 1× at $500+ · Learning · spend < $50 · Hold · everything else</span>
           <span>Revenue est = $500 × QFTDs (WWA tier)</span>
         </div>
       </section>
@@ -605,7 +608,7 @@ function renderMatrix(summary) {
     .sort((a, b) => (+b.spend_usd || 0) - (+a.spend_usd || 0));
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="14"><div class="empty-state">
+      <tr><td colspan="15"><div class="empty-state">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
         <h3>No data yet</h3>
         <p>Once your ads start spending and leads start joining, this matrix will populate. The bot pulls Meta spend every 6 hours.</p>
@@ -618,6 +621,11 @@ function renderMatrix(summary) {
     const jdm = +r.join_to_dm_pct || 0;
     const jdmCls = jdm >= 25 ? "jdm-scale" : jdm >= 15 ? "jdm-hold" : "jdm-kill";
     const verdict = r.verdict || "learning";
+    // Daily budget: NULL = no metadata yet (sync hasn't run for this source) or
+    // CBO (campaign budget optimization at the campaign level). "—" in both cases.
+    const dailyBudget = r.daily_budget_usd != null && +r.daily_budget_usd > 0
+      ? `<span class="font-bold text-white">${fmt.money(r.daily_budget_usd)}</span><span class="text-gray-500">/d</span>`
+      : `<span class="text-gray-500">—</span>`;
     return `
       <tr>
         <td class="src-cell">
@@ -625,6 +633,7 @@ function renderMatrix(summary) {
           <span class="src-code">${r.source}</span>
         </td>
         <td class="num font-bold">${fmt.money(r.spend_usd)}</td>
+        <td class="num">${dailyBudget}</td>
         <td class="num">${fmt.int(r.joins)}</td>
         <td class="num">${fmt.int(r.dms)}</td>
         <td class="num">
@@ -714,6 +723,8 @@ function renderAlerts(summary) {
     const flag = flagOf(r.source);
     const code = r.source;
     const v = r.verdict;
+    // Paused ad sets are already off on Meta — no action needed, skip alerts.
+    if (v === "paused") return;
     if (v === "scale" && (+r.qftds || 0) >= 1) {
       alerts.push({
         kind: "good", icon: "🚀",
@@ -781,7 +792,7 @@ async function load(days) {
   } catch (err) {
     console.error(err);
     document.getElementById("matrix-body").innerHTML =
-      `<tr><td colspan="14"><div class="empty-state">
+      `<tr><td colspan="15"><div class="empty-state">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <h3 style="color:#ef4444">Failed to load</h3>
         <p>${err.message}</p>
