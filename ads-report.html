@@ -417,7 +417,7 @@
           </table>
         </div>
         <div class="px-5 sm:px-6 py-3 border-t border-white/5 text-[10px] text-gray-500 font-mono flex justify-between flex-wrap gap-2">
-          <span>Verdict rules: Scale · CPL ≤ $0.80 + J→DM ≥ 25% · Kill · CPL > $1.50 OR J→DM < 15% · Learning · spend < $50</span>
+          <span>Verdict rules: Scale · ROAS ≥ 5× + ≥1 QFTD · Kill · spend ≥ $300 + 0 QFTD, or ROAS < 1× at $500+ · Learning · spend < $50 · Hold · everything else</span>
           <span>Revenue est = $500 × QFTDs (WWA tier)</span>
         </div>
       </section>
@@ -728,11 +728,11 @@ function renderAlerts(summary) {
         meta: `CPL ${fmt.money(r.cpl_real_usd)} · J→DM ${fmt.pct(r.join_to_dm_pct)} · spend ${fmt.money(r.spend_usd)} · ${r.qftds || 0} QFTD`,
       });
     }
-    if ((+r.cpa_qftd_usd) > 30 && (+r.qftds || 0) >= 2 && v !== "kill") {
+    if ((+r.qftds || 0) >= 1 && (+r.roas || 0) > 0 && (+r.roas || 0) < 2 && v !== "kill") {
       alerts.push({
         kind: "warn", icon: "⚠️",
-        title: `${flag} <code>${code}</code> CPA above $30 target`,
-        meta: `CPA QFTD ${fmt.money(r.cpa_qftd_usd)} · review creative or audience targeting`,
+        title: `${flag} <code>${code}</code> ROAS below 2× — margin thin`,
+        meta: `ROAS ${fmt.x(r.roas)} · CPA QFTD ${fmt.money(r.cpa_qftd_usd)} · review creative or audience before scaling`,
       });
     }
   });
