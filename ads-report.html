@@ -520,6 +520,39 @@
         </div>
       </section>
 
+      <!-- ─── FUNNEL VELOCITY (Time-to-conversion medians) ───── -->
+      <section class="glass-panel p-0 overflow-hidden" id="velocity-section">
+        <div class="px-5 sm:px-6 py-4 flex items-center justify-between">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Funnel velocity · median time per step (last 60 days)
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono">join → DM → reg → FTD → QFTD</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th class="num" title="Median time from Telegram join to first DM with the bot">Join → DM</th>
+                <th class="num" title="Median time from broker registration to first deposit">Reg → FTD</th>
+                <th class="num" title="Median time from first deposit to qualified CPA (the 1-lot trade)">FTD → QFTD</th>
+                <th class="num" title="Sum of medians across steps (excludes DM → Reg which needs broker-side timestamp not exposed by Cellxpert)">Total tracked</th>
+              </tr>
+            </thead>
+            <tbody id="velocity-body">
+              <tr><td colspan="5" class="empty-state">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <h3>Loading…</h3>
+                <p>Calculating median funnel durations per source.</p>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-5 sm:px-6 py-3 border-t border-white/5 text-[10px] text-gray-500 font-mono">
+          <span>DM → Reg step is omitted: no shared key between dm_leads (telegram_id) and conversions (broker user_id) exists yet. The 3 steps above cover the trackable journey.</span>
+        </div>
+      </section>
+
       <!-- ─── ALERTS ─────────────────────────────────────────── -->
       <section class="glass-panel p-5 sm:p-6">
         <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2 mb-4">
@@ -930,6 +963,58 @@ function renderForecast(t, periodDays) {
   }
 }
 
+/* ── Render: Funnel velocity (median time per step) ─────────── */
+function humanizeHours(h) {
+  if (h == null || isNaN(h)) return "—";
+  const v = +h;
+  if (v < 1) return Math.round(v * 60) + "m";
+  if (v < 24) return v.toFixed(v < 10 ? 1 : 0) + "h";
+  return (v / 24).toFixed(v < 168 ? 1 : 0) + "d";
+}
+function renderTimings(timings, summary) {
+  const tbody = document.getElementById("velocity-body");
+  // Only show sources that have at least 1 actual sample at any step
+  const rows = (timings || [])
+    .filter(t => (+t.join_to_dm_sample || 0) + (+t.reg_to_ftd_sample || 0) + (+t.ftd_to_qftd_sample || 0) > 0)
+    .sort((a, b) => {
+      // Sort by spend desc (looking up in summary), fallback alphabetical
+      const sa = (summary || []).find(s => s.source === a.source);
+      const sb = (summary || []).find(s => s.source === b.source);
+      return (+sb?.spend_usd || 0) - (+sa?.spend_usd || 0);
+    });
+  if (!rows.length) {
+    tbody.innerHTML = `
+      <tr><td colspan="5"><div class="empty-state">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <h3>No timing data yet</h3>
+        <p>Once your sources accumulate joins, registrations, and FTDs, median durations will appear here.</p>
+      </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const j = +r.join_to_dm_median_h || null;
+    const f = +r.reg_to_ftd_median_h || null;
+    const q = +r.ftd_to_qftd_median_h || null;
+    const total = (j || 0) + (f || 0) + (q || 0);
+    const totalShown = (j || f || q) ? humanizeHours(total) : "—";
+    const cell = (val, sample) => val == null
+      ? `<span class="text-gray-600">—</span>`
+      : `<span class="text-white font-bold">${humanizeHours(val)}</span><span class="text-gray-500"> · n=${sample || 0}</span>`;
+    return `
+      <tr>
+        <td class="src-cell">
+          <span class="src-flag">${flagOf(r.source)}</span>
+          <span class="src-code">${r.source}</span>
+        </td>
+        <td class="num">${cell(j, r.join_to_dm_sample)}</td>
+        <td class="num">${cell(f, r.reg_to_ftd_sample)}</td>
+        <td class="num">${cell(q, r.ftd_to_qftd_sample)}</td>
+        <td class="num text-white font-bold">${totalShown}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
 /* ── Export: per-source matrix to CSV ───────────────────────── */
 function exportCSV() {
   const rows = (lastLoadedData?.summary || [])
@@ -985,6 +1070,7 @@ async function load(days) {
     renderFunnel(t);
     renderChart(data.daily, days);
     renderMatrix(data.summary);
+    renderTimings(data.timings, data.summary);
     renderAlerts(data.summary);
     renderContext(t);
   } catch (err) {
