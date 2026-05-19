@@ -424,8 +424,8 @@
       </div>
 
       <!-- ─── SHARE LINK MODAL (admin only) ───────────────────── -->
-      <div id="share-modal" class="hidden fixed inset-0 bg-black/70 z-[1000] items-center justify-center p-4" style="display:none">
-        <div class="glass-panel p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" style="background:#0a0a0a;">
+      <div id="share-modal" class="hidden fixed inset-0 bg-black/70 z-[1000] justify-center overflow-y-auto p-4 pt-12 sm:pt-16" style="display:none">
+        <div class="glass-panel p-6 max-w-2xl w-full mb-12" style="background:#0a0a0a; height:fit-content;">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold text-white">Share this dashboard</h3>
             <button id="share-modal-close" class="text-gray-400 hover:text-white p-1" title="Close">
@@ -448,10 +448,12 @@
               </select>
               <button id="share-create-btn" class="action-btn" style="white-space:nowrap;">Generate</button>
             </div>
+            <div id="share-error" class="hidden mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-md px-3 py-2"></div>
+            <div id="share-success" class="hidden mt-3 text-xs text-green-400 bg-green-500/10 border border-green-500/30 rounded-md px-3 py-2"></div>
           </div>
 
           <div class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2">Active share links</div>
-          <div id="share-tokens-list" class="space-y-2 max-h-[40vh] overflow-y-auto">
+          <div id="share-tokens-list" class="space-y-2">
             <div class="text-xs text-gray-500 italic">Loading…</div>
           </div>
         </div>
@@ -740,7 +742,13 @@ async function createShareToken(label, expires_in_days) {
     headers: { Authorization: "Bearer " + jwt, "Content-Type": "application/json" },
     body: JSON.stringify({ label, expires_in_days: expires_in_days || null }),
   });
-  if (!resp.ok) throw new Error("Failed to create share token");
+  if (!resp.ok) {
+    let detail = "";
+    try { detail = (await resp.json()).error || ""; } catch (e) { detail = await resp.text().catch(() => ""); }
+    if (resp.status === 404) throw new Error("Backend endpoint not deployed yet — wait 2-3 min for Render to redeploy, then retry.");
+    if (resp.status === 401 || resp.status === 403) throw new Error("Admin permission required. Try logging out and back in.");
+    throw new Error(detail || `Create failed (HTTP ${resp.status})`);
+  }
   return (await resp.json()).data;
 }
 async function revokeShareToken(token) {
@@ -1292,17 +1300,25 @@ const shareCreateBtn = document.getElementById("share-create-btn");
 if (shareCreateBtn) shareCreateBtn.addEventListener("click", async () => {
   const labelEl = document.getElementById("share-label-input");
   const expiresEl = document.getElementById("share-expires-input");
+  const errEl = document.getElementById("share-error");
+  const okEl = document.getElementById("share-success");
+  errEl.classList.add("hidden"); errEl.style.display = "none";
+  okEl.classList.add("hidden"); okEl.style.display = "none";
   shareCreateBtn.disabled = true;
   const oldTxt = shareCreateBtn.textContent;
   shareCreateBtn.textContent = "Creating…";
   try {
-    await createShareToken(labelEl.value.trim() || null, expiresEl.value ? parseInt(expiresEl.value) : null);
+    const created = await createShareToken(labelEl.value.trim() || null, expiresEl.value ? parseInt(expiresEl.value) : null);
     labelEl.value = "";
     expiresEl.value = "";
+    const url = shareUrlFor(created.token);
+    okEl.innerHTML = `Link created. <button class="underline ml-1" onclick="navigator.clipboard.writeText('${url}'); this.textContent='Copied!'">Copy URL</button>`;
+    okEl.classList.remove("hidden"); okEl.style.display = "block";
     const tokens = await fetchShareTokens();
     renderShareTokensList(tokens);
   } catch (err) {
-    alert(err.message);
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden"); errEl.style.display = "block";
   } finally {
     shareCreateBtn.disabled = false;
     shareCreateBtn.textContent = oldTxt;
