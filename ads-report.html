@@ -177,6 +177,10 @@
       .matrix .src-flag { font-size:1.05rem; margin-right:.45rem; vertical-align:-2px; }
       .matrix .src-code { font-family:'JetBrains Mono',monospace; font-size:.75rem; color:#a1a1aa; }
       .light-theme .matrix .src-code { color:#52525b; }
+      /* Clickable source link → drill-down page */
+      .matrix .src-link { display:inline-flex; align-items:center; text-decoration:none; padding:.2rem .35rem; margin:-.2rem -.35rem; border-radius:.4rem; transition:background .14s; }
+      .matrix .src-link:hover { background:rgba(239,68,68,0.08); }
+      .matrix .src-link:hover .src-code { color:#fca5a5; }
 
       /* J→DM mini-bar — bigger + value-based color (red/yellow/green)
          FIX: .jdm-bar-fill must be display:block (was inline span — width:%
@@ -943,8 +947,10 @@ function renderMatrix(summary) {
     return `
       <tr>
         <td class="src-cell">
-          <span class="src-flag">${flagOf(r.source)}</span>
-          <span class="src-code">${r.source}</span>
+          <a href="ads-source.html?source=${encodeURIComponent(r.source)}" class="src-link" title="Drill down into ${r.source}">
+            <span class="src-flag">${flagOf(r.source)}</span>
+            <span class="src-code">${r.source}</span>
+          </a>
         </td>
         <td class="num font-bold">${fmt.money(r.spend_usd)}</td>
         <td class="num">${dailyBudget}</td>
@@ -1189,8 +1195,10 @@ function renderTimings(timings, summary) {
     return `
       <tr>
         <td class="src-cell">
-          <span class="src-flag">${flagOf(r.source)}</span>
-          <span class="src-code">${r.source}</span>
+          <a href="ads-source.html?source=${encodeURIComponent(r.source)}" class="src-link" title="Drill down into ${r.source}">
+            <span class="src-flag">${flagOf(r.source)}</span>
+            <span class="src-code">${r.source}</span>
+          </a>
         </td>
         <td class="num">${cell(j, r.join_to_dm_sample)}</td>
         <td class="num">${cell(f, r.reg_to_ftd_sample)}</td>

@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<!--
+  TFXS Ads Performance Report
+  ───────────────────────────────────────────────────────────────
+  Premium ads tracking dashboard — joins, DMs, regs, FTDs, QFTDs,
+  real CPL, CPA QFTD, ROAS, profit, and verdict (scale/hold/kill)
+  per source. Joins Meta spend (auto-synced every 6h from Meta
+  Marketing API by the ad-tracker bot into ad_spend) with Supabase
+  funnel (v_source_funnel) via the backend /admin/ads-dashboard
+  endpoint.
+
+  TFXS-only — gated client-side via BRAND.features.adsDashboard so
+  this page is invisible to white-label tenant clones (they get
+  redirected to /reports on load). Even if a tenant copies this
+  file, the data lives in the TFXS Supabase project only and the
+  backend endpoint requires an admin JWT.
+
+  Sister to reports.html (same design language: glass-panel cards,
+  btn-gradient, brand red, JetBrains Mono numerics).
+  ─────────────────────────────────────────────────────────────── -->
+<html lang="en">
+<head>
+    <meta name="theme-color" content="#0a0a0a">
+    <script src="js/brand.config.js"></script>
+    <script>
+      // ─── Feature flag gate (white-label tenant lockout) ──────
+      // If BRAND does not enable adsDashboard, redirect to /reports
+      // before any render so tenant users do not even glimpse the page.
+      if (!window.BRAND || !window.BRAND.features || !window.BRAND.features.adsDashboard) {
+        window.location.replace("/reports");
+      }
+      ((t)=>{if(t==="light"){document.documentElement.classList.add("light-theme")};var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="light"?BRAND.colors.bgLight:BRAND.colors.bgDark})(localStorage.getItem(BRAND._lsKey("theme"))||"light")
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title id="page-title">TFXS Affiliate | Source Drill-down</title>
+    <script>document.getElementById('page-title').textContent=BRAND._title('ads')+' · Source'</script>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="/manifest.json">
+    <meta property="og:title" content="TFXS Affiliates — Ads Performance">
+    <meta property="og:description" content="Real CPL, CPA QFTD, ROAS by source. Live data from Meta Marketing API + Telegram joins.">
+    <meta property="og:image" content="assets/logo.svg">
+    <meta property="og:type" content="website">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/shared.css">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ['Inter','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+            colors: { brand: BRAND._tailwindBrand() },
+            animation: { 'fade-in-up':'fadeInUp 0.5s ease-out forwards', 'fade-in':'fadeIn 0.4s ease-out forwards' },
+            keyframes: {
+              fadeInUp: { '0%':{opacity:0,transform:'translateY(12px)'}, '100%':{opacity:1,transform:'translateY(0)'} },
+              fadeIn: { '0%':{opacity:0}, '100%':{opacity:1} }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family:'Inter',sans-serif; background:var(--brand-dark); color:#e4e4e7; }
+      .light-theme body { background:var(--brand-light); color:#18181b; }
+
+      /* Halo backdrop matching reports.html */
+      .halo-bg {
+        position:fixed; inset:0; pointer-events:none; z-index:0;
+        background:
+          radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.16), transparent 60%),
+          radial-gradient(ellipse 800px 400px at 0% 50%, rgba(220,38,38,0.08), transparent 60%);
+      }
+      .light-theme .halo-bg { background:
+        radial-gradient(ellipse 1100px 540px at 50% -10%, rgba(220,38,38,0.06), transparent 60%); }
+
+      /* KPI cards — colored tint over the dark page (Tailwind toolbar
+         button pattern: bg-{color}/10 + border-{color}/20).
+         Background IS the accent color at low opacity, so the card sits
+         visibly tinted on the page — like BACKFILL UNLINKED is amber-tinted,
+         FULL STATS is red-tinted. No solid black, no flooding gradient. */
+      .kpi {
+        --kpi-rgb: 255,255,255;
+        --kpi-accent: rgb(var(--kpi-rgb));
+        position:relative; padding:1.2rem 1.3rem; border-radius:1rem;
+        background: rgba(var(--kpi-rgb), 0.08);
+        border: 1px solid rgba(var(--kpi-rgb), 0.20);
+        overflow:hidden;
+        transition: transform .22s ease, border-color .22s, background .22s, box-shadow .22s;
+      }
+      .kpi:hover {
+        transform:translateY(-3px);
+        background: rgba(var(--kpi-rgb), 0.14);
+        border-color: rgba(var(--kpi-rgb), 0.40);
+        box-shadow: 0 14px 36px -12px rgba(var(--kpi-rgb), 0.35);
+      }
+      .light-theme .kpi {
+        background: rgba(var(--kpi-rgb), 0.07);
+        border-color: rgba(var(--kpi-rgb), 0.25);
+      }
+      .light-theme .kpi:hover {
+        background: rgba(var(--kpi-rgb), 0.13);
+        border-color: rgba(var(--kpi-rgb), 0.45);
+      }
+
+      .kpi-label {
+        font-size:.68rem; color:var(--kpi-accent); text-transform:uppercase;
+        letter-spacing:.12em; font-weight:700;
+        display:flex; align-items:center; gap:.5rem;
+      }
+      .kpi-label-dot {
+        width:.5rem; height:.5rem; border-radius:50%;
+        background:var(--kpi-accent);
+        box-shadow:0 0 8px var(--kpi-accent);
+        flex-shrink:0;
+      }
+      .kpi-value {
+        font-size:1.95rem; font-weight:700; margin-top:.5rem;
+        font-family:'JetBrains Mono',monospace; letter-spacing:-.02em; line-height:1.1;
+        color:#fafafa;
+      }
+      .light-theme .kpi-value { color:#18181b; }
+      .kpi-sub {
+        font-size:.7rem; color:#a1a1aa; margin-top:.45rem;
+        font-family:'JetBrains Mono',monospace;
+      }
+      .light-theme .kpi-sub { color:#71717a; }
+      /* Sparkline as a full-width ghosted background at the bottom of the card */
+      .kpi-spark {
+        position:absolute; left:0; right:0; bottom:0;
+        width:100%; height:auto; max-height:38px;
+        opacity:.45; pointer-events:none;
+        mask-image: linear-gradient(90deg, transparent 0%, black 25%, black 100%);
+        -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 25%, black 100%);
+      }
+
+      /* Per-KPI color tokens — RGB triplets */
+      .kpi-spend { --kpi-rgb: 167,139,250; }   /* indigo */
+      .kpi-joins { --kpi-rgb: 251,146,60;  }   /* orange */
+      .kpi-dms   { --kpi-rgb: 34,211,238;  }   /* cyan   */
+      .kpi-regs  { --kpi-rgb: 250,204,21;  }   /* yellow */
+      .kpi-qftds { --kpi-rgb: 52,211,153;  }   /* emerald */
+
+      /* Hero (Revenue est) — brand red. Slightly stronger tint + gradient text. */
+      .kpi-hero {
+        --kpi-rgb: 239,68,68;
+        background: rgba(239,68,68, 0.10);
+        border-color: rgba(239,68,68, 0.30);
+      }
+      .kpi-hero:hover {
+        background: rgba(239,68,68, 0.16);
+        border-color: rgba(239,68,68, 0.50);
+      }
+      .kpi-hero .kpi-value {
+        background:linear-gradient(135deg, #ef4444 0%, #fca5a5 100%);
+        -webkit-background-clip:text; background-clip:text;
+        -webkit-text-fill-color:transparent; color:transparent;
+      }
+
+      /* Matrix table */
+      .matrix { width:100%; border-collapse:separate; border-spacing:0; font-family:'JetBrains Mono',monospace; }
+      .matrix thead th {
+        text-align:left; padding:.65rem .9rem; font-size:.6rem;
+        font-weight:600; color:#71717a; text-transform:uppercase; letter-spacing:.08em;
+        border-bottom:1px solid rgba(255,255,255,0.06); position:sticky; top:0; z-index:5;
+        background:rgba(10,10,10,0.92); backdrop-filter:blur(12px);
+      }
+      .light-theme .matrix thead th { background:rgba(255,255,255,0.96); border-bottom-color:rgba(0,0,0,0.08); }
+      .matrix tbody td { padding:.7rem .9rem; font-size:.78rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+      .light-theme .matrix tbody td { border-bottom-color:rgba(0,0,0,0.05); }
+      .matrix tbody tr { transition:background .14s; }
+      .matrix tbody tr:hover { background:rgba(239,68,68,0.04); }
+      .matrix .num { text-align:right; }
+      .matrix .src-cell { font-family:'Inter',sans-serif; }
+      .matrix .src-flag { font-size:1.05rem; margin-right:.45rem; vertical-align:-2px; }
+      .matrix .src-code { font-family:'JetBrains Mono',monospace; font-size:.75rem; color:#a1a1aa; }
+      .light-theme .matrix .src-code { color:#52525b; }
+
+      /* J→DM mini-bar — bigger + value-based color (red/yellow/green)
+         FIX: .jdm-bar-fill must be display:block (was inline span — width:%
+         was being ignored by the browser, hence "bars not working"). */
+      .jdm-bar {
+        display:inline-block; width:84px; height:7px;
+        background:rgba(255,255,255,0.05);
+        border-radius:99px; vertical-align:middle; margin-left:.5rem;
+        overflow:hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+      }
+      .light-theme .jdm-bar { background:rgba(0,0,0,0.06); box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+      .jdm-bar-fill {
+        display:block;                         /* the fix: span was inline */
+        height:100%; min-width:2px;
+        border-radius:99px; transition:width .6s ease, background .3s;
+        position:relative;
+      }
+      /* Glow at the leading edge of the fill */
+      .jdm-bar-fill::after {
+        content:""; position:absolute; right:0; top:0; bottom:0; width:8px;
+        background:linear-gradient(90deg, transparent, currentColor);
+        opacity:.6; border-radius:99px;
+      }
+      .jdm-kill  { background:linear-gradient(90deg,#dc2626,#ef4444); color:#ef4444; }
+      .jdm-hold  { background:linear-gradient(90deg,#ca8a04,#facc15); color:#facc15; }
+      .jdm-scale { background:linear-gradient(90deg,#059669,#34d399); color:#34d399; }
+
+      /* Verdict badge */
+      .verdict { display:inline-flex; align-items:center; gap:.3rem; padding:.22rem .55rem; border-radius:.5rem; font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; font-family:'Inter',sans-serif; }
+      .verdict::before { content:''; width:6px; height:6px; border-radius:50%; }
+      .verdict.scale    { background:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+      .verdict.scale::before    { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+      .verdict.hold     { background:rgba(234,179,8,0.12); color:#eab308; border:1px solid rgba(234,179,8,0.3); }
+      .verdict.hold::before     { background:#eab308; box-shadow:0 0 6px #eab308; }
+      .verdict.kill     { background:rgba(239,68,68,0.12); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
+      .verdict.kill::before     { background:#ef4444; box-shadow:0 0 6px #ef4444; }
+      .verdict.learning { background:rgba(59,130,246,0.12); color:#3b82f6; border:1px solid rgba(59,130,246,0.3); }
+      .verdict.learning::before { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
+      .verdict.paused   { background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); }
+      .verdict.paused::before   { background:#94a3b8; box-shadow:none; }
+
+      /* Period selector — segmented pill */
+      .period-group { display:inline-flex; padding:.25rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.06); border-radius:.7rem; }
+      .light-theme .period-group { background:rgba(0,0,0,0.04); border-color:rgba(0,0,0,0.06); }
+      .period-btn { padding:.45rem .95rem; font-size:.7rem; font-weight:700; border-radius:.5rem; cursor:pointer; transition:all .15s; color:#a1a1aa; text-transform:uppercase; letter-spacing:.08em; border:none; background:transparent; }
+      .period-btn:hover { color:white; }
+      .light-theme .period-btn:hover { color:#18181b; }
+      .period-btn.active { background:rgba(239,68,68,0.15); color:#ef4444; box-shadow:0 0 0 1px rgba(239,68,68,0.3); }
+      .light-theme .period-btn.active { background:rgba(220,38,38,0.1); }
+
+      /* Funnel stages */
+      .funnel { display:grid; grid-template-columns:repeat(5,1fr); gap:.5rem; }
+      .funnel-stage { padding:1rem; border-radius:.8rem; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); position:relative; }
+      .light-theme .funnel-stage { background:white; border-color:rgba(0,0,0,0.06); }
+      .funnel-stage-label { font-size:.6rem; color:#71717a; text-transform:uppercase; letter-spacing:.08em; font-weight:600; }
+      .funnel-stage-value { font-size:1.6rem; font-weight:800; font-family:'JetBrains Mono',monospace; margin-top:.2rem; line-height:1; }
+      .funnel-stage-pct { font-size:.65rem; color:#a1a1aa; margin-top:.4rem; font-family:'JetBrains Mono',monospace; }
+      .funnel-arrow { position:absolute; top:50%; right:-1.1rem; width:1.5rem; height:1.5rem; transform:translateY(-50%); display:flex; align-items:center; justify-content:center; color:#52525b; z-index:2; }
+      @media (max-width:768px) { .funnel { grid-template-columns:repeat(2,1fr); } .funnel-arrow { display:none; } }
+
+      /* Alert cards */
+      .alert { display:flex; gap:.8rem; padding:.85rem 1rem; border-radius:.75rem; margin-bottom:.5rem; align-items:flex-start; transition:transform .15s; }
+      .alert:hover { transform:translateX(2px); }
+      .alert-icon { flex-shrink:0; width:2rem; height:2rem; border-radius:.5rem; display:flex; align-items:center; justify-content:center; font-size:.95rem; }
+      .alert.good { background:rgba(34,197,94,0.07); border-left:3px solid #22c55e; }
+      .alert.good .alert-icon { background:rgba(34,197,94,0.18); color:#22c55e; }
+      .alert.warn { background:rgba(234,179,8,0.07); border-left:3px solid #eab308; }
+      .alert.warn .alert-icon { background:rgba(234,179,8,0.18); color:#eab308; }
+      .alert.danger { background:rgba(239,68,68,0.07); border-left:3px solid #ef4444; }
+      .alert.danger .alert-icon { background:rgba(239,68,68,0.18); color:#ef4444; }
+      .alert-title { font-size:.78rem; font-weight:600; color:#e4e4e7; line-height:1.4; }
+      .light-theme .alert-title { color:#18181b; }
+      .alert-meta { font-size:.7rem; color:#a1a1aa; margin-top:.2rem; font-family:'JetBrains Mono',monospace; }
+
+      /* Skeleton loader */
+      .skeleton { background:linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:.4rem; }
+      @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+      /* Empty state */
+      .empty-state { padding:3rem 1.5rem; text-align:center; }
+      .empty-state svg { margin:0 auto 1rem; opacity:.4; }
+      .empty-state h3 { font-size:.95rem; font-weight:600; color:#e4e4e7; margin-bottom:.4rem; }
+      .empty-state p { font-size:.78rem; color:#71717a; max-width:320px; margin:0 auto; line-height:1.5; }
+
+      /* Tab buttons (matches reports.html .tab-btn) */
+      .tab-btn { background:transparent; border:1px solid transparent; }
+      .tab-btn.active { background:rgba(255,255,255,0.1); color:white; border-color:#ef4444; }
+
+      /* Chart container */
+      .chart-wrap { position:relative; height:300px; }
+
+      /* Profit color coding */
+      .profit-pos { color:#22c55e; }
+      .profit-neg { color:#ef4444; }
+      .profit-zero { color:#71717a; }
+
+      /* Mobile fixes */
+      @media (max-width:768px) {
+        .kpi-value { font-size:1.45rem; }
+        .matrix tbody td { padding:.55rem .55rem; font-size:.7rem; }
+        .matrix thead th { padding:.5rem .55rem; font-size:.55rem; }
+        /* Sticky first column so source label stays visible while scrolling */
+        .matrix thead th:first-child,
+        .matrix tbody td:first-child { position:sticky; left:0; z-index:2; background:#0a0a0a; box-shadow:1px 0 0 rgba(255,255,255,0.06); }
+        .light-theme .matrix thead th:first-child,
+        .light-theme .matrix tbody td:first-child { background:#fafafa; }
+        /* Smaller forecast cards on mobile */
+        .forecast-card { padding:0.85rem; }
+        .forecast-value { font-size:1.35rem; }
+      }
+
+      /* ── Forecast section ───────────────────────────────────── */
+      .forecast-card {
+        position:relative;
+        padding:1.1rem 1.2rem;
+        border-radius:0.85rem;
+        background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        border:1px solid rgba(255,255,255,0.07);
+      }
+      .light-theme .forecast-card { background:linear-gradient(135deg, rgba(0,0,0,0.025), rgba(0,0,0,0.005)); border-color:rgba(0,0,0,0.06); }
+      .forecast-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:#71717a; font-family:'JetBrains Mono',monospace; margin-bottom:0.45rem; }
+      .forecast-value { font-size:1.7rem; font-weight:700; color:#fff; line-height:1.1; letter-spacing:-0.02em; font-family:'Inter',sans-serif; }
+      .light-theme .forecast-value { color:#18181b; }
+      .forecast-sub { font-size:0.7rem; color:#a1a1aa; margin-top:0.4rem; line-height:1.4; font-family:'JetBrains Mono',monospace; }
+      .light-theme .forecast-sub { color:#52525b; }
+      .forecast-good { color:#22c55e !important; }
+      .forecast-warn { color:#eab308 !important; }
+
+      /* ── Action buttons (Export, Print) ─────────────────────── */
+      .action-btn {
+        display:inline-flex; align-items:center; gap:0.4rem;
+        padding:0.45rem 0.85rem; border-radius:0.55rem;
+        font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;
+        color:#a1a1aa; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+        cursor:pointer; transition:all 0.15s;
+        font-family:'Inter',sans-serif;
+      }
+      .action-btn:hover { color:#fff; background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.12); }
+      .light-theme .action-btn { color:#52525b; background:rgba(0,0,0,0.03); border-color:rgba(0,0,0,0.06); }
+      .light-theme .action-btn:hover { color:#18181b; background:rgba(0,0,0,0.06); }
+
+      /* ── Public share-link mode (?token=X) ──────────────────── */
+      html.public-mode nav,
+      body.public-mode nav,
+      body.public-mode .admin-only { display:none !important; }
+      body.public-mode main { padding-top:1rem; }
+
+      /* ── Share modal overlay ────────────────────────────────── */
+      #share-modal { backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+
+      /* ── Print styles (PDF via browser print) ───────────────── */
+      @media print {
+        body { background:white !important; color:black !important; }
+        nav, #refresh-btn, .action-btn, .period-group, #alerts-body, .alert,
+        #forecast-section button, header a, .sparkline { display:none !important; }
+        .glass-panel { background:white !important; border:1px solid #ccc !important; box-shadow:none !important; }
+        .kpi, .forecast-card { background:white !important; border:1px solid #ddd !important; color:black !important; }
+        .kpi-value, .forecast-value, h1, h2 { color:black !important; }
+        .kpi-label, .forecast-label, .funnel-stage-label { color:#555 !important; }
+        .matrix thead th { background:#f5f5f5 !important; color:black !important; }
+        .matrix tbody td, .matrix tbody tr:hover { background:white !important; color:black !important; }
+        .verdict { border:1px solid #aaa !important; background:white !important; }
+        .verdict::before { display:none; }
+        main { max-width:none !important; }
+        .overflow-x-auto { overflow:visible !important; }
+        @page { margin:1.5cm; }
+      }
+    </style>
+</head>
+<body class="antialiased font-sans min-h-screen relative overflow-x-hidden selection:bg-brand-500 selection:text-white pb-20">
+
+    <div class="halo-bg"></div>
+    <div class="relative">
+
+    <!-- ─── NAV (matches reports.html) ───────────────────────── -->
+    <nav class="sticky top-0 z-50 w-full glass-panel border-b-0 border-white/5 py-3 sm:py-4">
+      <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sm:gap-4">
+        <div class="flex items-center gap-4 sm:gap-10">
+          <a href="/" class="flex items-center gap-2 group cursor-pointer no-underline">
+            <img src="assets/logo.svg" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+            <span class="hidden sm:inline text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-brand-500 transition-colors"><script>document.write(BRAND.name);</script><span class="opacity-50 font-light"> <script>document.write(BRAND.nameFull.replace(BRAND.name,'').trim());</script></span></span>
+          </a>
+          <div class="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-lg border border-white/5">
+            <a href="/" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Dashboard</a>
+            <a href="/reports" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Reports</a>
+            <a href="/deals" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Deals</a>
+            <a href="/assets" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Assets</a>
+            <a href="/settings" class="px-4 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition rounded-md hover:bg-white/5">Settings</a>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh-btn" class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition" title="Refresh">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.85-3.36L20 7M20 15a9 9 0 01-14.85 3.36L4 17"/></svg>
+            <span class="font-semibold uppercase tracking-wider text-[10px]">Refresh</span>
+          </button>
+          <span id="last-updated" class="text-[10px] text-gray-500 font-mono hidden lg:inline"></span>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 mt-8 sm:mt-12 space-y-8 animate-fade-in-up relative">
+
+      <!-- ─── HEADER ────────────────────────────────────────── -->
+      <header class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 sm:gap-8">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-500 px-2 py-1 rounded bg-brand-500/10 border border-brand-500/30">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="13" width="3" height="5" rx=".5"/><rect x="12" y="9" width="3" height="9" rx=".5"/><rect x="17" y="5" width="3" height="13" rx=".5"/></svg>
+              ADS · DRILL-DOWN
+            </span>
+            <a href="ads-report.html" class="text-[10px] text-gray-500 hover:text-gray-300 transition uppercase tracking-wider">← Back to ads matrix</a>
+          </div>
+          <h1 class="text-2xl sm:text-4xl font-bold text-white tracking-tight">
+            Source · <span id="source-flag"></span><span id="source-code" class="text-brand-500">—</span>
+          </h1>
+          <p class="text-sm sm:text-base text-gray-400 mt-1 sm:mt-2 font-light">
+            Leads, distributions, ad sets and full event timeline for this source · last 30 days
+          </p>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+          <button id="export-csv-btn" class="action-btn" title="Export leads timeline as CSV">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV
+          </button>
+        </div>
+      </header>
+
+      <!-- ─── OVERVIEW KPI GRID ───────────────────────────── -->
+      <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" id="kpi-grid">
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+        <div class="kpi kpi-hero"><div class="skeleton h-3 w-16 mb-2"></div><div class="skeleton h-7 w-24"></div></div>
+      </section>
+
+      <!-- ─── FUNNEL ──────────────────────────────────────── -->
+      <section class="glass-panel p-5 sm:p-6 animate-fade-in" id="funnel-section">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Funnel · last 30 days
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono" id="verdict-pill">—</span>
+        </div>
+        <div class="funnel" id="funnel-stages">
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+          <div class="funnel-stage"><div class="skeleton h-3 w-12 mb-2"></div><div class="skeleton h-6 w-16"></div></div>
+        </div>
+      </section>
+
+      <!-- ─── AD SETS ─────────────────────────────────────── -->
+      <section class="glass-panel p-0 overflow-hidden">
+        <div class="px-5 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Meta ad sets for this source
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono" id="adsets-count">—</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th>Ad set</th>
+                <th>Campaign</th>
+                <th class="num">Daily budget</th>
+                <th>Status</th>
+                <th class="num">Last synced</th>
+              </tr>
+            </thead>
+            <tbody id="adsets-body">
+              <tr><td colspan="5" class="empty-state"><h3>Loading ad sets…</h3></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── FTD DISTRIBUTION + HOURLY GRID ──────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- FTD distribution -->
+        <section class="glass-panel p-5 sm:p-6">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2 mb-4">
+            <span class="text-brand-500">●</span> FTD deposit tiers (WWA CPA bands)
+          </h2>
+          <div id="ftd-distribution" class="space-y-3">
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-full"></div>
+          </div>
+          <p class="text-[10px] text-gray-500 font-mono mt-4">CPA bands: below $500 = $0 · $500-999 = $450 WWA · $1000+ = $700 WWA</p>
+        </section>
+
+        <!-- Hourly distribution -->
+        <section class="glass-panel p-5 sm:p-6">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2 mb-4">
+            <span class="text-brand-500">●</span> Joins by hour-of-day (UTC)
+          </h2>
+          <div id="hourly-distribution" class="flex items-end gap-px h-32">
+            <div class="skeleton h-full w-full"></div>
+          </div>
+          <p class="text-[10px] text-gray-500 font-mono mt-3" id="hourly-peak">—</p>
+        </section>
+      </div>
+
+      <!-- ─── LEADS TIMELINE ──────────────────────────────── -->
+      <section class="glass-panel p-0 overflow-hidden">
+        <div class="px-5 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Event timeline · last 30 days
+          </h2>
+          <div class="flex items-center gap-2">
+            <input id="timeline-filter" type="text" placeholder="Filter (user_id, broker, country)" class="bg-black/30 border border-white/10 rounded-md px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 w-56">
+            <select id="timeline-type-filter" class="bg-black/30 border border-white/10 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500">
+              <option value="">All events</option>
+              <option value="join">Joins only</option>
+              <option value="dm">DMs only</option>
+              <option value="registration">Registrations</option>
+              <option value="ftd">FTDs</option>
+              <option value="qualified_cpa">QFTDs</option>
+              <option value="commission">Commissions</option>
+            </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Event</th>
+                <th>User</th>
+                <th>Broker</th>
+                <th class="num">Amount</th>
+                <th class="num">Commission</th>
+                <th>Status / note</th>
+              </tr>
+            </thead>
+            <tbody id="timeline-body">
+              <tr><td colspan="7" class="empty-state"><h3>Loading timeline…</h3></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-5 sm:px-6 py-3 border-t border-white/5 text-[10px] text-gray-500 font-mono">
+          <span id="timeline-count">—</span>
+        </div>
+      </section>
+
+    </main>
+    </div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   ADS · SOURCE DRILL-DOWN
+   Page focused on a single source code (?source=meta_ae) — fetches
+   /admin/ads-dashboard/source/:source and renders KPIs, funnel,
+   ad sets, FTD distribution, hourly join distribution, and the full
+   chronological event timeline.
+   ════════════════════════════════════════════════════════════════ */
+
+const API_BASE = (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
+const JWT_KEY  = window.BRAND ? BRAND._lsKey("jwt") : "tfxs_jwt";
+const jwt = localStorage.getItem(JWT_KEY);
+if (!jwt) { window.location.replace("/login.html"); }
+
+const SOURCE = (new URLSearchParams(window.location.search).get("source") || "").toLowerCase();
+if (!SOURCE || !/^meta_[a-z0-9_]{1,16}$/.test(SOURCE)) {
+  document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#888;font-family:Inter,sans-serif;">
+    <h1 style="color:#ef4444;margin-bottom:12px;">Invalid source</h1>
+    <p>This page requires a <code>?source=meta_xx</code> query parameter.</p>
+    <p><a href="ads-report.html" style="color:#ef4444;">← Back to ads matrix</a></p>
+  </div>`;
+}
+
+/* ── Formatters ─────────────────────────────────────────────── */
+const fmt = {
+  int:   n => (n == null ? "—" : Number(n).toLocaleString("en-US")),
+  money: n => {
+    if (n == null || isNaN(Number(n))) return "—";
+    const v = Math.abs(+n);
+    if (v >= 1000) return "$" + (+n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    return "$" + (+n).toFixed(2);
+  },
+  pct:   n => (n == null ? "—" : (+n).toFixed(0) + "%"),
+  pctF:  n => (n == null ? "—" : (+n).toFixed(1) + "%"),
+  x:     n => (n == null ? "—" : (+n).toFixed(1) + "×"),
+  date:  s => s ? new Date(s).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—",
+  rel:   s => {
+    if (!s) return "—";
+    const diff = Date.now() - new Date(s).getTime();
+    const min = Math.floor(diff / 60000);
+    if (min < 60) return min + "m ago";
+    const h = Math.floor(min / 60);
+    if (h < 24) return h + "h ago";
+    const d = Math.floor(h / 24);
+    return d + "d ago";
+  },
+};
+
+/* ── Country flag from source code ──────────────────────────── */
+function flagOf(source) {
+  if (!source) return "🏳️";
+  const m = source.match(/^meta_([a-z]{2})/i);
+  if (!m) return "🏳️";
+  const cc = m[1].toUpperCase();
+  const code = [...cc].map(c => 0x1F1E6 - 65 + c.charCodeAt(0));
+  try { return String.fromCodePoint(...code); } catch (e) { return "🏳️"; }
+}
+
+/* ── Fetch ──────────────────────────────────────────────────── */
+async function fetchDrillDown() {
+  const url = new URL(`/admin/ads-dashboard/source/${SOURCE}`, API_BASE);
+  const resp = await fetch(url, { headers: { Authorization: "Bearer " + jwt } });
+  if (resp.status === 401 || resp.status === 403) {
+    localStorage.removeItem(JWT_KEY);
+    window.location.replace("/login.html");
+    return null;
+  }
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error("Fetch failed: " + resp.status + " " + txt.slice(0, 200));
+  }
+  return (await resp.json()).data;
+}
+
+/* ── Render: Header ─────────────────────────────────────────── */
+function renderHeader(data) {
+  document.getElementById("source-code").textContent = data.source;
+  document.getElementById("source-flag").textContent = flagOf(data.source) + " ";
+}
+
+/* ── Render: KPI grid (6 cards focused on this source) ──────── */
+function renderKPIs(data) {
+  const o = data.overview || {};
+  const cards = [
+    { label: "Spend",       cls: "kpi-spend",
+      value: fmt.money(o.spend_usd),
+      sub: o.daily_budget_usd ? `Daily ${fmt.money(o.daily_budget_usd)} · ${data.window_days}d` : `${data.window_days}d window` },
+    { label: "Real Joins",  cls: "kpi-joins",
+      value: fmt.int(o.joins),
+      sub: `${fmt.int(o.pixel_leads)} Pixel Leads` },
+    { label: "DMs",         cls: "kpi-dms",
+      value: fmt.int(o.dms),
+      sub: o.joins ? fmt.pct(100 * (o.dms || 0) / o.joins) + " of joins" : "—" },
+    { label: "FTDs",        cls: "kpi-regs",
+      value: fmt.int(o.ftds),
+      sub: o.regs ? fmt.pct(100 * (o.ftds || 0) / o.regs) + " from regs" : "—" },
+    { label: "QFTDs",       cls: "kpi-qftds",
+      value: fmt.int(o.qftds),
+      sub: o.ftds ? fmt.pctF(100 * (o.qftds || 0) / o.ftds) + " of FTDs" : "—" },
+    { label: o.commission_actual_usd > 0 ? "Revenue" : "Revenue est",
+      cls: "kpi-hero", hero: true,
+      value: fmt.money(o.revenue_est_usd),
+      sub: (o.profit_est_usd != null ? "Profit " + fmt.money(o.profit_est_usd) : "—")
+          + (o.roas ? " · " + fmt.x(o.roas) + " ROAS" : "") },
+  ];
+  document.getElementById("kpi-grid").innerHTML = cards.map(c => `
+    <div class="kpi ${c.cls || ""}">
+      <div class="kpi-label"><span class="kpi-label-dot"></span>${c.label}</div>
+      <div class="kpi-value">${c.value}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>
+  `).join("");
+
+  const verdict = (o.verdict || "learning").toLowerCase();
+  document.getElementById("verdict-pill").innerHTML =
+    `<span class="verdict ${verdict}">${verdict}</span>`;
+}
+
+/* ── Render: Funnel ─────────────────────────────────────────── */
+function renderFunnel(data) {
+  const o = data.overview || {};
+  const stages = [
+    { label: "Joins", value: o.joins, pct: null },
+    { label: "DMs",   value: o.dms,   pct: o.joins ? 100 * (o.dms || 0) / o.joins : null },
+    { label: "Regs",  value: o.regs,  pct: o.dms ? 100 * (o.regs || 0) / o.dms : null },
+    { label: "FTDs",  value: o.ftds,  pct: o.regs ? 100 * (o.ftds || 0) / o.regs : null },
+    { label: "QFTDs", value: o.qftds, pct: o.ftds ? 100 * (o.qftds || 0) / o.ftds : null },
+  ];
+  document.getElementById("funnel-stages").innerHTML = stages.map((s, i) => `
+    <div class="funnel-stage">
+      <div class="funnel-stage-label">${s.label}</div>
+      <div class="funnel-stage-value">${fmt.int(s.value || 0)}</div>
+      <div class="funnel-stage-pct">${s.pct == null ? "starting point" : fmt.pct(s.pct) + " conv."}</div>
+      ${i < stages.length - 1 ? `<div class="funnel-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7l7 7-7 7"/></svg></div>` : ""}
+    </div>
+  `).join("");
+}
+
+/* ── Render: Ad sets table ──────────────────────────────────── */
+function renderAdSets(data) {
+  const rows = data.ad_sets || [];
+  document.getElementById("adsets-count").textContent =
+    rows.length === 0 ? "no ad set synced yet" :
+    rows.length === 1 ? "1 ad set" : `${rows.length} ad sets`;
+  const tbody = document.getElementById("adsets-body");
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+      <h3>No ad set on Meta yet</h3>
+      <p>Create an ad set tagged <code>[${data.source}]</code> on Meta Ads Manager and the next sync (every 6h) will pick it up.</p>
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const status = (r.effective_status || r.status || "").toUpperCase();
+    const isActive = status === "ACTIVE";
+    const statusClass = isActive ? "scale" : "paused";
+    return `
+      <tr>
+        <td>
+          <div class="font-semibold text-white">${r.ad_set_name || "(unnamed)"}</div>
+          <div class="text-[10px] text-gray-500 font-mono">${r.ad_set_id || ""}</div>
+        </td>
+        <td>
+          <div class="text-xs text-gray-300">${r.campaign_name || "—"}</div>
+          <div class="text-[10px] text-gray-500 font-mono">${r.campaign_id || ""}</div>
+        </td>
+        <td class="num">${r.daily_budget_usd != null ? `<span class="font-bold text-white">${fmt.money(r.daily_budget_usd)}</span><span class="text-gray-500">/d</span>` : `<span class="text-gray-500">— (CBO?)</span>`}</td>
+        <td><span class="verdict ${statusClass}">${status || "—"}</span></td>
+        <td class="num text-[10px] text-gray-500 font-mono">${fmt.rel(r.updated_at)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+/* ── Render: FTD distribution (4 tier buckets) ──────────────── */
+function renderFTDDistribution(data) {
+  const buckets = data.ftd_distribution || {};
+  const items = [
+    { label: "Below $500 (no CPA)", value: buckets.below_500 || 0, color: "#71717a" },
+    { label: "$500 - $999 (WWA $450)", value: buckets.tier_500_999 || 0, color: "#eab308" },
+    { label: "$1,000+ (WWA $700)", value: buckets.tier_1000_plus || 0, color: "#22c55e" },
+    { label: "Amount missing", value: buckets.no_amount || 0, color: "#52525b" },
+  ];
+  const total = items.reduce((s, i) => s + i.value, 0);
+  const container = document.getElementById("ftd-distribution");
+  if (total === 0) {
+    container.innerHTML = `<p class="text-xs text-gray-500 italic">No FTDs in the last 30 days.</p>`;
+    return;
+  }
+  container.innerHTML = items.map(i => {
+    const pct = total > 0 ? (i.value / total * 100) : 0;
+    return `
+      <div>
+        <div class="flex justify-between items-center text-xs mb-1.5">
+          <span class="text-gray-300">${i.label}</span>
+          <span class="font-mono text-white font-bold">${i.value} <span class="text-gray-500 font-normal">(${pct.toFixed(0)}%)</span></span>
+        </div>
+        <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+          <div class="h-full rounded-full transition-all" style="width:${pct}%;background:${i.color};"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+/* ── Render: Hourly join distribution (24 bars) ─────────────── */
+function renderHourlyDistribution(data) {
+  const hourly = data.hourly_join_distribution || Array.from({ length: 24 }, () => 0);
+  const max = Math.max(...hourly, 1);
+  const total = hourly.reduce((s, v) => s + v, 0);
+  const container = document.getElementById("hourly-distribution");
+  if (total === 0) {
+    container.innerHTML = `<p class="text-xs text-gray-500 italic">No joins in the last 30 days.</p>`;
+    document.getElementById("hourly-peak").textContent = "—";
+    return;
+  }
+  container.innerHTML = hourly.map((v, h) => {
+    const pct = (v / max) * 100;
+    const isPeak = v === max && v > 0;
+    return `
+      <div class="flex-1 flex flex-col justify-end items-center" title="${h}:00 UTC — ${v} joins">
+        <div class="w-full ${isPeak ? 'bg-brand-500' : 'bg-cyan-500/60 hover:bg-cyan-500'} transition-all rounded-t" style="height:${pct}%;min-height:${v > 0 ? '2px' : '0'};"></div>
+      </div>
+    `;
+  }).join("");
+  // Peak hour line
+  const peakHour = hourly.indexOf(max);
+  document.getElementById("hourly-peak").textContent =
+    `Peak: ${peakHour}:00-${peakHour + 1}:00 UTC (${max} joins) · ${total} joins total over 30d`;
+}
+
+/* ── Timeline (unified event stream) ────────────────────────── */
+let __allEvents = [];
+function buildTimeline(data) {
+  const events = [];
+  (data.joins || []).forEach(j => events.push({
+    ts: j.last_join_at,
+    type: "join",
+    user_label: j.username ? "@" + j.username : (j.first_name || ("tg:" + j.telegram_id)),
+    user_id: "tg:" + j.telegram_id,
+    broker: "Telegram",
+    amount: null,
+    commission: null,
+    note: j.invite_name ? `invite: ${j.invite_name}` : "",
+  }));
+  (data.dms || []).forEach(d => events.push({
+    ts: d.first_message_at,
+    type: "dm",
+    user_label: d.username ? "@" + d.username : (d.first_name || ("tg:" + d.telegram_id)),
+    user_id: "tg:" + d.telegram_id,
+    broker: "Lead Responder",
+    amount: null,
+    commission: null,
+    note: d.state || "",
+  }));
+  (data.conversions || []).forEach(c => events.push({
+    ts: c.occurred_at,
+    type: c.event_type,
+    user_label: c.customer_name || c.user_id,
+    user_id: c.user_id,
+    broker: c.broker || "—",
+    amount: c.deposit_amount,
+    commission: c.commission_amount || c.raw_commission,
+    note: c.status + (c.admin_note ? " · " + c.admin_note.slice(0, 60) : ""),
+  }));
+  events.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+  return events;
+}
+
+const TYPE_BADGE = {
+  join:           { label: "JOIN",        cls: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  dm:             { label: "DM",          cls: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  registration:   { label: "REG",         cls: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  ftd:            { label: "FTD",         cls: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  qualified_cpa:  { label: "QFTD",        cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  commission:     { label: "COMMISSION",  cls: "bg-green-500/15 text-green-400 border-green-500/30" },
+};
+
+function renderTimeline() {
+  const filterText = (document.getElementById("timeline-filter").value || "").toLowerCase();
+  const filterType = (document.getElementById("timeline-type-filter").value || "");
+  const tbody = document.getElementById("timeline-body");
+  const filtered = __allEvents.filter(e => {
+    if (filterType && e.type !== filterType) return false;
+    if (filterText) {
+      const hay = (e.user_label + " " + e.user_id + " " + (e.broker || "") + " " + (e.note || "")).toLowerCase();
+      if (!hay.includes(filterText)) return false;
+    }
+    return true;
+  });
+  document.getElementById("timeline-count").textContent =
+    filtered.length === __allEvents.length
+      ? `${filtered.length} events`
+      : `${filtered.length} of ${__allEvents.length} events`;
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><h3>No events match</h3></td></tr>`;
+    return;
+  }
+  // Render up to 200 to keep DOM light
+  tbody.innerHTML = filtered.slice(0, 200).map(e => {
+    const badge = TYPE_BADGE[e.type] || { label: e.type, cls: "bg-gray-500/15 text-gray-400 border-gray-500/30" };
+    return `
+      <tr>
+        <td class="text-[11px] text-gray-400 font-mono whitespace-nowrap">${fmt.date(e.ts)}</td>
+        <td><span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${badge.cls}">${badge.label}</span></td>
+        <td class="text-xs"><div class="text-white">${e.user_label || "—"}</div><div class="text-[10px] text-gray-500 font-mono">${e.user_id || ""}</div></td>
+        <td class="text-xs text-gray-300">${e.broker || "—"}</td>
+        <td class="num">${e.amount ? `<span class="text-white font-bold">${fmt.money(e.amount)}</span>` : "<span class='text-gray-600'>—</span>"}</td>
+        <td class="num">${e.commission && +e.commission > 0 ? `<span class="text-green-400 font-bold">${fmt.money(e.commission)}</span>` : "<span class='text-gray-600'>—</span>"}</td>
+        <td class="text-[10px] text-gray-500 font-mono max-w-xs truncate" title="${(e.note || '').replace(/"/g,'&quot;')}">${e.note || "—"}</td>
+      </tr>
+    `;
+  }).join("");
+  if (filtered.length > 200) {
+    tbody.innerHTML += `<tr><td colspan="7" class="text-center text-xs text-gray-500 italic py-3">Showing first 200 of ${filtered.length} events — refine the filter to narrow down</td></tr>`;
+  }
+}
+
+/* ── Export timeline to CSV ─────────────────────────────────── */
+function exportCSV() {
+  if (!__allEvents.length) { alert("No events to export."); return; }
+  const headers = ["timestamp_utc", "event_type", "user_label", "user_id", "broker", "amount_usd", "commission_usd", "status_note"];
+  const escape = v => { if (v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csv = [
+    headers.join(","),
+    ...__allEvents.map(e => [e.ts, e.type, e.user_label, e.user_id, e.broker, e.amount, e.commission, e.note].map(escape).join(",")),
+  ].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `tfxs-${SOURCE}-timeline-${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+/* ── Loader ─────────────────────────────────────────────────── */
+async function load() {
+  try {
+    const data = await fetchDrillDown();
+    if (!data) return;
+    renderHeader(data);
+    renderKPIs(data);
+    renderFunnel(data);
+    renderAdSets(data);
+    renderFTDDistribution(data);
+    renderHourlyDistribution(data);
+    __allEvents = buildTimeline(data);
+    renderTimeline();
+  } catch (err) {
+    console.error(err);
+    document.getElementById("timeline-body").innerHTML =
+      `<tr><td colspan="7" class="empty-state">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <h3 style="color:#ef4444">Failed to load</h3>
+        <p>${err.message}</p>
+      </td></tr>`;
+  }
+}
+
+/* ── Wire up ────────────────────────────────────────────────── */
+document.getElementById("export-csv-btn").addEventListener("click", exportCSV);
+document.getElementById("timeline-filter").addEventListener("input", renderTimeline);
+document.getElementById("timeline-type-filter").addEventListener("change", renderTimeline);
+
+load();
+</script>
+
+</body>
+</html>
