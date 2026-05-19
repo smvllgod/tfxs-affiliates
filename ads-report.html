@@ -318,6 +318,15 @@
       .light-theme .action-btn { color:#52525b; background:rgba(0,0,0,0.03); border-color:rgba(0,0,0,0.06); }
       .light-theme .action-btn:hover { color:#18181b; background:rgba(0,0,0,0.06); }
 
+      /* ── Public share-link mode (?token=X) ──────────────────── */
+      html.public-mode nav,
+      body.public-mode nav,
+      body.public-mode .admin-only { display:none !important; }
+      body.public-mode main { padding-top:1rem; }
+
+      /* ── Share modal overlay ────────────────────────────────── */
+      #share-modal { backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+
       /* ── Print styles (PDF via browser print) ───────────────── */
       @media print {
         body { background:white !important; color:black !important; }
@@ -400,9 +409,53 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               PDF
             </button>
+            <button id="share-btn" class="action-btn admin-only" title="Generate a read-only share link">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              Share
+            </button>
           </div>
         </div>
       </header>
+
+      <!-- ─── PUBLIC MODE BADGE (shown only when ?token=X is present) ─── -->
+      <div id="public-mode-badge" class="hidden glass-panel px-5 py-3 text-xs text-gray-400 flex items-center gap-3">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+        <span>Read-only shared view <span class="text-gray-500" id="public-mode-label"></span></span>
+      </div>
+
+      <!-- ─── SHARE LINK MODAL (admin only) ───────────────────── -->
+      <div id="share-modal" class="hidden fixed inset-0 bg-black/70 z-[1000] items-center justify-center p-4" style="display:none">
+        <div class="glass-panel p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" style="background:#0a0a0a;">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-white">Share this dashboard</h3>
+            <button id="share-modal-close" class="text-gray-400 hover:text-white p-1" title="Close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <p class="text-xs text-gray-400 mb-5">Generate a read-only link to share with a partner (e.g. WWA manager). They will see live ads data without needing a TFXS Affiliates account. Tokens can be revoked anytime.</p>
+
+          <div class="rounded-lg border border-white/10 p-4 mb-5 bg-white/[0.02]">
+            <div class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-3">Create a new share link</div>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input id="share-label-input" type="text" placeholder="Label (e.g. Fabian WWA Q2)" maxlength="80"
+                     class="flex-1 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 transition">
+              <select id="share-expires-input" class="bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+                <option value="">Never expires</option>
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">1 year</option>
+              </select>
+              <button id="share-create-btn" class="action-btn" style="white-space:nowrap;">Generate</button>
+            </div>
+          </div>
+
+          <div class="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-2">Active share links</div>
+          <div id="share-tokens-list" class="space-y-2 max-h-[40vh] overflow-y-auto">
+            <div class="text-xs text-gray-500 italic">Loading…</div>
+          </div>
+        </div>
+      </div>
 
       <!-- ─── FORECAST + PATH TO GOAL ───────────────────────── -->
       <section class="glass-panel p-5 sm:p-6" id="forecast-section">
@@ -575,8 +628,11 @@
    ════════════════════════════════════════════════════════════════ */
 const API_BASE = (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
 const JWT_KEY  = window.BRAND ? BRAND._lsKey("jwt") : "tfxs_jwt";
-const jwt = localStorage.getItem(JWT_KEY);
-if (!jwt) { window.location.replace("/login.html"); }
+// Detect public share-link mode BEFORE checking auth — partners using a token
+// don't have a JWT in localStorage and must not be redirected to /login.html.
+const __URL_TOKEN = new URLSearchParams(window.location.search).get("token");
+const jwt = __URL_TOKEN ? null : localStorage.getItem(JWT_KEY);
+if (!jwt && !__URL_TOKEN) { window.location.replace("/login.html"); }
 
 /* ── Formatters ─────────────────────────────────────────────── */
 const fmt = {
@@ -624,12 +680,35 @@ function sparkline(values, color = "#ef4444", w = 80, h = 22) {
 let currentDays = 14;
 let chartInstance = null;
 
+/* ── Public mode detection (read-only share link) ──────────────
+   If ?token=X is in the URL, we are in public mode: skip auth, hit
+   the public endpoint, hide admin-only UI elements. */
+const PUBLIC_TOKEN = (() => {
+  const u = new URL(window.location.href);
+  return u.searchParams.get("token");
+})();
+const IS_PUBLIC = !!PUBLIC_TOKEN;
+if (IS_PUBLIC) {
+  document.documentElement.classList.add("public-mode");
+  document.body && document.body.classList.add("public-mode");
+  // Hide admin nav and any element flagged admin-only
+  document.addEventListener("DOMContentLoaded", () => {
+    document.body.classList.add("public-mode");
+    document.querySelectorAll(".admin-only, nav").forEach(el => el.style.display = "none");
+    const badge = document.getElementById("public-mode-badge");
+    if (badge) { badge.classList.remove("hidden"); badge.style.display = "flex"; }
+  });
+}
+
 /* ── Fetch ──────────────────────────────────────────────────── */
 async function fetchDashboard(days) {
-  const url = new URL("/admin/ads-dashboard", API_BASE);
+  const path = IS_PUBLIC ? "/public/ads-dashboard" : "/admin/ads-dashboard";
+  const url = new URL(path, API_BASE);
   url.searchParams.set("days", days);
-  const resp = await fetch(url, { headers: { Authorization: "Bearer " + jwt } });
-  if (resp.status === 401 || resp.status === 403) {
+  if (IS_PUBLIC) url.searchParams.set("token", PUBLIC_TOKEN);
+  const headers = IS_PUBLIC ? {} : { Authorization: "Bearer " + jwt };
+  const resp = await fetch(url, { headers });
+  if (!IS_PUBLIC && (resp.status === 401 || resp.status === 403)) {
     localStorage.removeItem(JWT_KEY);
     window.location.replace("/login.html");
     return null;
@@ -638,7 +717,106 @@ async function fetchDashboard(days) {
     const t = await resp.text();
     throw new Error("Dashboard fetch failed: " + resp.status + " " + t.slice(0, 200));
   }
+  const payload = (await resp.json()).data;
+  // Surface the token label on public mode (set by backend)
+  if (IS_PUBLIC && payload?.token_label) {
+    const lbl = document.getElementById("public-mode-label");
+    if (lbl) lbl.textContent = "· " + payload.token_label;
+  }
+  return payload;
+}
+
+/* ── Share link modal (admin only) ──────────────────────────── */
+async function fetchShareTokens() {
+  const url = new URL("/admin/share-tokens", API_BASE);
+  const resp = await fetch(url, { headers: { Authorization: "Bearer " + jwt } });
+  if (!resp.ok) throw new Error("Failed to load share tokens");
+  return (await resp.json()).data || [];
+}
+async function createShareToken(label, expires_in_days) {
+  const url = new URL("/admin/share-tokens", API_BASE);
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + jwt, "Content-Type": "application/json" },
+    body: JSON.stringify({ label, expires_in_days: expires_in_days || null }),
+  });
+  if (!resp.ok) throw new Error("Failed to create share token");
   return (await resp.json()).data;
+}
+async function revokeShareToken(token) {
+  const url = new URL("/admin/share-tokens/" + encodeURIComponent(token), API_BASE);
+  const resp = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: "Bearer " + jwt },
+  });
+  if (!resp.ok) throw new Error("Failed to revoke share token");
+  return (await resp.json()).data;
+}
+function shareUrlFor(token) {
+  return window.location.origin + window.location.pathname + "?token=" + token;
+}
+function renderShareTokensList(tokens) {
+  const list = document.getElementById("share-tokens-list");
+  const active = tokens.filter(t => !t.revoked_at);
+  if (!active.length) {
+    list.innerHTML = `<div class="text-xs text-gray-500 italic">No active share links yet. Generate one above.</div>`;
+    return;
+  }
+  list.innerHTML = active.map(t => {
+    const expired = t.expires_at && new Date(t.expires_at).getTime() < Date.now();
+    const expiresLine = t.expires_at
+      ? (expired ? `<span class="text-red-400">Expired ${new Date(t.expires_at).toLocaleDateString()}</span>` : `Expires ${new Date(t.expires_at).toLocaleDateString()}`)
+      : "Never expires";
+    const lastAccess = t.last_accessed_at
+      ? "Last opened " + new Date(t.last_accessed_at).toLocaleDateString() + " · " + (t.access_count || 0) + " views"
+      : "Not opened yet";
+    const url = shareUrlFor(t.token);
+    return `
+      <div class="rounded-lg border border-white/10 p-3 bg-white/[0.02] ${expired ? 'opacity-60' : ''}">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold text-white truncate">${t.label || "(no label)"}</div>
+            <div class="text-[10px] text-gray-500 font-mono mt-0.5">${t.token.substring(0, 16)}…</div>
+          </div>
+          <div class="flex gap-1 shrink-0">
+            <button class="action-btn share-copy-btn" data-url="${url}" title="Copy share URL">Copy</button>
+            <button class="action-btn share-revoke-btn" data-token="${t.token}" title="Revoke this link">Revoke</button>
+          </div>
+        </div>
+        <div class="text-[10px] text-gray-500 font-mono flex justify-between gap-3">
+          <span>${expiresLine}</span>
+          <span>${lastAccess}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+  list.querySelectorAll(".share-copy-btn").forEach(b => b.onclick = (e) => {
+    navigator.clipboard.writeText(e.currentTarget.dataset.url);
+    const orig = e.currentTarget.textContent;
+    e.currentTarget.textContent = "Copied!";
+    setTimeout(() => { e.currentTarget.textContent = orig; }, 1500);
+  });
+  list.querySelectorAll(".share-revoke-btn").forEach(b => b.onclick = async (e) => {
+    if (!confirm("Revoke this share link? Anyone with the URL will lose access immediately.")) return;
+    await revokeShareToken(e.currentTarget.dataset.token);
+    openShareModal();
+  });
+}
+async function openShareModal() {
+  const modal = document.getElementById("share-modal");
+  modal.classList.remove("hidden");
+  modal.style.display = "flex";
+  try {
+    const tokens = await fetchShareTokens();
+    renderShareTokensList(tokens);
+  } catch (err) {
+    document.getElementById("share-tokens-list").innerHTML = `<div class="text-xs text-red-400">${err.message}</div>`;
+  }
+}
+function closeShareModal() {
+  const modal = document.getElementById("share-modal");
+  modal.classList.add("hidden");
+  modal.style.display = "none";
 }
 
 /* ── Compute totals + spark series ───────────────────────────── */
@@ -1100,6 +1278,36 @@ document.getElementById("refresh-btn").addEventListener("click", () => {
 });
 document.getElementById("export-csv-btn").addEventListener("click", exportCSV);
 document.getElementById("print-btn").addEventListener("click", printReport);
+
+// Share button (admin only — hidden in public mode by detectPublicMode CSS)
+const shareBtn = document.getElementById("share-btn");
+if (shareBtn) shareBtn.addEventListener("click", openShareModal);
+const shareModalClose = document.getElementById("share-modal-close");
+if (shareModalClose) shareModalClose.addEventListener("click", closeShareModal);
+const shareModal = document.getElementById("share-modal");
+if (shareModal) shareModal.addEventListener("click", (e) => {
+  if (e.target === shareModal) closeShareModal();
+});
+const shareCreateBtn = document.getElementById("share-create-btn");
+if (shareCreateBtn) shareCreateBtn.addEventListener("click", async () => {
+  const labelEl = document.getElementById("share-label-input");
+  const expiresEl = document.getElementById("share-expires-input");
+  shareCreateBtn.disabled = true;
+  const oldTxt = shareCreateBtn.textContent;
+  shareCreateBtn.textContent = "Creating…";
+  try {
+    await createShareToken(labelEl.value.trim() || null, expiresEl.value ? parseInt(expiresEl.value) : null);
+    labelEl.value = "";
+    expiresEl.value = "";
+    const tokens = await fetchShareTokens();
+    renderShareTokensList(tokens);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    shareCreateBtn.disabled = false;
+    shareCreateBtn.textContent = oldTxt;
+  }
+});
 
 /* Initial + 5-min auto-refresh */
 load(currentDays);
