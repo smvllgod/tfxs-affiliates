@@ -278,6 +278,62 @@
         .kpi-value { font-size:1.45rem; }
         .matrix tbody td { padding:.55rem .55rem; font-size:.7rem; }
         .matrix thead th { padding:.5rem .55rem; font-size:.55rem; }
+        /* Sticky first column so source label stays visible while scrolling */
+        .matrix thead th:first-child,
+        .matrix tbody td:first-child { position:sticky; left:0; z-index:2; background:#0a0a0a; box-shadow:1px 0 0 rgba(255,255,255,0.06); }
+        .light-theme .matrix thead th:first-child,
+        .light-theme .matrix tbody td:first-child { background:#fafafa; }
+        /* Smaller forecast cards on mobile */
+        .forecast-card { padding:0.85rem; }
+        .forecast-value { font-size:1.35rem; }
+      }
+
+      /* ── Forecast section ───────────────────────────────────── */
+      .forecast-card {
+        position:relative;
+        padding:1.1rem 1.2rem;
+        border-radius:0.85rem;
+        background:linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+        border:1px solid rgba(255,255,255,0.07);
+      }
+      .light-theme .forecast-card { background:linear-gradient(135deg, rgba(0,0,0,0.025), rgba(0,0,0,0.005)); border-color:rgba(0,0,0,0.06); }
+      .forecast-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:#71717a; font-family:'JetBrains Mono',monospace; margin-bottom:0.45rem; }
+      .forecast-value { font-size:1.7rem; font-weight:700; color:#fff; line-height:1.1; letter-spacing:-0.02em; font-family:'Inter',sans-serif; }
+      .light-theme .forecast-value { color:#18181b; }
+      .forecast-sub { font-size:0.7rem; color:#a1a1aa; margin-top:0.4rem; line-height:1.4; font-family:'JetBrains Mono',monospace; }
+      .light-theme .forecast-sub { color:#52525b; }
+      .forecast-good { color:#22c55e !important; }
+      .forecast-warn { color:#eab308 !important; }
+
+      /* ── Action buttons (Export, Print) ─────────────────────── */
+      .action-btn {
+        display:inline-flex; align-items:center; gap:0.4rem;
+        padding:0.45rem 0.85rem; border-radius:0.55rem;
+        font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;
+        color:#a1a1aa; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+        cursor:pointer; transition:all 0.15s;
+        font-family:'Inter',sans-serif;
+      }
+      .action-btn:hover { color:#fff; background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.12); }
+      .light-theme .action-btn { color:#52525b; background:rgba(0,0,0,0.03); border-color:rgba(0,0,0,0.06); }
+      .light-theme .action-btn:hover { color:#18181b; background:rgba(0,0,0,0.06); }
+
+      /* ── Print styles (PDF via browser print) ───────────────── */
+      @media print {
+        body { background:white !important; color:black !important; }
+        nav, #refresh-btn, .action-btn, .period-group, #alerts-body, .alert,
+        #forecast-section button, header a, .sparkline { display:none !important; }
+        .glass-panel { background:white !important; border:1px solid #ccc !important; box-shadow:none !important; }
+        .kpi, .forecast-card { background:white !important; border:1px solid #ddd !important; color:black !important; }
+        .kpi-value, .forecast-value, h1, h2 { color:black !important; }
+        .kpi-label, .forecast-label, .funnel-stage-label { color:#555 !important; }
+        .matrix thead th { background:#f5f5f5 !important; color:black !important; }
+        .matrix tbody td, .matrix tbody tr:hover { background:white !important; color:black !important; }
+        .verdict { border:1px solid #aaa !important; background:white !important; }
+        .verdict::before { display:none; }
+        main { max-width:none !important; }
+        .overflow-x-auto { overflow:visible !important; }
+        @page { margin:1.5cm; }
       }
     </style>
 </head>
@@ -329,12 +385,51 @@
             Real CPL, CPA QFTD, ROAS by source · Meta spend × Telegram joins · live every 6h
           </p>
         </div>
-        <div class="period-group">
-          <button class="period-btn" data-days="7">7d</button>
-          <button class="period-btn active" data-days="14">14d</button>
-          <button class="period-btn" data-days="30">30d</button>
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div class="period-group">
+            <button class="period-btn" data-days="7">7d</button>
+            <button class="period-btn active" data-days="14">14d</button>
+            <button class="period-btn" data-days="30">30d</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="export-csv-btn" class="action-btn" title="Export per-source matrix as CSV">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              CSV
+            </button>
+            <button id="print-btn" class="action-btn" title="Print or save as PDF">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              PDF
+            </button>
+          </div>
         </div>
       </header>
+
+      <!-- ─── FORECAST + PATH TO GOAL ───────────────────────── -->
+      <section class="glass-panel p-5 sm:p-6" id="forecast-section">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> Forecast · path to $50k/month
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono" id="forecast-period">—</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          <div class="forecast-card">
+            <div class="forecast-label">MTD revenue (estimated)</div>
+            <div class="forecast-value" id="forecast-mtd">—</div>
+            <div class="forecast-sub" id="forecast-mtd-sub">—</div>
+          </div>
+          <div class="forecast-card">
+            <div class="forecast-label">Forecast end-of-month</div>
+            <div class="forecast-value" id="forecast-eom">—</div>
+            <div class="forecast-sub" id="forecast-eom-sub">—</div>
+          </div>
+          <div class="forecast-card">
+            <div class="forecast-label">Path to $50k goal</div>
+            <div class="forecast-value" id="forecast-goal">—</div>
+            <div class="forecast-sub" id="forecast-goal-sub">—</div>
+          </div>
+        </div>
+      </section>
 
       <!-- ─── HERO KPI GRID ──────────────────────────────────── -->
       <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" id="kpi-grid">
@@ -777,13 +872,116 @@ function renderContext(t) {
   document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
+/* ── Render: Forecast (path to $50k goal) ───────────────────── */
+const GOAL_MONTHLY_USD = 50000;
+function renderForecast(t, periodDays) {
+  const now = new Date();
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const dayOfMonth = now.getDate();
+  const daysInMonth = endMonth.getDate();
+  const daysRemaining = Math.max(daysInMonth - dayOfMonth, 0);
+
+  // Use the run rate of the selected period (7/14/30d) as our projection base.
+  const dailyRevenueRate = (t.revenue || 0) / periodDays;
+  const dailySpendRate = (t.spend || 0) / periodDays;
+
+  // MTD estimate = daily rate × elapsed days. This is a proxy; the real MTD
+  // would need a server-side query scoped to the current month. Good enough
+  // for forecasting purposes.
+  const revenueMTDestimate = dailyRevenueRate * dayOfMonth;
+  const forecastEOM = dailyRevenueRate * daysInMonth;
+  const forecastSpendEOM = dailySpendRate * daysInMonth;
+  const forecastRoasEOM = forecastSpendEOM > 0 ? forecastEOM / forecastSpendEOM : 0;
+
+  const gapToGoal = GOAL_MONTHLY_USD - forecastEOM;
+  const requiredDailyRate = gapToGoal > 0 && daysRemaining > 0 ? gapToGoal / daysRemaining : 0;
+  const rateMultiplier = dailyRevenueRate > 0 ? requiredDailyRate / dailyRevenueRate : 0;
+
+  // Period label
+  const periodLabel = `${periodDays}d window · day ${dayOfMonth}/${daysInMonth}`;
+  document.getElementById("forecast-period").textContent = periodLabel;
+
+  // MTD card
+  document.getElementById("forecast-mtd").textContent = fmt.money(revenueMTDestimate);
+  document.getElementById("forecast-mtd-sub").innerHTML =
+    `Run rate <span class="text-white">${fmt.money(dailyRevenueRate)}/d</span> · ${dayOfMonth} days elapsed`;
+
+  // EOM forecast card
+  const eomEl = document.getElementById("forecast-eom");
+  eomEl.textContent = fmt.money(forecastEOM);
+  eomEl.className = "forecast-value " + (forecastEOM >= GOAL_MONTHLY_USD ? "forecast-good" : (forecastEOM >= GOAL_MONTHLY_USD * 0.6 ? "forecast-warn" : ""));
+  document.getElementById("forecast-eom-sub").innerHTML =
+    `At ${fmt.money(dailySpendRate)}/d spend · projected ${fmt.x(forecastRoasEOM)} ROAS`;
+
+  // Goal card
+  const goalEl = document.getElementById("forecast-goal");
+  if (gapToGoal <= 0) {
+    goalEl.textContent = "On track ✓";
+    goalEl.className = "forecast-value forecast-good";
+    document.getElementById("forecast-goal-sub").innerHTML =
+      `Projected <span class="text-white">${fmt.pct(forecastEOM / GOAL_MONTHLY_USD * 100)}</span> of $50k goal`;
+  } else {
+    goalEl.textContent = fmt.money(gapToGoal) + " gap";
+    goalEl.className = "forecast-value " + (rateMultiplier > 3 ? "" : "forecast-warn");
+    document.getElementById("forecast-goal-sub").innerHTML = daysRemaining > 0
+      ? `Need <span class="text-white">${fmt.money(requiredDailyRate)}/d</span> for ${daysRemaining}d remaining (${fmt.x(rateMultiplier)} current rate)`
+      : `Month closing · final gap`;
+  }
+}
+
+/* ── Export: per-source matrix to CSV ───────────────────────── */
+function exportCSV() {
+  const rows = (lastLoadedData?.summary || [])
+    .filter(r => (+r.joins || 0) > 0 || (+r.spend_usd || 0) > 0)
+    .sort((a, b) => (+b.spend_usd || 0) - (+a.spend_usd || 0));
+  if (!rows.length) {
+    alert("No data to export.");
+    return;
+  }
+  const headers = [
+    "source", "spend_usd", "daily_budget_usd", "joins", "dms",
+    "join_to_dm_pct", "regs", "ftds", "qftds",
+    "cpl_real_usd", "cpl_meta_usd", "cpa_qftd_usd",
+    "commission_actual_usd", "revenue_est_usd", "profit_est_usd",
+    "roas", "verdict", "is_active"
+  ];
+  const escape = v => {
+    if (v == null) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const csv = [
+    headers.join(","),
+    ...rows.map(r => headers.map(h => escape(r[h])).join(","))
+  ].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `tfxs-ads-report-${date}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+/* ── Print: trigger browser print dialog (user can save as PDF) */
+function printReport() {
+  window.print();
+}
+
 /* ── Loader ─────────────────────────────────────────────────── */
+let lastLoadedData = null;
 async function load(days) {
   try {
     const data = await fetchDashboard(days);
     if (!data) return;
+    lastLoadedData = data;
     const t = computeTotals(data.summary, data.daily);
     renderKPIs(t);
+    renderForecast(t, days);
     renderFunnel(t);
     renderChart(data.daily, days);
     renderMatrix(data.summary);
@@ -814,6 +1012,8 @@ document.getElementById("refresh-btn").addEventListener("click", () => {
   btn.style.opacity = "0.5";
   load(currentDays).finally(() => { btn.style.opacity = ""; });
 });
+document.getElementById("export-csv-btn").addEventListener("click", exportCSV);
+document.getElementById("print-btn").addEventListener("click", printReport);
 
 /* Initial + 5-min auto-refresh */
 load(currentDays);
