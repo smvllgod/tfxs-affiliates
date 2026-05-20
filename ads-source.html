@@ -323,7 +323,7 @@
         position:fixed; inset:0; z-index:1000;
         background:rgba(0,0,0,0.75); backdrop-filter:blur(4px);
         display:flex; align-items:flex-start; justify-content:center;
-        padding:3rem 1rem 1rem; overflow-y:auto;
+        padding:clamp(4rem, 18vh, 12rem) 1rem 2rem; overflow-y:auto;
       }
       .meta-modal-panel {
         background:#0a0a0a; border:1px solid rgba(255,255,255,0.1);
@@ -344,24 +344,31 @@
         border-color:rgba(239,68,68,0.6) !important;
       }
 
-      /* ── Hour-of-day chart fix (bars were too thin to see) ─── */
+      /* ── Hour-of-day chart (bars rendered with explicit heights) ── */
       #hourly-distribution {
+        display:flex !important;
         align-items:flex-end;
         height:10rem !important;
         gap:2px;
         padding:0.25rem 0;
       }
-      #hourly-distribution > div { flex:1 1 0; min-width:6px; }
+      /* Each wrapper must be a full-height flex column so the inner
+         bar's height:X% resolves against a non-zero parent. */
+      #hourly-distribution > div {
+        flex:1 1 0; min-width:6px; height:100%;
+        display:flex; flex-direction:column; justify-content:flex-end;
+      }
       #hourly-distribution > div > div {
-        min-height:3px;
-        background:linear-gradient(180deg, rgba(34,211,238,0.7), rgba(34,211,238,0.35)) !important;
+        width:100%; min-height:3px;
+        background:linear-gradient(180deg, #22d3ee, rgba(34,211,238,0.4));
         border-radius:2px 2px 0 0;
+        transition:filter 0.15s;
       }
       #hourly-distribution > div > div.hour-peak {
-        background:linear-gradient(180deg, #ef4444, rgba(239,68,68,0.5)) !important;
+        background:linear-gradient(180deg, #ef4444, rgba(239,68,68,0.5));
         box-shadow:0 0 8px rgba(239,68,68,0.4);
       }
-      #hourly-distribution > div:hover > div { filter:brightness(1.3); }
+      #hourly-distribution > div:hover > div { filter:brightness(1.35); }
 
       /* ── Ad sub-rows (individual creatives under each ad set) ── */
       tr.ad-row { background:rgba(255,255,255,0.015) !important; }
@@ -471,7 +478,7 @@
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="13" width="3" height="5" rx=".5"/><rect x="12" y="9" width="3" height="9" rx=".5"/><rect x="17" y="5" width="3" height="13" rx=".5"/></svg>
               ADS · DRILL-DOWN
             </span>
-            <a href="ads-report.html" class="text-[10px] text-gray-500 hover:text-gray-300 transition uppercase tracking-wider">← Back to ads matrix</a>
+            <a href="ads-report.html" id="back-link" class="text-[10px] text-gray-500 hover:text-gray-300 transition uppercase tracking-wider">← Back to ads matrix</a>
           </div>
           <h1 class="text-2xl sm:text-4xl font-bold text-white tracking-tight">
             Source · <span id="source-flag"></span><span id="source-code" class="text-brand-500">—</span>
@@ -674,10 +681,26 @@
 
 const API_BASE = (window.BRAND && BRAND.urls.api) || "https://tfxs-affiliates-backend.onrender.com";
 const JWT_KEY  = window.BRAND ? BRAND._lsKey("jwt") : "tfxs_jwt";
-const jwt = localStorage.getItem(JWT_KEY);
-if (!jwt) { window.location.replace("/login.html"); }
 
-const SOURCE = (new URLSearchParams(window.location.search).get("source") || "").toLowerCase();
+// Public share-link mode: ?token=X means a partner is viewing this
+// via a shared link — no JWT, no login redirect, read-only (no actions).
+const __PARAMS = new URLSearchParams(window.location.search);
+const PUBLIC_TOKEN = __PARAMS.get("token");
+const IS_PUBLIC = !!PUBLIC_TOKEN;
+const jwt = IS_PUBLIC ? null : localStorage.getItem(JWT_KEY);
+if (!jwt && !IS_PUBLIC) { window.location.replace("/login.html"); }
+if (IS_PUBLIC) {
+  document.addEventListener("DOMContentLoaded", () => {
+    document.body.classList.add("public-mode");
+    document.querySelectorAll("nav, .admin-only").forEach(el => el.style.display = "none");
+    // Keep the token on the "back to ads matrix" link so the partner
+    // stays in public mode when navigating back.
+    const backLink = document.getElementById("back-link");
+    if (backLink) backLink.href = "ads-report.html?token=" + encodeURIComponent(PUBLIC_TOKEN);
+  });
+}
+
+const SOURCE = (__PARAMS.get("source") || "").toLowerCase();
 if (!SOURCE || !/^meta_[a-z0-9_]{1,16}$/.test(SOURCE)) {
   document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#888;font-family:Inter,sans-serif;">
     <h1 style="color:#ef4444;margin-bottom:12px;">Invalid source</h1>
@@ -723,9 +746,14 @@ function flagOf(source) {
 
 /* ── Fetch ──────────────────────────────────────────────────── */
 async function fetchDrillDown() {
-  const url = new URL(`/admin/ads-dashboard/source/${SOURCE}`, API_BASE);
-  const resp = await fetch(url, { headers: { Authorization: "Bearer " + jwt } });
-  if (resp.status === 401 || resp.status === 403) {
+  const path = IS_PUBLIC
+    ? `/public/ads-dashboard/source/${SOURCE}`
+    : `/admin/ads-dashboard/source/${SOURCE}`;
+  const url = new URL(path, API_BASE);
+  if (IS_PUBLIC) url.searchParams.set("token", PUBLIC_TOKEN);
+  const headers = IS_PUBLIC ? {} : { Authorization: "Bearer " + jwt };
+  const resp = await fetch(url, { headers });
+  if (!IS_PUBLIC && (resp.status === 401 || resp.status === 403)) {
     localStorage.removeItem(JWT_KEY);
     window.location.replace("/login.html");
     return null;
@@ -848,12 +876,12 @@ function renderAdSets(data) {
         <td><span class="verdict ${statusClass}">${status || "—"}</span></td>
         <td class="num text-[10px] text-gray-500 font-mono">${fmt.rel(r.updated_at)}</td>
         <td class="num">
-          <div class="adset-actions">
+          ${IS_PUBLIC ? '<span class="text-gray-600 text-xs">—</span>' : `<div class="adset-actions">
             ${isActive
               ? `<button class="action-btn act-pause" data-adset="${adSetId}" title="Pause whole ad set on Meta">Pause</button>`
               : `<button class="action-btn act-resume" data-adset="${adSetId}" title="Resume whole ad set on Meta">Resume</button>`}
             <button class="action-btn act-budget" data-adset="${adSetId}" data-current="${budget}" title="Change daily budget on Meta">Budget</button>
-          </div>
+          </div>`}
         </td>
       </tr>
     `;
@@ -882,11 +910,11 @@ function renderAdSets(data) {
           <td><span class="verdict ${adStatusClass}">${adStatus || "—"}</span></td>
           <td class="num text-[10px] text-gray-500 font-mono">${fmt.rel(a.updated_at)}</td>
           <td class="num">
-            <div class="adset-actions">
+            ${IS_PUBLIC ? '<span class="text-gray-600 text-xs">—</span>' : `<div class="adset-actions">
               ${adIsActive
                 ? `<button class="action-btn act-ad-pause" data-ad="${a.ad_id}" title="Pause this individual ad (creative) on Meta">Pause ad</button>`
                 : `<button class="action-btn act-ad-resume" data-ad="${a.ad_id}" title="Resume this ad (creative) on Meta">Resume</button>`}
-            </div>
+            </div>`}
           </td>
         </tr>
       `;
