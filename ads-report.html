@@ -551,6 +551,7 @@
                 <th class="num">Spend</th>
                 <th class="num" title="Current daily budget on Meta (sum of active ad sets for this source)">Daily</th>
                 <th class="num">Joins</th>
+                <th class="num" title="% of joins still in the Telegram group (not left). Informational — does not affect verdict.">Stay</th>
                 <th class="num">DMs</th>
                 <th class="num">J→DM</th>
                 <th class="num">Regs</th>
@@ -565,7 +566,7 @@
               </tr>
             </thead>
             <tbody id="matrix-body">
-              <tr><td colspan="15" class="empty-state">
+              <tr><td colspan="16" class="empty-state">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 <h3>Loading…</h3>
                 <p>Pulling Meta spend + Supabase funnel data.</p>
@@ -841,15 +842,18 @@ function computeTotals(summary, daily) {
     a.ftds            += +r.ftds                 || 0;
     a.qftds           += +r.qftds                || 0;
     a.pixel           += +r.pixel_leads          || 0;
+    a.membersIn       += +r.members_in           || 0;
     a.commissionReal  += +r.commission_actual_usd || 0;
     a.commissionCount += +r.commission_count     || 0;
     // Per-source hybrid revenue (real if available, else estimate) — sum it
     a.revenue         += +r.revenue_est_usd      || 0;
     return a;
   }, { spend: 0, joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0, pixel: 0,
-       commissionReal: 0, commissionCount: 0, revenue: 0 });
+       membersIn: 0, commissionReal: 0, commissionCount: 0, revenue: 0 });
   t.profit  = t.revenue - t.spend;
   t.roas    = t.spend > 0 ? t.revenue / t.spend : null;
+  // Member retention: % of joins still in the group (no left_at)
+  t.stayRate = t.joins > 0 ? (100 * t.membersIn / t.joins) : null;
   // Estimate fraction: how much of total revenue is from the $500 fallback
   // (i.e. QFTDs without a real commission booked yet) vs real commissions
   t.revenueIsReal = t.commissionCount > 0;
@@ -870,7 +874,8 @@ function renderKPIs(t) {
     { label: "Spend",       cls: "kpi-spend", spark: "#a78bfa",
       value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
     { label: "Real Joins",  cls: "kpi-joins",
-      value: fmt.int(t.joins),      sub: `${fmt.int(t.pixel)} Meta Leads` },
+      value: fmt.int(t.joins),
+      sub: `${fmt.int(t.pixel)} Meta Leads` + (t.stayRate != null ? ` · ${t.stayRate.toFixed(0)}% stay` : "") },
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
     { label: "Regs",        cls: "kpi-regs",
@@ -918,6 +923,14 @@ function renderFunnel(t) {
   `).join("");
 }
 
+/* ── Member-retention cell (stay rate, color-coded, informational) ── */
+function stayCell(pct, membersIn, joins) {
+  if (pct == null) return '<span class="text-gray-600">—</span>';
+  const p = +pct;
+  const color = p >= 70 ? "#22c55e" : p >= 50 ? "#eab308" : "#ef4444";
+  return `<span style="color:${color};font-weight:700" title="${(+membersIn||0).toLocaleString()} of ${(+joins||0).toLocaleString()} still in the group">${p.toFixed(0)}%</span>`;
+}
+
 /* ── Render: Per-source matrix ───────────────────────────────── */
 function renderMatrix(summary) {
   const tbody = document.getElementById("matrix-body");
@@ -926,7 +939,7 @@ function renderMatrix(summary) {
     .sort((a, b) => (+b.spend_usd || 0) - (+a.spend_usd || 0));
   if (!rows.length) {
     tbody.innerHTML = `
-      <tr><td colspan="15"><div class="empty-state">
+      <tr><td colspan="16"><div class="empty-state">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
         <h3>No data yet</h3>
         <p>Once your ads start spending and leads start joining, this matrix will populate. The bot pulls Meta spend every 6 hours.</p>
@@ -955,6 +968,7 @@ function renderMatrix(summary) {
         <td class="num font-bold">${fmt.money(r.spend_usd)}</td>
         <td class="num">${dailyBudget}</td>
         <td class="num">${fmt.int(r.joins)}</td>
+        <td class="num">${stayCell(r.stay_rate_pct, r.members_in, r.joins)}</td>
         <td class="num">${fmt.int(r.dms)}</td>
         <td class="num">
           ${fmt.pct(r.join_to_dm_pct)}
@@ -1279,7 +1293,7 @@ async function load(days) {
   } catch (err) {
     console.error(err);
     document.getElementById("matrix-body").innerHTML =
-      `<tr><td colspan="15"><div class="empty-state">
+      `<tr><td colspan="16"><div class="empty-state">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <h3 style="color:#ef4444">Failed to load</h3>
         <p>${err.message}</p>

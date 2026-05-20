@@ -780,7 +780,8 @@ function renderKPIs(data) {
       sub: o.daily_budget_usd ? `Daily ${fmt.money(o.daily_budget_usd)} · ${data.window_days}d` : `${data.window_days}d window` },
     { label: "Real Joins",  cls: "kpi-joins",
       value: fmt.int(o.joins),
-      sub: `${fmt.int(o.pixel_leads)} Pixel Leads` },
+      sub: `${fmt.int(o.pixel_leads)} Pixel Leads`
+          + (o.stay_rate_pct != null ? ` · ${(+o.stay_rate_pct).toFixed(0)}% stay` : "") },
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(o.dms),
       sub: o.joins ? fmt.pct(100 * (o.dms || 0) / o.joins) + " of joins" : "—" },
