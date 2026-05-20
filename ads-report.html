@@ -1037,6 +1037,15 @@ function renderChart(daily, days) {
 }
 
 /* ── Render: Smart alerts ───────────────────────────────────── */
+/* SVG icons for alerts (replaces emoji — cleaner, theme-consistent) */
+const ALERT_ICONS = {
+  // rocket — scale
+  good: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>`,
+  // octagon ban — kill
+  danger: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+  // triangle warning — warn
+  warn: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+};
 function renderAlerts(summary) {
   const alerts = [];
   (summary || []).forEach(r => {
@@ -1047,21 +1056,21 @@ function renderAlerts(summary) {
     if (v === "paused") return;
     if (v === "scale" && (+r.qftds || 0) >= 1) {
       alerts.push({
-        kind: "good", icon: "🚀",
+        kind: "good",
         title: `${flag} <code>${code}</code> meets scale criteria`,
         meta: `Suggest <b>+50% budget</b> · CPL ${fmt.money(r.cpl_real_usd)} · J→DM ${fmt.pct(r.join_to_dm_pct)} · ${r.qftds} QFTD · ROAS ${fmt.x(r.roas)}`,
       });
     }
     if (v === "kill") {
       alerts.push({
-        kind: "danger", icon: "⛔",
+        kind: "danger",
         title: `${flag} <code>${code}</code> in kill range — pause and reallocate`,
         meta: `CPL ${fmt.money(r.cpl_real_usd)} · J→DM ${fmt.pct(r.join_to_dm_pct)} · spend ${fmt.money(r.spend_usd)} · ${r.qftds || 0} QFTD`,
       });
     }
     if ((+r.qftds || 0) >= 1 && (+r.roas || 0) > 0 && (+r.roas || 0) < 2 && v !== "kill") {
       alerts.push({
-        kind: "warn", icon: "⚠️",
+        kind: "warn",
         title: `${flag} <code>${code}</code> ROAS below 2× — margin thin`,
         meta: `ROAS ${fmt.x(r.roas)} · CPA QFTD ${fmt.money(r.cpa_qftd_usd)} · review creative or audience before scaling`,
       });
@@ -1079,7 +1088,7 @@ function renderAlerts(summary) {
   }
   body.innerHTML = alerts.map(a => `
     <div class="alert ${a.kind}">
-      <div class="alert-icon">${a.icon}</div>
+      <div class="alert-icon">${ALERT_ICONS[a.kind] || ""}</div>
       <div class="flex-1 min-w-0">
         <div class="alert-title">${a.title}</div>
         <div class="alert-meta">${a.meta}</div>
