@@ -168,7 +168,7 @@
         background:rgba(10,10,10,0.92); backdrop-filter:blur(12px);
       }
       .light-theme .matrix thead th { background:rgba(255,255,255,0.96); border-bottom-color:rgba(0,0,0,0.08); }
-      .matrix tbody td { padding:.7rem .9rem; font-size:.78rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+      .matrix tbody td { padding:.7rem .9rem; font-size:.78rem; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
       .light-theme .matrix tbody td { border-bottom-color:rgba(0,0,0,0.05); }
       .matrix tbody tr { transition:background .14s; }
       .matrix tbody tr:hover { background:rgba(239,68,68,0.04); }
@@ -853,9 +853,14 @@ function renderAdSets(data) {
   });
 
   tbody.innerHTML = rows.map(r => {
-    const status = (r.effective_status || r.status || "").toUpperCase();
-    const isActive = status === "ACTIVE";
-    const statusClass = isActive ? "scale" : "paused";
+    // Badge shows effective_status (real delivery state). Pause/Resume
+    // button is driven by status (the object's OWN state) — an ad set with
+    // status=ACTIVE but effective_status=CAMPAIGN_PAUSED is still "active"
+    // at its own level, so the right action is Pause, not Resume.
+    const effStatus = (r.effective_status || r.status || "").toUpperCase();
+    const ownStatus = (r.status || r.effective_status || "").toUpperCase();
+    const isActive = ownStatus === "ACTIVE";
+    const statusClass = effStatus === "ACTIVE" ? "scale" : "paused";
     const adSetId = r.ad_set_id || "";
     const budget = r.daily_budget_usd != null ? r.daily_budget_usd : "";
     const ads = adsByAdSet[adSetId] || [];
@@ -874,7 +879,7 @@ function renderAdSets(data) {
           <div class="text-[10px] text-gray-500 font-mono">${r.campaign_id || ""}</div>
         </td>
         <td class="num">${r.daily_budget_usd != null ? `<span class="font-bold text-white">${fmt.money(r.daily_budget_usd)}</span><span class="text-gray-500">/d</span>` : `<span class="text-gray-500">— (CBO?)</span>`}</td>
-        <td><span class="verdict ${statusClass}">${status || "—"}</span></td>
+        <td><span class="verdict ${statusClass}">${effStatus || "—"}</span></td>
         <td class="num text-[10px] text-gray-500 font-mono">${fmt.rel(r.updated_at)}</td>
         <td class="num">
           ${IS_PUBLIC ? '<span class="text-gray-600 text-xs">—</span>' : `<div class="adset-actions">
@@ -888,9 +893,11 @@ function renderAdSets(data) {
     `;
 
     const adRows = ads.map(a => {
-      const adStatus = (a.effective_status || a.status || "").toUpperCase();
-      const adIsActive = adStatus === "ACTIVE";
-      const adStatusClass = adIsActive ? "scale" : "paused";
+      // Same split: badge = effective_status, button = own status.
+      const adEffStatus = (a.effective_status || a.status || "").toUpperCase();
+      const adOwnStatus = (a.status || a.effective_status || "").toUpperCase();
+      const adIsActive = adOwnStatus === "ACTIVE";
+      const adStatusClass = adEffStatus === "ACTIVE" ? "scale" : "paused";
       const thumb = a.creative_thumbnail_url
         ? `<img src="${a.creative_thumbnail_url}" alt="" class="ad-thumb" onerror="this.style.display='none'">`
         : `<div class="ad-thumb-placeholder">📷</div>`;
@@ -908,7 +915,7 @@ function renderAdSets(data) {
           </td>
           <td class="text-[10px] text-gray-600 font-mono">—</td>
           <td class="num text-[10px] text-gray-600">—</td>
-          <td><span class="verdict ${adStatusClass}">${adStatus || "—"}</span></td>
+          <td><span class="verdict ${adStatusClass}">${adEffStatus || "—"}</span></td>
           <td class="num text-[10px] text-gray-500 font-mono">${fmt.rel(a.updated_at)}</td>
           <td class="num">
             ${IS_PUBLIC ? '<span class="text-gray-600 text-xs">—</span>' : `<div class="adset-actions">
