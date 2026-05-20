@@ -386,7 +386,9 @@
       .act-ad-resume:hover { background:rgba(34,197,94,0.10); color:#fff; border-color:rgba(34,197,94,0.35); }
 
       /* ── Ad set actions (inline buttons in the ad sets table) ── */
-      .adset-actions { display:inline-flex; gap:0.4rem; justify-content:flex-end; }
+      /* display:flex (not inline-flex) so it fills the cell and the
+         buttons truly center regardless of the cell's text-align. */
+      .adset-actions { display:flex; gap:0.4rem; justify-content:center; align-items:center; }
       .adset-actions .action-btn { padding:0.32rem 0.65rem; font-size:0.6rem; }
       .adset-actions .act-pause { color:#fca5a5; border-color:rgba(252,165,165,0.25); }
       .adset-actions .act-pause:hover { background:rgba(239,68,68,0.12); color:#fff; border-color:rgba(239,68,68,0.45); }
@@ -539,7 +541,7 @@
                 <th class="num">Daily budget</th>
                 <th>Status</th>
                 <th class="num">Last synced</th>
-                <th class="num">Actions</th>
+                <th style="text-align:center">Actions</th>
               </tr>
             </thead>
             <tbody id="adsets-body">
