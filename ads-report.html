@@ -875,7 +875,8 @@ function renderKPIs(t) {
       value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
     { label: "Real Joins",  cls: "kpi-joins",
       value: fmt.int(t.joins),
-      sub: `${fmt.int(t.pixel)} Meta Leads` + (t.stayRate != null ? ` · ${t.stayRate.toFixed(0)}% stay` : "") },
+      sub: `${fmt.int(t.pixel)} Meta Leads`
+          + (t.stayRate != null ? ` · ${fmt.int(t.membersIn)} still in · ${t.stayRate.toFixed(0)}% stay` : "") },
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
     { label: "Regs",        cls: "kpi-regs",

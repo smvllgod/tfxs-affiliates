@@ -781,7 +781,7 @@ function renderKPIs(data) {
     { label: "Real Joins",  cls: "kpi-joins",
       value: fmt.int(o.joins),
       sub: `${fmt.int(o.pixel_leads)} Pixel Leads`
-          + (o.stay_rate_pct != null ? ` · ${(+o.stay_rate_pct).toFixed(0)}% stay` : "") },
+          + (o.stay_rate_pct != null ? ` · ${fmt.int(o.members_in)} still in · ${(+o.stay_rate_pct).toFixed(0)}% stay` : "") },
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(o.dms),
       sub: o.joins ? fmt.pct(100 * (o.dms || 0) / o.joins) + " of joins" : "—" },
