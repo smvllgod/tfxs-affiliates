@@ -221,6 +221,15 @@
       .verdict.learning::before { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
       .verdict.paused   { background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); }
       .verdict.paused::before   { background:#94a3b8; box-shadow:none; }
+      /* No-spend channel verdicts (Telegram Ads / Shoutouts) */
+      .verdict.converting { background:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+      .verdict.converting::before { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+      .verdict.warming  { background:rgba(234,179,8,0.12); color:#eab308; border:1px solid rgba(234,179,8,0.3); }
+      .verdict.warming::before  { background:#eab308; box-shadow:0 0 6px #eab308; }
+      .verdict.traffic  { background:rgba(59,130,246,0.12); color:#3b82f6; border:1px solid rgba(59,130,246,0.3); }
+      .verdict.traffic::before  { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
+      .verdict.inactive { background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); }
+      .verdict.inactive::before { background:#94a3b8; box-shadow:none; }
 
       /* Period selector — segmented pill */
       .period-group { display:inline-flex; padding:.25rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.06); border-radius:.7rem; }
@@ -348,6 +357,109 @@
         .overflow-x-auto { overflow:visible !important; }
         @page { margin:1.5cm; }
       }
+
+      /* Flatpickr dark-theme overrides to match the main dashboard pattern */
+      .ads-date-wrap {
+        display:flex; align-items:center; gap:.55rem;
+        padding:.5rem .85rem; background:rgba(255,255,255,0.04);
+        border:1px solid rgba(255,255,255,0.08); border-radius:.55rem;
+      }
+      .light-theme .ads-date-wrap { background:rgba(0,0,0,0.03); border-color:rgba(0,0,0,0.08); }
+      .ads-date-icon { width:14px; height:14px; color:#ef4444; flex-shrink:0; }
+      .ads-date-input {
+        background:transparent; border:none; outline:none;
+        color:#fff; font-size:.75rem; font-family:'JetBrains Mono',monospace;
+        font-weight:600; letter-spacing:.02em; width:200px; text-align:center;
+        cursor:pointer;
+      }
+      .light-theme .ads-date-input { color:#18181b; }
+      .ads-date-presets { display:flex; gap:.35rem; }
+      .ads-date-preset {
+        padding:.35rem .7rem; font-size:.65rem; font-weight:700;
+        text-transform:uppercase; letter-spacing:.08em;
+        color:#a1a1aa; background:transparent; border:1px solid rgba(255,255,255,0.08);
+        border-radius:.4rem; cursor:pointer; transition:all .12s;
+      }
+      .ads-date-preset:hover { color:white; border-color:rgba(255,255,255,0.18); }
+      .ads-date-preset.active {
+        background:rgba(239,68,68,0.12); color:#ef4444; border-color:rgba(239,68,68,0.4);
+      }
+      .light-theme .ads-date-preset { color:#52525b; border-color:rgba(0,0,0,0.1); }
+      .light-theme .ads-date-preset:hover { color:#18181b; border-color:rgba(0,0,0,0.2); }
+      .light-theme .ads-date-preset.active { background:rgba(220,38,38,0.08); color:#dc2626; border-color:rgba(220,38,38,0.3); }
+
+      .flatpickr-calendar {
+        background:#0f0f10; border:1px solid rgba(255,255,255,0.1);
+        color:#fff; box-shadow:0 8px 28px rgba(0,0,0,0.5);
+      }
+      .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
+      .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange,
+      .flatpickr-day.focus, .flatpickr-day.nextMonthDay:hover, .flatpickr-day.prevMonthDay:hover {
+        background:#ef4444; border-color:#ef4444; color:white;
+      }
+      .flatpickr-day.inRange { background:rgba(239,68,68,0.16); border-color:transparent; color:white; }
+      .flatpickr-day:hover { background:rgba(255,255,255,0.08); }
+      .flatpickr-months .flatpickr-month, .flatpickr-current-month, .flatpickr-weekday { color:#fff; }
+      .flatpickr-next-month svg, .flatpickr-prev-month svg { fill:#a1a1aa; }
+      .flatpickr-next-month:hover svg, .flatpickr-prev-month:hover svg { fill:#ef4444; }
+      .flatpickr-current-month .flatpickr-monthDropdown-months,
+      .flatpickr-current-month input.cur-year { color:#fff; font-weight:600; }
+
+      /* Dim the forecast section when the selected range is fully in the
+         past (any range ending before today). The numbers still render so
+         the user can see the math, but the visual de-emphasises them. */
+      #forecast-section.is-historical .forecast-value,
+      #forecast-section.is-historical .forecast-sub,
+      #forecast-section.is-historical .forecast-label { opacity:.45; }
+      #forecast-section.is-historical { position:relative; }
+    </style>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <style>
+      /* Flatpickr dark-theme overrides. These MUST come after the CDN
+         stylesheet so they win the cascade. The brand-red accent matches
+         the rest of the ads dashboard. */
+      .flatpickr-calendar {
+        background:#0f0f10 !important;
+        border:1px solid rgba(255,255,255,0.1) !important;
+        color:#fff !important;
+        box-shadow:0 8px 28px rgba(0,0,0,0.5) !important;
+      }
+      .flatpickr-calendar.arrowTop:before,
+      .flatpickr-calendar.arrowTop:after { border-bottom-color:#0f0f10 !important; }
+      .flatpickr-months .flatpickr-month,
+      .flatpickr-current-month,
+      .flatpickr-weekday,
+      .flatpickr-current-month .flatpickr-monthDropdown-months,
+      .flatpickr-current-month input.cur-year { color:#fff !important; }
+      .flatpickr-current-month .flatpickr-monthDropdown-months { background:#0f0f10 !important; }
+      .flatpickr-day { color:#e4e4e7 !important; }
+      .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color:#3f3f46 !important; }
+      .flatpickr-day:hover, .flatpickr-day.prevMonthDay:hover, .flatpickr-day.nextMonthDay:hover {
+        background:rgba(255,255,255,0.06) !important; border-color:transparent !important;
+      }
+      .flatpickr-day.today { border-color:#ef4444 !important; }
+      .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
+      .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange,
+      .flatpickr-day.focus, .flatpickr-day.selected:hover, .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover {
+        background:#ef4444 !important; border-color:#ef4444 !important; color:white !important;
+        box-shadow:none !important;
+      }
+      .flatpickr-day.inRange {
+        background:rgba(239,68,68,0.16) !important; border-color:transparent !important; color:white !important;
+        box-shadow:none !important;
+      }
+      .flatpickr-day.disabled, .flatpickr-day.disabled:hover {
+        color:#3f3f46 !important; background:transparent !important;
+      }
+      .flatpickr-next-month svg, .flatpickr-prev-month svg { fill:#a1a1aa !important; }
+      .flatpickr-next-month:hover svg, .flatpickr-prev-month:hover svg { fill:#ef4444 !important; }
+      .flatpickr-current-month .numInputWrapper span.arrowUp:after { border-bottom-color:#a1a1aa !important; }
+      .flatpickr-current-month .numInputWrapper span.arrowDown:after { border-top-color:#a1a1aa !important; }
+      .flatpickr-weekdays { background:transparent !important; }
+      .flatpickr-weekdaycontainer { background:transparent !important; }
     </style>
 </head>
 <body class="antialiased font-sans min-h-screen relative overflow-x-hidden selection:bg-brand-500 selection:text-white pb-20">
@@ -399,10 +511,14 @@
           </p>
         </div>
         <div class="flex flex-col sm:flex-row sm:items-end gap-3">
-          <div class="period-group">
-            <button class="period-btn" data-days="7">7d</button>
-            <button class="period-btn active" data-days="14">14d</button>
-            <button class="period-btn" data-days="30">30d</button>
+          <div class="ads-date-presets">
+            <button class="ads-date-preset active" data-preset="mtd">This month</button>
+            <button class="ads-date-preset" data-preset="lastMonth">Last month</button>
+            <button class="ads-date-preset" data-preset="ytd">YTD</button>
+          </div>
+          <div class="ads-date-wrap">
+            <svg class="ads-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <input type="text" id="ads-date-range" class="ads-date-input" placeholder="Pick a range" />
           </div>
           <div class="flex items-center gap-2">
             <button id="export-csv-btn" class="action-btn" title="Export per-source matrix as CSV">
@@ -420,6 +536,28 @@
           </div>
         </div>
       </header>
+
+      <!-- ─── CHANNEL SWITCHER (Meta / Telegram Ads / Shoutouts) ─── -->
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div class="ads-date-presets" id="channel-tabs" role="tablist" aria-label="Ad channel">
+          <button class="ads-date-preset channel-tab active" data-channel="meta" role="tab">
+            Meta Ads
+          </button>
+          <button class="ads-date-preset channel-tab" data-channel="tg_ads" role="tab">
+            Telegram Ads
+          </button>
+          <button class="ads-date-preset channel-tab" data-channel="shoutout" role="tab">
+            Shoutouts
+          </button>
+        </div>
+        <span id="channel-hint" class="text-[10px] text-gray-500 font-mono"></span>
+      </div>
+
+      <!-- ─── NO-SPEND BANNER (Telegram Ads / Shoutouts) ───────── -->
+      <div id="nospend-banner" class="hidden glass-panel px-5 py-3 text-xs text-gray-400 flex items-center gap-3">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>Spend isn't tracked for this channel yet — funnel &amp; revenue only. CPL / ROAS / profit will light up once spend import lands.</span>
+      </div>
 
       <!-- ─── PUBLIC MODE BADGE (shown only when ?token=X is present) ─── -->
       <div id="public-mode-badge" class="hidden glass-panel px-5 py-3 text-xs text-gray-400 flex items-center gap-3">
@@ -471,6 +609,9 @@
           </h2>
           <span class="text-[10px] text-gray-500 font-mono" id="forecast-period">—</span>
         </div>
+        <div id="forecast-historical-note" class="hidden mb-3 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+          Selected range ends in the past. The numbers below extrapolate that period's rate onto the current month for context — they are not a real forward forecast.
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           <div class="forecast-card">
             <div class="forecast-label">MTD revenue (estimated)</div>
@@ -505,7 +646,7 @@
       <section class="glass-panel p-5 sm:p-6 animate-fade-in" id="funnel-section">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
-            <span class="text-brand-500">●</span> Funnel · last 30 days
+            <span class="text-brand-500">●</span> <span id="funnel-title">Funnel · this month</span>
           </h2>
           <span class="text-[10px] text-gray-500 font-mono" id="funnel-date-range">—</span>
         </div>
@@ -519,8 +660,8 @@
         </div>
       </section>
 
-      <!-- ─── DAILY SPEND TREND ─────────────────────────────── -->
-      <section class="glass-panel p-5 sm:p-6">
+      <!-- ─── DAILY SPEND TREND (Meta only) ─────────────────── -->
+      <section class="glass-panel p-5 sm:p-6" id="spend-section">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
             <span class="text-brand-500">●</span> Daily spend by source
@@ -530,13 +671,24 @@
         <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
       </section>
 
+      <!-- ─── DAILY RESULTS (channel-scoped funnel output) ───── -->
+      <section class="glass-panel p-5 sm:p-6" id="results-section">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
+            <span class="text-brand-500">●</span> <span id="results-title">Daily results · what these ads produce</span>
+          </h2>
+          <span class="text-[10px] text-gray-500 font-mono" id="results-period-label">last 14 days</span>
+        </div>
+        <div class="chart-wrap"><canvas id="results-chart"></canvas></div>
+      </section>
+
       <!-- ─── PER-SOURCE MATRIX ─────────────────────────────── -->
       <section class="glass-panel p-0 overflow-hidden">
         <div class="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center justify-between flex-wrap gap-2">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
-            <span class="text-brand-500">●</span> Per-source matrix · last 30 days
+            <span class="text-brand-500">●</span> <span id="matrix-title">Per-source matrix</span>
           </h2>
-          <div class="flex items-center gap-3 text-[10px] text-gray-500 font-mono">
+          <div class="flex items-center gap-3 text-[10px] text-gray-500 font-mono" id="matrix-legend">
             <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Scale</span>
             <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Hold</span>
             <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Kill</span>
@@ -546,7 +698,7 @@
         <div class="overflow-x-auto">
           <table class="matrix">
             <thead>
-              <tr>
+              <tr id="matrix-head-row">
                 <th>Source</th>
                 <th class="num">Spend</th>
                 <th class="num" title="Current daily budget on Meta (sum of active ad sets for this source)">Daily</th>
@@ -575,8 +727,8 @@
           </table>
         </div>
         <div class="px-5 sm:px-6 py-3 border-t border-white/5 text-[10px] text-gray-500 font-mono flex justify-between flex-wrap gap-2">
-          <span>Verdict rules: Paused · all ad sets off or never launched · Scale · ROAS ≥ 5× + ≥1 QFTD · Kill · spend ≥ $200 + 0 QFTD, or ROAS < 1× at $500+ · Learning · spend < $50 · Hold · everything else</span>
-          <span>Revenue est = $500 × QFTDs (WWA tier)</span>
+          <span id="verdict-rules">Verdict rules: Paused · all ad sets off or never launched · Scale · ROAS ≥ 5× + ≥1 QFTD · Kill · spend ≥ $200 + 0 QFTD, or ROAS < 1× at $500+ · Learning · spend < $50 · Hold · everything else</span>
+          <span id="revenue-note">Revenue est = $500 × QFTDs (WWA tier)</span>
         </div>
       </section>
 
@@ -584,7 +736,7 @@
       <section class="glass-panel p-0 overflow-hidden" id="velocity-section">
         <div class="px-5 sm:px-6 py-4 flex items-center justify-between">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
-            <span class="text-brand-500">●</span> Funnel velocity · median time per step (last 60 days)
+            <span class="text-brand-500">●</span> <span id="velocity-title">Funnel velocity · median time per step</span>
           </h2>
           <span class="text-[10px] text-gray-500 font-mono">join → DM → reg → FTD → QFTD</span>
         </div>
@@ -684,7 +836,28 @@ function sparkline(values, color = "#ef4444", w = 80, h = 22) {
 }
 
 /* ── State ──────────────────────────────────────────────────── */
-let currentDays = 14;
+// Range model: { since, until, days } where since/until are YYYY-MM-DD UTC.
+// Default is current month (1st to today). The 7d/14d/30d rolling buttons
+// were retired in favour of a real calendar so the dashboard reflects the
+// chosen calendar period instead of a rolling window.
+function todayUTCStr() {
+  const d = new Date();
+  return d.toISOString().substring(0, 10);
+}
+function firstOfMonthUTCStr(d = new Date()) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))
+    .toISOString().substring(0, 10);
+}
+function daysBetweenInclusive(sinceStr, untilStr) {
+  const a = new Date(sinceStr + "T00:00:00Z");
+  const b = new Date(untilStr + "T00:00:00Z");
+  return Math.max(1, Math.round((b - a) / 86400000) + 1);
+}
+function mkRange(sinceStr, untilStr) {
+  return { since: sinceStr, until: untilStr, days: daysBetweenInclusive(sinceStr, untilStr) };
+}
+let currentRange = mkRange(firstOfMonthUTCStr(), todayUTCStr());
+let datePicker = null;
 let chartInstance = null;
 
 /* ── Public mode detection (read-only share link) ──────────────
@@ -708,10 +881,19 @@ if (IS_PUBLIC) {
 }
 
 /* ── Fetch ──────────────────────────────────────────────────── */
-async function fetchDashboard(days) {
+async function fetchDashboard(range) {
+  // range = { since: 'YYYY-MM-DD', until: 'YYYY-MM-DD', days: N }
+  // since/until are preferred when present; days is the inclusive day count
+  // for run-rate forecasting (it gets sent to the backend as a fallback only
+  // when since/until are missing).
   const path = IS_PUBLIC ? "/public/ads-dashboard" : "/admin/ads-dashboard";
   const url = new URL(path, API_BASE);
-  url.searchParams.set("days", days);
+  if (range && range.since && range.until) {
+    url.searchParams.set("since", range.since);
+    url.searchParams.set("until", range.until);
+  } else if (range && range.days) {
+    url.searchParams.set("days", range.days);
+  }
   if (IS_PUBLIC) url.searchParams.set("token", PUBLIC_TOKEN);
   const headers = IS_PUBLIC ? {} : { Authorization: "Bearer " + jwt };
   const resp = await fetch(url, { headers });
@@ -833,8 +1015,60 @@ function closeShareModal() {
 }
 
 /* ── Compute totals + spark series ───────────────────────────── */
-function computeTotals(summary, daily) {
-  const t = summary.reduce((a, r) => {
+// The top KPIs + funnel + forecast are a MONEY story and must reflect
+// PAID META ONLY. Telegram Ads / shoutouts / organic joins are tracked
+// per-source in the matrix below, but they have no $ spend and would
+// inflate "Real Joins" / dilute conversion rates if mixed into the
+// headline numbers. So we sum only meta_* sources here. The matrix keeps
+// every source (it receives raw data.summary, not these totals).
+function isMetaSource(src) {
+  return typeof src === "string" && src.toLowerCase().startsWith("meta_");
+}
+
+/* ── Channel classification (mirror of SQL ads_source_channel) ── */
+// Single source of truth lives in Supabase (function ads_source_channel).
+// This JS mirror is only a fallback for when the backend hasn't shipped
+// channel_summary/channel_daily yet — keep both in sync when adding aliases.
+const CHANNEL_ALIASES = {
+  meta: new Set(["facebook_ads_go_es", "new_ig_ads_en", "instagram"]),
+  tg_ads: new Set(["last_ads_teles"]),
+  shoutout: new Set(["johnavy_1_month_1200", "kami_fx_8", "simpleforex_tools_12", "simpleforextool_11", "ads_1000_annaya_jan"]),
+};
+function channelOf(src) {
+  if (typeof src !== "string") return null;
+  const s = src.toLowerCase().trim();
+  if (s.startsWith("meta_") || CHANNEL_ALIASES.meta.has(s)) return "meta";
+  if (s.startsWith("tg_ads_") || CHANNEL_ALIASES.tg_ads.has(s)) return "tg_ads";
+  if (s.startsWith("shoutout_") || s.startsWith("so_") || s.startsWith("ads_with_") || CHANNEL_ALIASES.shoutout.has(s)) return "shoutout";
+  return null;
+}
+const CHANNEL_META = {
+  meta:     { label: "Meta",         hasSpend: true,  hint: "Paid Meta campaigns · spend synced every 6h" },
+  tg_ads:   { label: "Telegram Ads", hasSpend: false, hint: "Telegram Ads · spend not tracked yet" },
+  shoutout: { label: "Shoutouts",    hasSpend: false, hint: "Paid shoutouts / influencer drops · spend not tracked yet" },
+};
+// Active channel — persisted in the URL hash so refreshes & shared links keep the tab.
+let CHANNEL = (() => {
+  const h = (window.location.hash || "").replace("#", "");
+  return CHANNEL_META[h] ? h : "meta";
+})();
+
+// Channel-filtered per-source rows. Prefers the backend's channel_summary
+// (SQL-classified); falls back to classifying the legacy summary client-side.
+function channelRows(data, ch) {
+  if (Array.isArray(data?.channel_summary) && data.channel_summary.length) {
+    return data.channel_summary.filter(r => r.channel === ch);
+  }
+  return (data?.summary || []).filter(r => channelOf(r.source) === ch);
+}
+// Channel-filtered daily funnel rows (joins/dms/regs/ftds/qftds/commission by day).
+function channelDailyRows(data, ch) {
+  if (!Array.isArray(data?.channel_daily)) return [];
+  return data.channel_daily.filter(d => (d.channel || channelOf(d.source)) === ch);
+}
+
+function computeTotals(rows, daily) {
+  const t = (rows || []).reduce((a, r) => {
     a.spend           += +r.spend_usd            || 0;
     a.joins           += +r.joins                || 0;
     a.dms             += +r.dms                  || 0;
@@ -859,9 +1093,10 @@ function computeTotals(summary, daily) {
   t.revenueIsReal = t.commissionCount > 0;
   t.revenueAvg    = t.commissionCount > 0 ? t.commissionReal / t.commissionCount : null;
 
-  // Build daily spend spark from daily data
+  // Build daily spend spark from daily data — Meta only (ad_spend has no
+  // rows for other channels; the spark simply stays empty on those tabs).
   const byDay = {};
-  daily.forEach(d => {
+  (daily || []).filter(d => isMetaSource(d.source)).forEach(d => {
     byDay[d.spend_date] = (byDay[d.spend_date] || 0) + (+d.spend_usd || 0);
   });
   t.spendSpark = Object.keys(byDay).sort().map(k => byDay[k]);
@@ -870,27 +1105,45 @@ function computeTotals(summary, daily) {
 
 /* ── Render: KPI grid ────────────────────────────────────────── */
 function renderKPIs(t) {
-  const cards = [
+  const ch = CHANNEL_META[CHANNEL];
+  const joinsSub = (label) =>
+    `${label}` + (t.stayRate != null ? ` · ${fmt.int(t.membersIn)} still in · ${t.stayRate.toFixed(0)}% stay` : "");
+  const revenueCard = {
+    label: t.revenueIsReal ? "Revenue" : "Revenue est",
+    cls: "kpi-hero", hero: true,
+    value: fmt.money(t.revenue),
+    sub: t.revenueIsReal
+      ? `${t.commissionCount} comm · avg ${fmt.money(t.revenueAvg)}` + (ch.hasSpend && t.roas ? ` · ${fmt.x(t.roas)} ROAS` : "")
+      : (t.qftds > 0
+          ? `est. $500/QFTD` + (ch.hasSpend && t.roas ? ` · ${fmt.x(t.roas)} ROAS` : "")
+          : "—"),
+  };
+  const cards = ch.hasSpend ? [
     { label: "Spend",       cls: "kpi-spend", spark: "#a78bfa",
       value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
-    { label: "Real Joins",  cls: "kpi-joins",
+    { label: "Meta Joins",  cls: "kpi-joins",
       value: fmt.int(t.joins),
-      sub: `${fmt.int(t.pixel)} Meta Leads`
-          + (t.stayRate != null ? ` · ${fmt.int(t.membersIn)} still in · ${t.stayRate.toFixed(0)}% stay` : "") },
+      sub: joinsSub(`${fmt.int(t.pixel)} Meta Leads`) },
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
     { label: "Regs",        cls: "kpi-regs",
       value: fmt.int(t.regs),       sub: t.dms ? fmt.pct(100*t.regs/t.dms) + " of DMs" : "—" },
     { label: "QFTDs",       cls: "kpi-qftds",
       value: fmt.int(t.qftds),      sub: t.regs ? fmt.pctF(100*t.qftds/t.regs) + " of regs" : "—" },
-    { label: t.revenueIsReal ? "Revenue" : "Revenue est",
-      cls: "kpi-hero", hero: true,
-      value: fmt.money(t.revenue),
-      sub: t.revenueIsReal
-        ? `${t.commissionCount} comm · avg ${fmt.money(t.revenueAvg)}` + (t.roas ? ` · ${fmt.x(t.roas)} ROAS` : "")
-        : (t.qftds > 0
-            ? `est. $500/QFTD` + (t.roas ? ` · ${fmt.x(t.roas)} ROAS` : "")
-            : "—") },
+    revenueCard,
+  ] : [
+    // No-spend channels (Telegram Ads / Shoutouts): funnel + revenue only.
+    { label: "Joins",       cls: "kpi-joins",
+      value: fmt.int(t.joins),      sub: joinsSub("channel joins") },
+    { label: "DMs",         cls: "kpi-dms",
+      value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
+    { label: "Regs",        cls: "kpi-regs",
+      value: fmt.int(t.regs),       sub: t.dms ? fmt.pct(100*t.regs/t.dms) + " of DMs" : "—" },
+    { label: "FTDs",        cls: "kpi-spend",
+      value: fmt.int(t.ftds),       sub: t.regs ? fmt.pct(100*t.ftds/t.regs) + " of regs" : "—" },
+    { label: "QFTDs",       cls: "kpi-qftds",
+      value: fmt.int(t.qftds),      sub: t.ftds ? fmt.pct(100*t.qftds/t.ftds) + " of FTDs" : "—" },
+    revenueCard,
   ];
   document.getElementById("kpi-grid").innerHTML = cards.map(c => `
     <div class="kpi ${c.cls || ""}">
@@ -932,27 +1185,94 @@ function stayCell(pct, membersIn, joins) {
   return `<span style="color:${color};font-weight:700" title="${(+membersIn||0).toLocaleString()} of ${(+joins||0).toLocaleString()} still in the group">${p.toFixed(0)}%</span>`;
 }
 
-/* ── Render: Per-source matrix ───────────────────────────────── */
-function renderMatrix(summary) {
+/* ── Render: Per-source matrix (channel-aware columns) ───────── */
+const MATRIX_HEAD_META = `
+  <th>Source</th>
+  <th class="num">Spend</th>
+  <th class="num" title="Current daily budget on Meta (sum of active ad sets for this source)">Daily</th>
+  <th class="num">Joins</th>
+  <th class="num" title="% of joins still in the Telegram group (not left). Informational — does not affect verdict.">Stay</th>
+  <th class="num">DMs</th>
+  <th class="num">J→DM</th>
+  <th class="num">Regs</th>
+  <th class="num">FTDs</th>
+  <th class="num">QFTDs</th>
+  <th class="num">CPL real</th>
+  <th class="num">CPL Meta</th>
+  <th class="num">CPA QFTD</th>
+  <th class="num">ROAS</th>
+  <th class="num">Profit</th>
+  <th>Verdict</th>`;
+const MATRIX_HEAD_NOSPEND = `
+  <th>Source</th>
+  <th class="num">Joins</th>
+  <th class="num" title="% of joins still in the Telegram group (not left).">Stay</th>
+  <th class="num">DMs</th>
+  <th class="num">J→DM</th>
+  <th class="num">Regs</th>
+  <th class="num">FTDs</th>
+  <th class="num">QFTDs</th>
+  <th class="num">Revenue</th>
+  <th>Verdict</th>`;
+
+function renderMatrix(rows) {
   const tbody = document.getElementById("matrix-body");
-  const rows = (summary || [])
-    .filter(r => (+r.joins || 0) > 0 || (+r.spend_usd || 0) > 0)
-    .sort((a, b) => (+b.spend_usd || 0) - (+a.spend_usd || 0));
-  if (!rows.length) {
+  const hasSpend = CHANNEL_META[CHANNEL].hasSpend;
+  const headRow = document.getElementById("matrix-head-row");
+  if (headRow) headRow.innerHTML = hasSpend ? MATRIX_HEAD_META : MATRIX_HEAD_NOSPEND;
+  const nCols = hasSpend ? 16 : 10;
+
+  const list = (rows || [])
+    .filter(r => (+r.joins || 0) > 0 || (+r.spend_usd || 0) > 0
+              || (+r.regs || 0) > 0 || (+r.commission_actual_usd || 0) > 0)
+    .sort((a, b) => hasSpend
+      ? (+b.spend_usd || 0) - (+a.spend_usd || 0)
+      : ((+b.commission_actual_usd || 0) - (+a.commission_actual_usd || 0)) || ((+b.joins || 0) - (+a.joins || 0)));
+  if (!list.length) {
     tbody.innerHTML = `
-      <tr><td colspan="16"><div class="empty-state">
+      <tr><td colspan="${nCols}"><div class="empty-state">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
         <h3>No data yet</h3>
-        <p>Once your ads start spending and leads start joining, this matrix will populate. The bot pulls Meta spend every 6 hours.</p>
+        <p>${hasSpend
+          ? "Once your ads start spending and leads start joining, this matrix will populate. The bot pulls Meta spend every 6 hours."
+          : "No activity from this channel in the selected range. Joins and conversions will appear here as soon as a tracked link fires."}</p>
       </div></td></tr>`;
     return;
   }
-  tbody.innerHTML = rows.map(r => {
-    const profit = +r.profit_est_usd || 0;
-    const profitClass = profit > 0 ? "profit-pos" : profit < 0 ? "profit-neg" : "profit-zero";
+  tbody.innerHTML = list.map(r => {
     const jdm = +r.join_to_dm_pct || 0;
     const jdmCls = jdm >= 25 ? "jdm-scale" : jdm >= 15 ? "jdm-hold" : "jdm-kill";
-    const verdict = r.verdict || "learning";
+    const verdict = r.verdict || (hasSpend ? "learning" : "traffic");
+    const srcCell = `
+        <td class="src-cell">
+          <a href="ads-source.html?source=${encodeURIComponent(r.source)}&since=${currentRange.since}&until=${currentRange.until}${IS_PUBLIC ? '&token=' + encodeURIComponent(PUBLIC_TOKEN) : ''}" class="src-link" title="Drill down into ${r.source}">
+            <span class="src-flag">${flagOf(r.source)}</span>
+            <span class="src-code">${r.source}</span>
+          </a>
+        </td>`;
+    const jdmCell = `
+        <td class="num">
+          ${fmt.pct(r.join_to_dm_pct)}
+          <span class="jdm-bar"><span class="jdm-bar-fill ${jdmCls}" style="width:${Math.min(jdm, 100)}%"></span></span>
+        </td>`;
+    if (!hasSpend) {
+      const rev = +r.commission_actual_usd || 0;
+      return `
+      <tr>
+        ${srcCell}
+        <td class="num">${fmt.int(r.joins)}</td>
+        <td class="num">${stayCell(r.stay_rate_pct, r.members_in, r.joins)}</td>
+        <td class="num">${fmt.int(r.dms)}</td>
+        ${jdmCell}
+        <td class="num">${fmt.int(r.regs)}</td>
+        <td class="num">${fmt.int(r.ftds)}</td>
+        <td class="num font-bold text-white">${fmt.int(r.qftds)}</td>
+        <td class="num ${rev > 0 ? "profit-pos" : ""}">${rev > 0 ? fmt.money(rev) : '<span class="text-gray-600">—</span>'}</td>
+        <td><span class="verdict ${verdict}">${verdict}</span></td>
+      </tr>`;
+    }
+    const profit = +r.profit_est_usd || 0;
+    const profitClass = profit > 0 ? "profit-pos" : profit < 0 ? "profit-neg" : "profit-zero";
     // Daily budget: NULL = no metadata yet (sync hasn't run for this source) or
     // CBO (campaign budget optimization at the campaign level). "—" in both cases.
     const dailyBudget = r.daily_budget_usd != null && +r.daily_budget_usd > 0
@@ -960,21 +1280,13 @@ function renderMatrix(summary) {
       : `<span class="text-gray-500">—</span>`;
     return `
       <tr>
-        <td class="src-cell">
-          <a href="ads-source.html?source=${encodeURIComponent(r.source)}${IS_PUBLIC ? '&token=' + encodeURIComponent(PUBLIC_TOKEN) : ''}" class="src-link" title="Drill down into ${r.source}">
-            <span class="src-flag">${flagOf(r.source)}</span>
-            <span class="src-code">${r.source}</span>
-          </a>
-        </td>
+        ${srcCell}
         <td class="num font-bold">${fmt.money(r.spend_usd)}</td>
         <td class="num">${dailyBudget}</td>
         <td class="num">${fmt.int(r.joins)}</td>
         <td class="num">${stayCell(r.stay_rate_pct, r.members_in, r.joins)}</td>
         <td class="num">${fmt.int(r.dms)}</td>
-        <td class="num">
-          ${fmt.pct(r.join_to_dm_pct)}
-          <span class="jdm-bar"><span class="jdm-bar-fill ${jdmCls}" style="width:${Math.min(jdm, 100)}%"></span></span>
-        </td>
+        ${jdmCell}
         <td class="num">${fmt.int(r.regs)}</td>
         <td class="num">${fmt.int(r.ftds)}</td>
         <td class="num font-bold text-white">${fmt.int(r.qftds)}</td>
@@ -990,9 +1302,18 @@ function renderMatrix(summary) {
 }
 
 /* ── Render: Trend chart ─────────────────────────────────────── */
-function renderChart(daily, days) {
+function renderChart(dailyRaw, days) {
   const ctx = document.getElementById("trend-chart").getContext("2d");
-  document.getElementById("trend-period-label").textContent = `last ${days} days`;
+  // Spend chart = Meta only (paid sources). tg_ads/shoutout rows carry
+  // $0 spend and would just draw flat zero lines that clutter the legend.
+  const daily = (dailyRaw || []).filter(d => isMetaSource(d.source));
+  // Label reflects the actual selected range (since/until), not a rolling window.
+  const sinceShort = new Date(currentRange.since + "T00:00:00Z")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const untilShort = new Date(currentRange.until + "T00:00:00Z")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  document.getElementById("trend-period-label").textContent =
+    `${sinceShort} -> ${untilShort}`;
   if (!daily || !daily.length) {
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -1051,6 +1372,125 @@ function renderChart(daily, days) {
   });
 }
 
+/* ── Render: Daily results chart (channel-scoped funnel output) ── */
+// What THIS channel's ads produce day by day: regs/FTDs/QFTDs as bars,
+// commission $ as a line on the right axis. No-spend channels also get
+// joins + DMs curves so volume is visible without a spend series.
+let resultsChartInstance = null;
+function renderResultsChart(chDaily) {
+  const canvas = document.getElementById("results-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const hasSpend = CHANNEL_META[CHANNEL].hasSpend;
+
+  const sinceShort = new Date(currentRange.since + "T00:00:00Z")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const untilShort = new Date(currentRange.until + "T00:00:00Z")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const periodEl = document.getElementById("results-period-label");
+  if (periodEl) periodEl.textContent = `${sinceShort} -> ${untilShort}`;
+
+  // Aggregate across the channel's sources, per day.
+  const byDay = {};
+  (chDaily || []).forEach(d => {
+    const day = String(d.day || "").slice(0, 10);
+    if (!day) return;
+    const o = byDay[day] || (byDay[day] = { joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0, comm: 0 });
+    o.joins += +d.joins || 0;
+    o.dms   += +d.dms || 0;
+    o.regs  += +d.regs || 0;
+    o.ftds  += +d.ftds || 0;
+    o.qftds += +d.qftds || 0;
+    o.comm  += +d.commission_usd || 0;
+  });
+  const dates = Object.keys(byDay).sort();
+  if (!dates.length) {
+    if (resultsChartInstance) { resultsChartInstance.destroy(); resultsChartInstance = null; }
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    return;
+  }
+
+  const seq = k => dates.map(d => byDay[d][k]);
+  const line = (label, key, color, axis) => ({
+    type: "line", label, data: seq(key), yAxisID: axis,
+    borderColor: color, backgroundColor: color + "26",
+    borderWidth: 2, tension: 0.35, fill: false,
+    pointRadius: 0, pointHoverRadius: 5,
+    pointHoverBackgroundColor: color, pointHoverBorderColor: "#fff", pointHoverBorderWidth: 2,
+  });
+  const bar = (label, key, color) => ({
+    type: "bar", label, data: seq(key), yAxisID: "yCount",
+    backgroundColor: color + "B3", borderColor: color, borderWidth: 1,
+    borderRadius: 3, maxBarThickness: 18,
+  });
+
+  const datasets = [];
+  if (!hasSpend) {
+    datasets.push(line("Joins", "joins", "#8b5cf6", "yVol"));
+    datasets.push(line("DMs", "dms", "#06b6d4", "yVol"));
+  }
+  datasets.push(bar("Regs", "regs", "#3b82f6"));
+  datasets.push(bar("FTDs", "ftds", "#eab308"));
+  datasets.push(bar("QFTDs", "qftds", "#22c55e"));
+  const commLine = line("Commission $", "comm", "#ef4444", "yMoney");
+  commLine.fill = true;
+  datasets.push(commLine);
+
+  const scales = {
+    x: { ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" } }, grid: { display: false } },
+    yCount: {
+      position: "left", beginAtZero: true,
+      ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" }, precision: 0, stepSize: 1 },
+      grid: { color: "rgba(255,255,255,0.04)", drawBorder: false },
+    },
+    yMoney: {
+      position: "right", beginAtZero: true,
+      ticks: { color: "#f87171", font: { size: 10, family: "JetBrains Mono" }, callback: v => "$" + v },
+      grid: { drawOnChartArea: false },
+    },
+  };
+  if (!hasSpend) {
+    // Joins/DMs run 10-100× the conversion counts — own hidden-grid axis so
+    // the reg/FTD bars stay readable instead of being flattened.
+    scales.yVol = {
+      position: "left", beginAtZero: true,
+      ticks: { color: "#a78bfa", font: { size: 10, family: "JetBrains Mono" } },
+      grid: { drawOnChartArea: false },
+    };
+  }
+
+  if (resultsChartInstance) resultsChartInstance.destroy();
+  resultsChartInstance = new Chart(ctx, {
+    type: "bar",
+    data: { labels: dates.map(d => d.slice(5)), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: { color: "#a1a1aa", boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: true, pointStyle: "circle", font: { size: 11, family: "Inter" } },
+        },
+        tooltip: {
+          backgroundColor: "rgba(10,10,10,0.95)",
+          borderColor: "rgba(239,68,68,0.3)",
+          borderWidth: 1,
+          padding: 10,
+          titleFont: { size: 11, weight: 700 },
+          bodyFont: { size: 11, family: "JetBrains Mono" },
+          callbacks: {
+            label: ctx => ctx.dataset.yAxisID === "yMoney"
+              ? `${ctx.dataset.label}: $${(+ctx.raw).toFixed(2)}`
+              : `${ctx.dataset.label}: ${ctx.raw}`,
+          },
+        },
+      },
+      scales,
+    },
+  });
+}
+
 /* ── Render: Smart alerts ───────────────────────────────────── */
 /* SVG icons for alerts (replaces emoji — cleaner, theme-consistent) */
 const ALERT_ICONS = {
@@ -1063,6 +1503,39 @@ const ALERT_ICONS = {
 };
 function renderAlerts(summary) {
   const alerts = [];
+  const hasSpend = CHANNEL_META[CHANNEL].hasSpend;
+  if (!hasSpend) {
+    // No-spend channels: alert on funnel quality, not ROAS.
+    (summary || []).forEach(r => {
+      const flag = flagOf(r.source);
+      const code = r.source;
+      const joins = +r.joins || 0, dms = +r.dms || 0;
+      const comm = +r.commission_actual_usd || 0;
+      if (comm > 0) {
+        alerts.push({
+          kind: "good",
+          title: `${flag} <code>${code}</code> produced real revenue`,
+          meta: `${fmt.money(comm)} commission · ${r.qftds || 0} QFTD · ${fmt.int(joins)} joins · J→DM ${fmt.pct(r.join_to_dm_pct)}`,
+        });
+      }
+      if (joins >= 30 && joins > 0 && (100 * dms / joins) < 5) {
+        alerts.push({
+          kind: "danger",
+          title: `${flag} <code>${code}</code> sends volume but almost nobody DMs`,
+          meta: `${fmt.int(joins)} joins · ${fmt.int(dms)} DMs (${fmt.pct(100 * dms / joins)}) · audience mismatch or weak pinned CTA — don't rebook this placement as-is`,
+        });
+      }
+      if ((+r.regs || 0) >= 1 && (+r.ftds || 0) === 0) {
+        alerts.push({
+          kind: "warn",
+          title: `${flag} <code>${code}</code> has regs waiting on a first deposit`,
+          meta: `${r.regs} reg${+r.regs > 1 ? "s" : ""} · 0 FTD · follow up in DMs to close the deposit`,
+        });
+      }
+    });
+    renderAlertList(alerts);
+    return;
+  }
   (summary || []).forEach(r => {
     const flag = flagOf(r.source);
     const code = r.source;
@@ -1091,13 +1564,16 @@ function renderAlerts(summary) {
       });
     }
   });
+  renderAlertList(alerts);
+}
+function renderAlertList(alerts) {
   const body = document.getElementById("alerts-body");
   if (!alerts.length) {
     body.innerHTML = `
       <div class="empty-state" style="padding:1.8rem 1rem">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 12l2 2 4-4M21 12c0 5-4 9-9 9s-9-4-9-9 4-9 9-9 9 4 9 9z"/></svg>
         <h3>All clear</h3>
-        <p>No alerts to flag — wait for more data to accumulate or run more spend.</p>
+        <p>No alerts to flag — wait for more data to accumulate.</p>
       </div>`;
     return;
   }
@@ -1114,11 +1590,46 @@ function renderAlerts(summary) {
 
 /* ── Render: header context ─────────────────────────────────── */
 function renderContext(t) {
-  const today = new Date(); const since = new Date();
-  since.setDate(since.getDate() - 30);
-  const fmtDate = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  document.getElementById("funnel-date-range").textContent = `${fmtDate(since)} → ${fmtDate(today)}`;
-  document.getElementById("last-updated").textContent = "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  // Reflect the selected calendar range, not the rolling 30d window.
+  const sinceD = new Date(currentRange.since + "T00:00:00Z");
+  const untilD = new Date(currentRange.until + "T00:00:00Z");
+  const fmtDate = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  document.getElementById("funnel-date-range").textContent =
+    `${fmtDate(sinceD)} -> ${fmtDate(untilD)} (${currentRange.days}d)`;
+
+  // Smart title: contextual to the selected range.
+  const now = new Date();
+  const thisMonthFirst = firstOfMonthUTCStr(now);
+  const todayStr = todayUTCStr();
+  let rangeLabel = "selected range";
+  if (currentRange.since === thisMonthFirst && currentRange.until === todayStr) {
+    rangeLabel = "this month";
+  } else if (currentRange.since.startsWith(now.getUTCFullYear() + "-01-01")
+             && currentRange.until === todayStr) {
+    rangeLabel = "year to date";
+  } else {
+    // Detect "last calendar month" precisely (1st to last day of previous month)
+    const firstThis = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const lastOfPrev = new Date(firstThis.getTime() - 86400000);
+    const firstOfPrev = new Date(Date.UTC(lastOfPrev.getUTCFullYear(), lastOfPrev.getUTCMonth(), 1));
+    if (currentRange.since === firstOfPrev.toISOString().substring(0, 10)
+        && currentRange.until === lastOfPrev.toISOString().substring(0, 10)) {
+      rangeLabel = "last month";
+    }
+  }
+  // Every section is scoped to the active channel — label it explicitly.
+  const chLabel = CHANNEL_META[CHANNEL].label;
+  const funnelTitleEl = document.getElementById("funnel-title");
+  if (funnelTitleEl) funnelTitleEl.textContent = `Funnel · ${chLabel} · ${rangeLabel}`;
+  const matrixTitleEl = document.getElementById("matrix-title");
+  if (matrixTitleEl) matrixTitleEl.textContent = `Per-source matrix · ${chLabel} · ${rangeLabel}`;
+  const velocityTitleEl = document.getElementById("velocity-title");
+  if (velocityTitleEl) velocityTitleEl.textContent = `Funnel velocity · median time per step · ${rangeLabel}`;
+  const resultsTitleEl = document.getElementById("results-title");
+  if (resultsTitleEl) resultsTitleEl.textContent = `Daily results · what ${chLabel} ads produce`;
+
+  document.getElementById("last-updated").textContent =
+    "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
 /* ── Render: Forecast (path to $50k goal) ───────────────────── */
@@ -1147,9 +1658,22 @@ function renderForecast(t, periodDays) {
   const requiredDailyRate = gapToGoal > 0 && daysRemaining > 0 ? gapToGoal / daysRemaining : 0;
   const rateMultiplier = dailyRevenueRate > 0 ? requiredDailyRate / dailyRevenueRate : 0;
 
-  // Period label
-  const periodLabel = `${periodDays}d window · day ${dayOfMonth}/${daysInMonth}`;
+  // Period label: show the selected range + month progress.
+  const sinceShort = new Date(currentRange.since + "T00:00:00Z")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const untilShort = new Date(currentRange.until + "T00:00:00Z")
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const periodLabel = `${sinceShort} -> ${untilShort} · ${periodDays}d · day ${dayOfMonth}/${daysInMonth}`;
   document.getElementById("forecast-period").textContent = periodLabel;
+
+  // Historical mode: if the selected range ends before today, the forward
+  // projection is fictional. Dim the section + surface a note so the user
+  // knows the EOM / gap numbers are extrapolations, not predictions.
+  const isHistorical = currentRange.until !== todayUTCStr();
+  const section = document.getElementById("forecast-section");
+  const note = document.getElementById("forecast-historical-note");
+  if (section) section.classList.toggle("is-historical", isHistorical);
+  if (note) note.classList.toggle("hidden", !isHistorical);
 
   // MTD card
   document.getElementById("forecast-mtd").textContent = fmt.money(revenueMTDestimate);
@@ -1189,8 +1713,9 @@ function humanizeHours(h) {
 }
 function renderTimings(timings, summary) {
   const tbody = document.getElementById("velocity-body");
-  // Only show sources that have at least 1 actual sample at any step
+  // Scope to the active channel + only sources with at least 1 sample.
   const rows = (timings || [])
+    .filter(t => channelOf(t.source) === CHANNEL)
     .filter(t => (+t.join_to_dm_sample || 0) + (+t.reg_to_ftd_sample || 0) + (+t.ftd_to_qftd_sample || 0) > 0)
     .sort((a, b) => {
       // Sort by spend desc (looking up in summary), fallback alphabetical
@@ -1219,7 +1744,7 @@ function renderTimings(timings, summary) {
     return `
       <tr>
         <td class="src-cell">
-          <a href="ads-source.html?source=${encodeURIComponent(r.source)}${IS_PUBLIC ? '&token=' + encodeURIComponent(PUBLIC_TOKEN) : ''}" class="src-link" title="Drill down into ${r.source}">
+          <a href="ads-source.html?source=${encodeURIComponent(r.source)}&since=${currentRange.since}&until=${currentRange.until}${IS_PUBLIC ? '&token=' + encodeURIComponent(PUBLIC_TOKEN) : ''}" class="src-link" title="Drill down into ${r.source}">
             <span class="src-flag">${flagOf(r.source)}</span>
             <span class="src-code">${r.source}</span>
           </a>
@@ -1235,19 +1760,26 @@ function renderTimings(timings, summary) {
 
 /* ── Export: per-source matrix to CSV ───────────────────────── */
 function exportCSV() {
-  const rows = (lastLoadedData?.summary || [])
-    .filter(r => (+r.joins || 0) > 0 || (+r.spend_usd || 0) > 0)
-    .sort((a, b) => (+b.spend_usd || 0) - (+a.spend_usd || 0));
+  const hasSpend = CHANNEL_META[CHANNEL].hasSpend;
+  const rows = channelRows(lastLoadedData, CHANNEL)
+    .filter(r => (+r.joins || 0) > 0 || (+r.spend_usd || 0) > 0
+              || (+r.regs || 0) > 0 || (+r.commission_actual_usd || 0) > 0)
+    .sort((a, b) => hasSpend
+      ? (+b.spend_usd || 0) - (+a.spend_usd || 0)
+      : ((+b.commission_actual_usd || 0) - (+a.commission_actual_usd || 0)) || ((+b.joins || 0) - (+a.joins || 0)));
   if (!rows.length) {
     alert("No data to export.");
     return;
   }
-  const headers = [
+  const headers = hasSpend ? [
     "source", "spend_usd", "daily_budget_usd", "joins", "dms",
     "join_to_dm_pct", "regs", "ftds", "qftds",
     "cpl_real_usd", "cpl_meta_usd", "cpa_qftd_usd",
     "commission_actual_usd", "revenue_est_usd", "profit_est_usd",
     "roas", "verdict", "is_active"
+  ] : [
+    "source", "joins", "dms", "join_to_dm_pct", "regs", "ftds", "qftds",
+    "commission_actual_usd", "revenue_est_usd", "verdict"
   ];
   const escape = v => {
     if (v == null) return "";
@@ -1263,7 +1795,7 @@ function exportCSV() {
   const a = document.createElement("a");
   const date = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `tfxs-ads-report-${date}.csv`;
+  a.download = `tfxs-ads-${CHANNEL}-${date}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1275,26 +1807,79 @@ function printReport() {
   window.print();
 }
 
+/* ── Channel chrome: show/hide spend-dependent sections ─────── */
+const VERDICT_RULES_TEXT = {
+  spend: "Verdict rules: Paused · all ad sets off or never launched · Scale · ROAS ≥ 5× + ≥1 QFTD · Kill · spend ≥ $200 + 0 QFTD, or ROAS < 1× at $500+ · Learning · spend < $50 · Hold · everything else",
+  nospend: "Verdict rules: Inactive · no joins & no revenue · Converting · ≥1 QFTD or real commission · Warming · ≥1 reg, no deposit yet · Traffic · joins only",
+};
+const MATRIX_LEGEND_HTML = {
+  spend: `
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Scale</span>
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Hold</span>
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Kill</span>
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Learning</span>`,
+  nospend: `
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Converting</span>
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Warming</span>
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Traffic</span>
+    <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>Inactive</span>`,
+};
+function applyChannelChrome() {
+  const ch = CHANNEL_META[CHANNEL];
+  const show = (id, on) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", !on);
+  };
+  show("spend-section", ch.hasSpend);
+  show("forecast-section", ch.hasSpend);
+  show("nospend-banner", !ch.hasSpend);
+  const hint = document.getElementById("channel-hint");
+  if (hint) hint.textContent = ch.hint;
+  const rules = document.getElementById("verdict-rules");
+  if (rules) rules.textContent = ch.hasSpend ? VERDICT_RULES_TEXT.spend : VERDICT_RULES_TEXT.nospend;
+  const note = document.getElementById("revenue-note");
+  if (note) note.textContent = ch.hasSpend ? "Revenue est = $500 × QFTDs (WWA tier)" : "Revenue = WWA commissions booked to this channel (est. $500/QFTD when not yet booked)";
+  const legend = document.getElementById("matrix-legend");
+  if (legend) legend.innerHTML = ch.hasSpend ? MATRIX_LEGEND_HTML.spend : MATRIX_LEGEND_HTML.nospend;
+  document.querySelectorAll(".channel-tab").forEach(b =>
+    b.classList.toggle("active", b.dataset.channel === CHANNEL)
+  );
+}
+
 /* ── Loader ─────────────────────────────────────────────────── */
 let lastLoadedData = null;
-async function load(days) {
+function renderAll(data, days) {
+  applyChannelChrome();
+  const rows = channelRows(data, CHANNEL);
+  const chDaily = channelDailyRows(data, CHANNEL);
+  const t = computeTotals(rows, data.daily);
+  renderKPIs(t);
+  if (CHANNEL_META[CHANNEL].hasSpend) {
+    renderForecast(t, days);
+    renderChart(data.daily, days);
+  }
+  renderFunnel(t);
+  renderResultsChart(chDaily);
+  renderMatrix(rows);
+  renderTimings(data.timings, rows);
+  renderAlerts(rows);
+  renderContext(t);
+}
+async function load(range) {
   try {
-    const data = await fetchDashboard(days);
+    range = range || currentRange;
+    const data = await fetchDashboard(range);
     if (!data) return;
     lastLoadedData = data;
-    const t = computeTotals(data.summary, data.daily);
-    renderKPIs(t);
-    renderForecast(t, days);
-    renderFunnel(t);
-    renderChart(data.daily, days);
-    renderMatrix(data.summary);
-    renderTimings(data.timings, data.summary);
-    renderAlerts(data.summary);
-    renderContext(t);
+    // Backend may echo back its own normalized window; trust it for the
+    // forecast denominator so frontend and backend can't drift on day-counts.
+    const days = data.window_days || range.days;
+    renderAll(data, days);
   } catch (err) {
     console.error(err);
+    const nCols = CHANNEL_META[CHANNEL].hasSpend ? 16 : 10;
     document.getElementById("matrix-body").innerHTML =
-      `<tr><td colspan="16"><div class="empty-state">
+      `<tr><td colspan="${nCols}"><div class="empty-state">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         <h3 style="color:#ef4444">Failed to load</h3>
         <p>${err.message}</p>
@@ -1302,19 +1887,78 @@ async function load(days) {
   }
 }
 
-/* ── Wire up ─────────────────────────────────────────────────── */
-document.querySelectorAll(".period-btn").forEach(btn => {
+/* ── Channel tab switching (re-render from cache, no refetch) ── */
+document.querySelectorAll(".channel-tab").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentDays = parseInt(btn.dataset.days);
-    load(currentDays);
+    const ch = btn.dataset.channel;
+    if (!CHANNEL_META[ch] || ch === CHANNEL) return;
+    CHANNEL = ch;
+    // Keep the tab across refreshes / shareable in the URL.
+    history.replaceState(null, "", "#" + ch);
+    if (lastLoadedData) {
+      renderAll(lastLoadedData, lastLoadedData.window_days || currentRange.days);
+    } else {
+      load(currentRange);
+    }
   });
 });
+
+/* ── Wire up ─────────────────────────────────────────────────── */
+// Calendar picker (Flatpickr range mode) — replaces the rolling 7/14/30d toggle.
+// Default selected dates match currentRange so first paint matches first fetch.
+datePicker = flatpickr("#ads-date-range", {
+  mode: "range",
+  dateFormat: "Y-m-d",
+  defaultDate: [currentRange.since, currentRange.until],
+  maxDate: "today",
+  monthSelectorType: "static",
+  onChange: function (selectedDates) {
+    // Wait until user picks BOTH ends of the range before firing a fetch.
+    if (selectedDates.length !== 2) return;
+    const a = selectedDates[0], b = selectedDates[1];
+    const fmt = (d) => d.toISOString().substring(0, 10);
+    currentRange = mkRange(fmt(a), fmt(b));
+    // Custom range chosen -> de-activate every preset chip (not channel tabs).
+    document.querySelectorAll(".ads-date-preset:not(.channel-tab)").forEach(p => p.classList.remove("active"));
+    load(currentRange);
+  },
+});
+
+// Preset chips: This month / Last month / YTD. Clicking one updates the
+// picker AND fires the load. Custom picks via the calendar clear them.
+function applyPreset(name) {
+  const now = new Date();
+  let since, until;
+  if (name === "mtd") {
+    since = firstOfMonthUTCStr(now);
+    until = todayUTCStr();
+  } else if (name === "lastMonth") {
+    const firstThis = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const lastOfPrev = new Date(firstThis.getTime() - 86400000);
+    const firstOfPrev = new Date(Date.UTC(lastOfPrev.getUTCFullYear(), lastOfPrev.getUTCMonth(), 1));
+    since = firstOfPrev.toISOString().substring(0, 10);
+    until = lastOfPrev.toISOString().substring(0, 10);
+  } else if (name === "ytd") {
+    since = new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString().substring(0, 10);
+    until = todayUTCStr();
+  } else {
+    return;
+  }
+  currentRange = mkRange(since, until);
+  datePicker.setDate([since, until], false); // don't fire onChange
+  document.querySelectorAll(".ads-date-preset:not(.channel-tab)").forEach(p =>
+    p.classList.toggle("active", p.dataset.preset === name)
+  );
+  load(currentRange);
+}
+document.querySelectorAll(".ads-date-preset:not(.channel-tab)").forEach(btn => {
+  btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
+});
+
 document.getElementById("refresh-btn").addEventListener("click", () => {
   const btn = document.getElementById("refresh-btn");
   btn.style.opacity = "0.5";
-  load(currentDays).finally(() => { btn.style.opacity = ""; });
+  load(currentRange).finally(() => { btn.style.opacity = ""; });
 });
 document.getElementById("export-csv-btn").addEventListener("click", exportCSV);
 document.getElementById("print-btn").addEventListener("click", printReport);
@@ -1358,8 +2002,8 @@ if (shareCreateBtn) shareCreateBtn.addEventListener("click", async () => {
 });
 
 /* Initial + 5-min auto-refresh */
-load(currentDays);
-setInterval(() => load(currentDays), 5 * 60 * 1000);
+load(currentRange);
+setInterval(() => load(currentRange), 5 * 60 * 1000);
 </script>
 
 </body>

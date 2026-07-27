@@ -217,6 +217,15 @@
       .verdict.learning::before { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
       .verdict.paused   { background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); }
       .verdict.paused::before   { background:#94a3b8; box-shadow:none; }
+      /* No-spend channel verdicts (Telegram Ads / Shoutouts) */
+      .verdict.converting { background:rgba(34,197,94,0.12); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+      .verdict.converting::before { background:#22c55e; box-shadow:0 0 6px #22c55e; }
+      .verdict.warming  { background:rgba(234,179,8,0.12); color:#eab308; border:1px solid rgba(234,179,8,0.3); }
+      .verdict.warming::before  { background:#eab308; box-shadow:0 0 6px #eab308; }
+      .verdict.traffic  { background:rgba(59,130,246,0.12); color:#3b82f6; border:1px solid rgba(59,130,246,0.3); }
+      .verdict.traffic::before  { background:#3b82f6; box-shadow:0 0 6px #3b82f6; }
+      .verdict.inactive { background:rgba(148,163,184,0.10); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); }
+      .verdict.inactive::before { background:#94a3b8; box-shadow:none; }
 
       /* Period selector — segmented pill */
       .period-group { display:inline-flex; padding:.25rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.06); border-radius:.7rem; }
@@ -370,20 +379,28 @@
       }
       #hourly-distribution > div:hover > div { filter:brightness(1.35); }
 
-      /* ── Ad sub-rows (individual creatives under each ad set) ── */
-      tr.ad-row { background:rgba(255,255,255,0.015) !important; }
-      tr.ad-row:hover { background:rgba(239,68,68,0.04) !important; }
+      /* ── Creative sub-rows (individual creatives under each ad set) ── */
+      /* IMPORTANT — these used the class "ad-row" + "ad-thumb" etc. and were
+         hidden by browser ad blockers (uBlock/Brave/AdBlock cosmetic filters
+         match the literal "ad-" class names and inject display:none at *user*
+         origin, which beats even an author inline !important). The fix is the
+         neutral "crv-" prefix below — invisible to filter lists. Do NOT
+         reintroduce "ad", "ads", "sponsor", "banner" or "promo" in class names
+         on customer/partner-facing pages. The sibling "adset-header-row" was
+         never blocked, which is what pinpointed the cause. */
+      tr.crv-row > td { border-bottom:1px solid rgba(255,255,255,0.04); background:rgba(255,255,255,0.015); }
+      tr.crv-row:hover > td { background:rgba(239,68,68,0.04); }
       tr.adset-header-row > td { border-top:2px solid rgba(255,255,255,0.04); }
       tr.adset-header-row:first-child > td { border-top:none; }
-      .ad-name-wrap { display:flex; align-items:center; gap:.55rem; padding-left:1.2rem; min-width:0; }
-      .ad-tree { color:#52525b; font-family:'JetBrains Mono',monospace; font-size:.75rem; flex-shrink:0; }
-      .ad-thumb { width:36px; height:36px; border-radius:.35rem; object-fit:cover; flex-shrink:0; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); }
-      .ad-thumb-placeholder { width:36px; height:36px; border-radius:.35rem; background:rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:center; font-size:.85rem; color:#52525b; flex-shrink:0; }
-      .ad-cell-name { max-width:380px; }
-      .act-ad-pause { color:#fca5a5; border-color:rgba(252,165,165,0.2); }
-      .act-ad-pause:hover { background:rgba(239,68,68,0.10); color:#fff; border-color:rgba(239,68,68,0.35); }
-      .act-ad-resume { color:#86efac; border-color:rgba(134,239,172,0.2); }
-      .act-ad-resume:hover { background:rgba(34,197,94,0.10); color:#fff; border-color:rgba(34,197,94,0.35); }
+      .crv-name-wrap { display:flex; align-items:center; gap:.55rem; padding-left:1.2rem; min-width:0; }
+      .crv-tree { color:#52525b; font-family:'JetBrains Mono',monospace; font-size:.75rem; flex-shrink:0; }
+      .crv-thumb { width:36px; height:36px; border-radius:.35rem; object-fit:cover; flex-shrink:0; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); }
+      .crv-thumb-ph { width:36px; height:36px; border-radius:.35rem; background:rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:center; font-size:.85rem; color:#52525b; flex-shrink:0; }
+      .crv-cell-name { max-width:380px; }
+      .act-crv-pause { color:#fca5a5; border-color:rgba(252,165,165,0.2); }
+      .act-crv-pause:hover { background:rgba(239,68,68,0.10); color:#fff; border-color:rgba(239,68,68,0.35); }
+      .act-crv-resume { color:#86efac; border-color:rgba(134,239,172,0.2); }
+      .act-crv-resume:hover { background:rgba(34,197,94,0.10); color:#fff; border-color:rgba(34,197,94,0.35); }
 
       /* ── Ad set actions (inline buttons in the ad sets table) ── */
       /* display:flex (not inline-flex) so it fills the cell and the
@@ -486,7 +503,7 @@
             Source · <span id="source-flag"></span><span id="source-code" class="text-brand-500">—</span>
           </h1>
           <p class="text-sm sm:text-base text-gray-400 mt-1 sm:mt-2 font-light">
-            Leads, distributions, ad sets and full event timeline for this source · last 30 days
+            Leads, distributions, ad sets and full event timeline for this source · <span id="range-label">this month</span>
           </p>
         </div>
         <div class="flex flex-col sm:flex-row sm:items-end gap-3">
@@ -511,7 +528,7 @@
       <section class="glass-panel p-5 sm:p-6 animate-fade-in" id="funnel-section">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
-            <span class="text-brand-500">●</span> Funnel · last 30 days
+            <span class="text-brand-500">●</span> Funnel · <span data-range-label>this month</span>
           </h2>
           <span class="text-[10px] text-gray-500 font-mono" id="verdict-pill">—</span>
         </div>
@@ -524,8 +541,8 @@
         </div>
       </section>
 
-      <!-- ─── AD SETS ─────────────────────────────────────── -->
-      <section class="glass-panel p-0 overflow-hidden">
+      <!-- ─── AD SETS (Meta sources only — hidden otherwise) ── -->
+      <section class="glass-panel p-0 overflow-hidden" id="adsets-section">
         <div class="px-5 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-2">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
             <span class="text-brand-500">●</span> Meta ad sets for this source
@@ -583,7 +600,7 @@
       <section class="glass-panel p-0 overflow-hidden">
         <div class="px-5 sm:px-6 py-4 flex items-center justify-between flex-wrap gap-2">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
-            <span class="text-brand-500">●</span> Event timeline · last 30 days
+            <span class="text-brand-500">●</span> Event timeline · <span data-range-label>this month</span>
           </h2>
           <div class="flex items-center gap-2">
             <input id="timeline-filter" type="text" placeholder="Filter (user_id, broker, country)" class="bg-black/30 border border-white/10 rounded-md px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-brand-500 w-56">
@@ -703,13 +720,23 @@ if (IS_PUBLIC) {
 }
 
 const SOURCE = (__PARAMS.get("source") || "").toLowerCase();
-if (!SOURCE || !/^meta_[a-z0-9_]{1,16}$/.test(SOURCE)) {
+// Accepted sources — must mirror the backend guard in buildSourceDrillDown
+// (CHANNEL_SOURCE_RE + CHANNEL_ALIASES in index.js).
+const CHANNEL_SOURCE_RE = /^(meta_|tg_ads_|shoutout_|so_|ads_with_)[a-z0-9_\-]{1,40}$/;
+const CHANNEL_ALIASES = new Set([
+  "johnavy_1_month_1200", "kami_fx_8", "simpleforex_tools_12", "simpleforextool_11",
+  "ads_1000_annaya_jan", "last_ads_teles", "facebook_ads_go_es", "new_ig_ads_en", "instagram",
+]);
+if (!SOURCE || (!CHANNEL_SOURCE_RE.test(SOURCE) && !CHANNEL_ALIASES.has(SOURCE))) {
   document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#888;font-family:Inter,sans-serif;">
     <h1 style="color:#ef4444;margin-bottom:12px;">Invalid source</h1>
-    <p>This page requires a <code>?source=meta_xx</code> query parameter.</p>
+    <p>This page requires a <code>?source=</code> query parameter with a tracked ad source.</p>
     <p><a href="ads-report.html" style="color:#ef4444;">← Back to ads matrix</a></p>
   </div>`;
 }
+// Channel of this source — Meta gets spend/ad-set chrome, others don't.
+const IS_META_SOURCE = SOURCE.startsWith("meta_")
+  || ["facebook_ads_go_es", "new_ig_ads_en", "instagram"].includes(SOURCE);
 
 /* ── Formatters ─────────────────────────────────────────────── */
 const fmt = {
@@ -753,6 +780,13 @@ async function fetchDrillDown() {
     : `/admin/ads-dashboard/source/${SOURCE}`;
   const url = new URL(path, API_BASE);
   if (IS_PUBLIC) url.searchParams.set("token", PUBLIC_TOKEN);
+  // Carry the calendar range from the matrix link (?since/&until) so this
+  // drill-down tracks the exact same window as the main dashboard. The
+  // backend defaults to month-to-date when these are absent.
+  const _since = __PARAMS.get("since");
+  const _until = __PARAMS.get("until");
+  if (_since) url.searchParams.set("since", _since);
+  if (_until) url.searchParams.set("until", _until);
   const headers = IS_PUBLIC ? {} : { Authorization: "Bearer " + jwt };
   const resp = await fetch(url, { headers });
   if (!IS_PUBLIC && (resp.status === 401 || resp.status === 403)) {
@@ -776,14 +810,16 @@ function renderHeader(data) {
 /* ── Render: KPI grid (6 cards focused on this source) ──────── */
 function renderKPIs(data) {
   const o = data.overview || {};
-  const cards = [
+  const joinsCard = {
+    label: IS_META_SOURCE ? "Real Joins" : "Joins", cls: "kpi-joins",
+    value: fmt.int(o.joins),
+    sub: (IS_META_SOURCE ? `${fmt.int(o.pixel_leads)} Pixel Leads` : "channel joins")
+        + (o.stay_rate_pct != null ? ` · ${fmt.int(o.members_in)} still in · ${(+o.stay_rate_pct).toFixed(0)}% stay` : "") };
+  const cards = IS_META_SOURCE ? [
     { label: "Spend",       cls: "kpi-spend",
       value: fmt.money(o.spend_usd),
-      sub: o.daily_budget_usd ? `Daily ${fmt.money(o.daily_budget_usd)} · ${data.window_days}d` : `${data.window_days}d window` },
-    { label: "Real Joins",  cls: "kpi-joins",
-      value: fmt.int(o.joins),
-      sub: `${fmt.int(o.pixel_leads)} Pixel Leads`
-          + (o.stay_rate_pct != null ? ` · ${fmt.int(o.members_in)} still in · ${(+o.stay_rate_pct).toFixed(0)}% stay` : "") },
+      sub: o.daily_budget_usd ? `Daily ${fmt.money(o.daily_budget_usd)} · ${RANGE_LABEL}` : RANGE_LABEL },
+    joinsCard,
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(o.dms),
       sub: o.joins ? fmt.pct(100 * (o.dms || 0) / o.joins) + " of joins" : "—" },
@@ -798,6 +834,25 @@ function renderKPIs(data) {
       value: fmt.money(o.revenue_est_usd),
       sub: (o.profit_est_usd != null ? "Profit " + fmt.money(o.profit_est_usd) : "—")
           + (o.roas ? " · " + fmt.x(o.roas) + " ROAS" : "") },
+  ] : [
+    // No-spend source (Telegram Ads / Shoutout): funnel + revenue, no spend math.
+    joinsCard,
+    { label: "DMs",         cls: "kpi-dms",
+      value: fmt.int(o.dms),
+      sub: o.joins ? fmt.pct(100 * (o.dms || 0) / o.joins) + " of joins" : "—" },
+    { label: "Regs",        cls: "kpi-regs",
+      value: fmt.int(o.regs),
+      sub: o.dms ? fmt.pct(100 * (o.regs || 0) / o.dms) + " of DMs" : "—" },
+    { label: "FTDs",        cls: "kpi-spend",
+      value: fmt.int(o.ftds),
+      sub: o.regs ? fmt.pct(100 * (o.ftds || 0) / o.regs) + " from regs" : "—" },
+    { label: "QFTDs",       cls: "kpi-qftds",
+      value: fmt.int(o.qftds),
+      sub: o.ftds ? fmt.pctF(100 * (o.qftds || 0) / o.ftds) + " of FTDs" : "—" },
+    { label: o.commission_actual_usd > 0 ? "Revenue" : "Revenue est",
+      cls: "kpi-hero", hero: true,
+      value: fmt.money(o.revenue_est_usd),
+      sub: o.commission_actual_usd > 0 ? "real WWA commissions" : (o.qftds > 0 ? "est. $500/QFTD" : "—") },
   ];
   document.getElementById("kpi-grid").innerHTML = cards.map(c => `
     <div class="kpi ${c.cls || ""}">
@@ -901,13 +956,13 @@ function renderAdSets(data) {
       const adIsActive = adOwnStatus === "ACTIVE";
       const adStatusClass = adEffStatus === "ACTIVE" ? "scale" : "paused";
       const thumb = a.creative_thumbnail_url
-        ? `<img src="${a.creative_thumbnail_url}" alt="" class="ad-thumb" onerror="this.style.display='none'">`
-        : `<div class="ad-thumb-placeholder">📷</div>`;
+        ? `<img src="${a.creative_thumbnail_url}" alt="" class="crv-thumb" onerror="this.style.display='none'">`
+        : `<div class="crv-thumb-ph">📷</div>`;
       return `
-        <tr class="ad-row" data-ad-id="${a.ad_id}">
-          <td class="ad-cell-name">
-            <div class="ad-name-wrap">
-              <span class="ad-tree">└─</span>
+        <tr class="crv-row" data-crv-id="${a.ad_id}">
+          <td class="crv-cell-name">
+            <div class="crv-name-wrap">
+              <span class="crv-tree">└─</span>
               ${thumb}
               <div class="min-w-0 flex-1">
                 <div class="text-xs text-gray-300 truncate">${a.name || "(unnamed)"}</div>
@@ -922,8 +977,8 @@ function renderAdSets(data) {
           <td class="num">
             ${IS_PUBLIC ? '<span class="text-gray-600 text-xs">—</span>' : `<div class="adset-actions">
               ${adIsActive
-                ? `<button class="action-btn act-ad-pause" data-ad="${a.ad_id}" title="Pause this individual ad (creative) on Meta">Pause ad</button>`
-                : `<button class="action-btn act-ad-resume" data-ad="${a.ad_id}" title="Resume this ad (creative) on Meta">Resume</button>`}
+                ? `<button class="action-btn act-crv-pause" data-crv="${a.ad_id}" title="Pause this individual creative on Meta">Pause</button>`
+                : `<button class="action-btn act-crv-resume" data-crv="${a.ad_id}" title="Resume this creative on Meta">Resume</button>`}
             </div>`}
           </td>
         </tr>
@@ -937,8 +992,8 @@ function renderAdSets(data) {
   tbody.querySelectorAll(".act-pause").forEach(b => b.onclick = () => actionPauseAdSet(b.dataset.adset, b));
   tbody.querySelectorAll(".act-resume").forEach(b => b.onclick = () => actionResumeAdSet(b.dataset.adset, b));
   tbody.querySelectorAll(".act-budget").forEach(b => b.onclick = () => actionEditBudget(b.dataset.adset, b.dataset.current, b));
-  tbody.querySelectorAll(".act-ad-pause").forEach(b => b.onclick = () => actionPauseAd(b.dataset.ad, b));
-  tbody.querySelectorAll(".act-ad-resume").forEach(b => b.onclick = () => actionResumeAd(b.dataset.ad, b));
+  tbody.querySelectorAll(".act-crv-pause").forEach(b => b.onclick = () => actionPauseAd(b.dataset.crv, b));
+  tbody.querySelectorAll(".act-crv-resume").forEach(b => b.onclick = () => actionResumeAd(b.dataset.crv, b));
 }
 
 /* ── Meta Ads write actions ─────────────────────────────────── */
@@ -1125,7 +1180,7 @@ function renderFTDDistribution(data) {
   const total = items.reduce((s, i) => s + i.value, 0);
   const container = document.getElementById("ftd-distribution");
   if (total === 0) {
-    container.innerHTML = `<p class="text-xs text-gray-500 italic">No FTDs in the last 30 days.</p>`;
+    container.innerHTML = `<p class="text-xs text-gray-500 italic">No FTDs for ${RANGE_LABEL}.</p>`;
     return;
   }
   container.innerHTML = items.map(i => {
@@ -1151,7 +1206,7 @@ function renderHourlyDistribution(data) {
   const total = hourly.reduce((s, v) => s + v, 0);
   const container = document.getElementById("hourly-distribution");
   if (total === 0) {
-    container.innerHTML = `<p class="text-xs text-gray-500 italic">No joins in the last 30 days.</p>`;
+    container.innerHTML = `<p class="text-xs text-gray-500 italic">No joins for ${RANGE_LABEL}.</p>`;
     document.getElementById("hourly-peak").textContent = "—";
     return;
   }
@@ -1167,7 +1222,7 @@ function renderHourlyDistribution(data) {
   // Peak hour line
   const peakHour = hourly.indexOf(max);
   document.getElementById("hourly-peak").textContent =
-    `Peak: ${peakHour}:00-${peakHour + 1}:00 UTC (${max} joins) · ${total} joins total over 30d`;
+    `Peak: ${peakHour}:00-${peakHour + 1}:00 UTC (${max} joins) · ${total} joins total · ${RANGE_LABEL}`;
 }
 
 /* ── Timeline (unified event stream) ────────────────────────── */
@@ -1278,19 +1333,63 @@ function exportCSV() {
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 
+/* ── Range label ────────────────────────────────────────────── */
+// Human-readable label for the active window, derived from the range the
+// backend echoes back (window_since / window_until). Recognizes the same
+// presets as the main dashboard so the wording matches across pages.
+let RANGE_LABEL = "this month";
+function computeRangeLabel(data) {
+  const since = data && data.window_since;
+  const until = data && data.window_until;
+  if (!since || !until) return "this month";
+  const now = new Date();
+  const todayStr = now.toISOString().substring(0, 10);
+  const firstThisMonth = todayStr.substring(0, 8) + "01";
+  if (since === firstThisMonth && until === todayStr) return "this month";
+  if (since === now.getUTCFullYear() + "-01-01" && until === todayStr) return "year to date";
+  // last calendar month
+  const ft = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const lastPrev = new Date(ft.getTime() - 86400000);
+  const firstPrev = new Date(Date.UTC(lastPrev.getUTCFullYear(), lastPrev.getUTCMonth(), 1));
+  if (since === firstPrev.toISOString().substring(0, 10)
+      && until === lastPrev.toISOString().substring(0, 10)) return "last month";
+  // Generic: "Jun 1 -> Jun 14"
+  const sh = new Date(since + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const uh = new Date(until + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `${sh} -> ${uh}`;
+}
+
 /* ── Loader ─────────────────────────────────────────────────── */
+// Each section renders independently: a failure in one (e.g. the KPI grid
+// hitting an unexpected overview shape) must NOT prevent the others — most
+// importantly the ad sets + creatives — from showing. Without this, a single
+// throw left the whole page stuck on its "Loading…" skeletons.
+function safeRender(label, fn) {
+  try { fn(); } catch (e) { console.error(`[ads-source] ${label} render failed:`, e); }
+}
+
 async function load() {
   try {
     const data = await fetchDrillDown();
     if (!data) return;
-    renderHeader(data);
-    renderKPIs(data);
-    renderFunnel(data);
-    renderAdSets(data);
-    renderFTDDistribution(data);
-    renderHourlyDistribution(data);
-    __allEvents = buildTimeline(data);
-    renderTimeline();
+    safeRender("range-label", () => {
+      RANGE_LABEL = computeRangeLabel(data);
+      document.querySelectorAll("[id$='range-label'], #range-label").forEach(el => { el.textContent = RANGE_LABEL; });
+      document.querySelectorAll("[data-range-label]").forEach(el => { el.textContent = RANGE_LABEL; });
+    });
+    safeRender("header", () => renderHeader(data));
+    if (IS_META_SOURCE) {
+      safeRender("ad-sets", () => renderAdSets(data));        // creatives first — most important
+    } else {
+      // Telegram Ads / Shoutout sources have no Meta ad sets — hide the section.
+      const s = document.getElementById("adsets-section");
+      if (s) s.style.display = "none";
+    }
+    safeRender("kpis", () => renderKPIs(data));
+    safeRender("funnel", () => renderFunnel(data));
+    safeRender("ftd-distribution", () => renderFTDDistribution(data));
+    safeRender("hourly", () => renderHourlyDistribution(data));
+    safeRender("timeline", () => { __allEvents = buildTimeline(data); renderTimeline(); });
   } catch (err) {
     console.error(err);
     document.getElementById("timeline-body").innerHTML =
