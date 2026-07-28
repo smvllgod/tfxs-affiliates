@@ -60,7 +60,10 @@
     }
 
     function renderFilterOpts() {
-      portal.innerHTML = '<div class="max-h-72 overflow-y-auto py-1">' +
+      // No inner scroll container: the portal element itself caps at 60vh
+      // and scrolls (see #broker-filter-portal markup). Nesting a second
+      // max-height div produced a broken double-scrollbar.
+      portal.innerHTML = '<div class="py-1">' +
         _brokerFilterItems.map(o => `<div class="custom-select-opt px-3 py-2.5 text-sm cursor-pointer hover:bg-white/10 transition text-white${o.value === hidden.value ? ' bg-white/5 text-brand-500 font-medium' : ''}" data-value="${o.value}">${o.label}</div>`).join('') +
       '</div>';
       portal.querySelectorAll('.custom-select-opt').forEach(opt => {
@@ -98,7 +101,12 @@
       }
     });
 
-    window.addEventListener('scroll', () => {
+    window.addEventListener('scroll', (e) => {
+      // Capture-phase listener sees EVERY scroll, including the user
+      // scrolling INSIDE the dropdown list itself. Closing on those made
+      // the list impossible to scroll (the original "can't reach brokers
+      // further down" bug). Only close when the page scrolls underneath.
+      if (e.target === portal || (e.target instanceof Node && portal.contains(e.target))) return;
       if (!portal.classList.contains('hidden')) {
         portal.classList.add('hidden');
         btn.querySelector('svg').classList.remove('rotate-180');
@@ -222,6 +230,14 @@
   // Expose globally for index.html sparkline/KPI calcs
   window.calculateROI = calculateROI;
 
+  // Flatpickr dates are LOCAL midnight; toISOString() converts to UTC, which in
+  // any UTC+ timezone shifts the date one day back ("2026-07-01" became
+  // "2026-06-30" in Dubai and June commissions leaked into July KPIs). Format
+  // the calendar date the user actually picked, no timezone conversion.
+  function fmtPickerDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
   // ── Main data loader ────────────────────────────────────
   async function loadLiveData() {
     try {
@@ -231,8 +247,8 @@
       if (picker && picker.selectedDates && picker.selectedDates.length >= 1) {
         const sd = picker.selectedDates[0];
         const ed = picker.selectedDates[1] || picker.selectedDates[0];
-        fromDate = sd.toISOString().substring(0, 10);
-        toDate = ed.toISOString().substring(0, 10);
+        fromDate = fmtPickerDate(sd);
+        toDate = fmtPickerDate(ed);
       }
 
       // Fetch summary + latest events + ROI settings in parallel
@@ -534,8 +550,8 @@
       if (picker && picker.selectedDates && picker.selectedDates.length >= 1) {
         const sd = picker.selectedDates[0];
         const ed = picker.selectedDates[1] || picker.selectedDates[0];
-        params.push(`from=${sd.toISOString().substring(0, 10)}`);
-        params.push(`to=${ed.toISOString().substring(0, 10)}`);
+        params.push(`from=${fmtPickerDate(sd)}`);
+        params.push(`to=${fmtPickerDate(ed)}`);
       }
       if (params.length) url += `?${params.join('&')}`;
       const res = await apiGet(url);

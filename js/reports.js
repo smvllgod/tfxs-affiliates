@@ -222,7 +222,9 @@
 
   // ── Date helpers ────────────────────────────────────────
   function fmt(d) {
-    return d.toISOString().substring(0, 10);
+    // Local calendar date (flatpickr dates are local midnight; toISOString
+    // would shift them a day back in any UTC+ timezone, e.g. Dubai).
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   function getCurrentRange() {

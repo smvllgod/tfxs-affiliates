@@ -4935,8 +4935,12 @@ async function openAssignContractModal(contractId, contractTitle) {
   const presets = {};
   presets["Date"] = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
   // Auto-fill brand variables from window.BRAND
-  presets["BrandName"] = window.BRAND?.company || window.BRAND?.nameFull || "";
-  presets["BrandSite"] = (window.BRAND?.urls?.frontend || "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+  // Short brand name (BRAND.name = "TFXS", not company "TFXS Network") and the
+  // public root domain (strip protocol, trailing slash, and the "affiliates."
+  // subdomain → "theforexskyline.com"). Brand-aware so white-label tenants work.
+  presets["BrandName"] = window.BRAND?.name || window.BRAND?.company || "";
+  presets["BrandSite"] = (window.BRAND?.urls?.frontend || "")
+    .replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^affiliates\./, "");
   // Get deal_ids (multi-deal support)
   const dealIds = Array.isArray(c?.deal_ids) && c.deal_ids.length ? c.deal_ids : (c?.deal_id ? [c.deal_id] : []);
   if (dealIds.length) {
@@ -4946,7 +4950,8 @@ async function openAssignContractModal(contractId, contractTitle) {
     const firstDeal = _contractsDealsCache.find(d => d.id === dealIds[0]);
     if (firstDeal) {
       presets["BrokerName"] = firstDeal.broker || "";
-      presets["DealName"] = firstDeal.title || firstDeal.deal_type || "";
+      // Default DealName to the selected broker deal (title → broker → type).
+      presets["DealName"] = firstDeal.title || firstDeal.broker || firstDeal.deal_type || "";
       presets["Commission"] = firstDeal.cpa_amount ? `$${firstDeal.cpa_amount}` : "";
     }
   }
@@ -5075,8 +5080,9 @@ function initAffiliateStatsPanel() {
     const pickerEl = $("stats-date-picker");
     if (pickerEl && window.flatpickr) {
       const _now = new Date();
-      const _mtdStart = new Date(_now.getFullYear(), _now.getMonth(), 1).toISOString().substring(0, 10);
-      const _mtdEnd = _now.toISOString().substring(0, 10);
+      const _fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const _mtdStart = _fmtLocal(new Date(_now.getFullYear(), _now.getMonth(), 1));
+      const _mtdEnd = _fmtLocal(_now);
       _statsPicker = flatpickr(pickerEl, {
         mode: "range",
         dateFormat: "Y-m-d",
@@ -5112,8 +5118,9 @@ window.loadAffiliateStats = async function() {
     if (_statsPicker && _statsPicker.selectedDates?.length >= 1) {
       const sd = _statsPicker.selectedDates[0];
       const ed = _statsPicker.selectedDates[1] || sd;
-      params.push(`from=${sd.toISOString().substring(0, 10)}`);
-      params.push(`to=${ed.toISOString().substring(0, 10)}`);
+      const _fmtLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      params.push(`from=${_fmtLocal(sd)}`);
+      params.push(`to=${_fmtLocal(ed)}`);
     }
     let url = "/admin/affiliate-performance" + (params.length ? "?" + params.join("&") : "");
     const res = await api(url);

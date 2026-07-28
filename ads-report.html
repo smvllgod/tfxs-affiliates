@@ -1916,7 +1916,10 @@ datePicker = flatpickr("#ads-date-range", {
     // Wait until user picks BOTH ends of the range before firing a fetch.
     if (selectedDates.length !== 2) return;
     const a = selectedDates[0], b = selectedDates[1];
-    const fmt = (d) => d.toISOString().substring(0, 10);
+    // flatpickr dates are LOCAL midnight; toISOString would shift the picked
+    // date one day back in any UTC+ timezone (Dubai bug: 07-01 became 06-30
+    // and June commissions leaked into July).
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     currentRange = mkRange(fmt(a), fmt(b));
     // Custom range chosen -> de-activate every preset chip (not channel tabs).
     document.querySelectorAll(".ads-date-preset:not(.channel-tab)").forEach(p => p.classList.remove("active"));
