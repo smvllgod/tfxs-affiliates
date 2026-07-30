@@ -675,7 +675,7 @@
       <section class="glass-panel p-5 sm:p-6" id="results-section">
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 class="text-xs uppercase tracking-wider text-gray-400 font-bold flex items-center gap-2">
-            <span class="text-brand-500">●</span> <span id="results-title">Daily results · what these ads produce</span>
+            <span class="text-brand-500">●</span> <span id="results-title">Growth · what these ads produce</span>
           </h2>
           <span class="text-[10px] text-gray-500 font-mono" id="results-period-label">last 14 days</span>
         </div>
@@ -1392,9 +1392,11 @@ function renderResultsChart(chDaily) {
 
   // Aggregate across the channel's sources, per day.
   const byDay = {};
+  let hasAny = false;
   (chDaily || []).forEach(d => {
     const day = String(d.day || "").slice(0, 10);
     if (!day) return;
+    hasAny = true;
     const o = byDay[day] || (byDay[day] = { joins: 0, dms: 0, regs: 0, ftds: 0, qftds: 0, comm: 0 });
     o.joins += +d.joins || 0;
     o.dms   += +d.dms || 0;
@@ -1403,44 +1405,81 @@ function renderResultsChart(chDaily) {
     o.qftds += +d.qftds || 0;
     o.comm  += +d.commission_usd || 0;
   });
-  const dates = Object.keys(byDay).sort();
-  if (!dates.length) {
+  if (!hasAny) {
     if (resultsChartInstance) { resultsChartInstance.destroy(); resultsChartInstance = null; }
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     return;
   }
 
-  const seq = k => dates.map(d => byDay[d][k]);
-  const line = (label, key, color, axis) => ({
-    type: "line", label, data: seq(key), yAxisID: axis,
-    borderColor: color, backgroundColor: color + "26",
-    borderWidth: 2, tension: 0.35, fill: false,
-    pointRadius: 0, pointHoverRadius: 5,
-    pointHoverBackgroundColor: color, pointHoverBorderColor: "#fff", pointHoverBorderWidth: 2,
+  // Continuous day axis over the selected range (capped at today) so the
+  // growth curves plateau through quiet days instead of jumping between
+  // scattered event days.
+  const todayStr = todayUTCStr();
+  const endStr = currentRange.until < todayStr ? currentRange.until : todayStr;
+  const dates = [];
+  for (let t = new Date(currentRange.since + "T00:00:00Z").getTime(),
+           end = new Date(endStr + "T00:00:00Z").getTime();
+       t <= end; t += 86400000) {
+    dates.push(new Date(t).toISOString().substring(0, 10));
+  }
+
+  // Growth curves (running totals). Sparse funnel events (a reg here, a QFTD
+  // there) render as ugly lonely bars day-by-day; as cumulative curves they
+  // read like an equity curve — which is also how CellXpert-style dashboards
+  // present period performance.
+  const dailySeq = k => dates.map(d => (byDay[d] ? byDay[d][k] : 0));
+  const cumSeq = k => {
+    let acc = 0;
+    return dates.map(d => (acc += (byDay[d] ? byDay[d][k] : 0)));
+  };
+  const dailyByKey = {}, cumByKey = {};
+  ["joins", "dms", "regs", "ftds", "qftds", "comm"].forEach(k => {
+    dailyByKey[k] = dailySeq(k);
+    cumByKey[k] = cumSeq(k);
   });
-  const bar = (label, key, color) => ({
-    type: "bar", label, data: seq(key), yAxisID: "yCount",
-    backgroundColor: color + "B3", borderColor: color, borderWidth: 1,
-    borderRadius: 3, maxBarThickness: 18,
+
+  // Soft vertical gradient under each curve (guard: chartArea is undefined on
+  // the very first scriptable call, before layout).
+  const grad = (color, top) => (c) => {
+    const area = c.chart.chartArea;
+    if (!area) return color + "14";
+    const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, color + (top || "4D"));
+    g.addColorStop(1, color + "00");
+    return g;
+  };
+
+  const curve = (label, key, color, axis, opts = {}) => ({
+    type: "line", label, data: cumByKey[key], yAxisID: axis, _key: key,
+    borderColor: color,
+    backgroundColor: grad(color, opts.gradTop),
+    borderWidth: opts.width || 2,
+    cubicInterpolationMode: "monotone", tension: 0,
+    fill: opts.fill !== false,
+    pointRadius: 0, pointHitRadius: 8, pointHoverRadius: 5,
+    pointHoverBackgroundColor: color, pointHoverBorderColor: "#fff", pointHoverBorderWidth: 2,
+    borderDash: opts.dash || undefined,
   });
 
   const datasets = [];
   if (!hasSpend) {
-    datasets.push(line("Joins", "joins", "#8b5cf6", "yVol"));
-    datasets.push(line("DMs", "dms", "#06b6d4", "yVol"));
+    datasets.push(curve("Joins", "joins", "#8b5cf6", "yVol", { gradTop: "38" }));
+    datasets.push(curve("DMs", "dms", "#06b6d4", "yVol", { gradTop: "2E" }));
   }
-  datasets.push(bar("Regs", "regs", "#3b82f6"));
-  datasets.push(bar("FTDs", "ftds", "#eab308"));
-  datasets.push(bar("QFTDs", "qftds", "#22c55e"));
-  const commLine = line("Commission $", "comm", "#ef4444", "yMoney");
-  commLine.fill = true;
-  datasets.push(commLine);
+  datasets.push(curve("Regs", "regs", "#3b82f6", "yCount", { gradTop: "24" }));
+  datasets.push(curve("FTDs", "ftds", "#eab308", "yCount", { fill: false, dash: [5, 3] }));
+  datasets.push(curve("QFTDs", "qftds", "#22c55e", "yCount", { gradTop: "30" }));
+  datasets.push(curve("Commission $", "comm", "#ef4444", "yMoney", { width: 2.5, gradTop: "45" }));
 
   const scales = {
-    x: { ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" } }, grid: { display: false } },
+    x: {
+      ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" },
+               maxTicksLimit: 12, maxRotation: 0 },
+      grid: { display: false },
+    },
     yCount: {
       position: "left", beginAtZero: true,
-      ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" }, precision: 0, stepSize: 1 },
+      ticks: { color: "#71717a", font: { size: 10, family: "JetBrains Mono" }, precision: 0 },
       grid: { color: "rgba(255,255,255,0.04)", drawBorder: false },
     },
     yMoney: {
@@ -1450,8 +1489,8 @@ function renderResultsChart(chDaily) {
     },
   };
   if (!hasSpend) {
-    // Joins/DMs run 10-100× the conversion counts — own hidden-grid axis so
-    // the reg/FTD bars stay readable instead of being flattened.
+    // Cumulative joins/DMs run 10-100× the conversion counts — own hidden-grid
+    // axis so the reg/FTD/QFTD curves stay readable instead of being flattened.
     scales.yVol = {
       position: "left", beginAtZero: true,
       ticks: { color: "#a78bfa", font: { size: 10, family: "JetBrains Mono" } },
@@ -1461,7 +1500,7 @@ function renderResultsChart(chDaily) {
 
   if (resultsChartInstance) resultsChartInstance.destroy();
   resultsChartInstance = new Chart(ctx, {
-    type: "bar",
+    type: "line",
     data: { labels: dates.map(d => d.slice(5)), datasets },
     options: {
       responsive: true,
@@ -1479,10 +1518,19 @@ function renderResultsChart(chDaily) {
           padding: 10,
           titleFont: { size: 11, weight: 700 },
           bodyFont: { size: 11, family: "JetBrains Mono" },
+          // "Total so far (+N that day)" — the curve is cumulative, the delta
+          // is that day's actual production.
           callbacks: {
-            label: ctx => ctx.dataset.yAxisID === "yMoney"
-              ? `${ctx.dataset.label}: $${(+ctx.raw).toFixed(2)}`
-              : `${ctx.dataset.label}: ${ctx.raw}`,
+            label: (c) => {
+              const key = c.dataset._key;
+              const day = dailyByKey[key] ? dailyByKey[key][c.dataIndex] : 0;
+              if (c.dataset.yAxisID === "yMoney") {
+                const d = day ? ` (+$${(+day).toFixed(0)})` : "";
+                return `${c.dataset.label}: $${(+c.raw).toFixed(2)}${d}`;
+              }
+              const d = day ? ` (+${day})` : "";
+              return `${c.dataset.label}: ${c.raw}${d}`;
+            },
           },
         },
       },
@@ -1626,7 +1674,7 @@ function renderContext(t) {
   const velocityTitleEl = document.getElementById("velocity-title");
   if (velocityTitleEl) velocityTitleEl.textContent = `Funnel velocity · median time per step · ${rangeLabel}`;
   const resultsTitleEl = document.getElementById("results-title");
-  if (resultsTitleEl) resultsTitleEl.textContent = `Daily results · what ${chLabel} ads produce`;
+  if (resultsTitleEl) resultsTitleEl.textContent = `Growth · what ${chLabel} ads produce`;
 
   document.getElementById("last-updated").textContent =
     "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
