@@ -723,11 +723,15 @@ const SOURCE = (__PARAMS.get("source") || "").toLowerCase();
 // Accepted sources — must mirror the backend guard in buildSourceDrillDown
 // (CHANNEL_SOURCE_RE + CHANNEL_ALIASES in index.js).
 const CHANNEL_SOURCE_RE = /^(meta_|tg_ads_|shoutout_|so_|ads_with_)[a-z0-9_\-]{1,40}$/;
+// Shoutout families matched underscore-insensitively (naming drift:
+// simpleforex_tools_12 vs simple_forex_tool_13) — mirrors the backend.
+const CHANNEL_FAMILY_RE = /^(shoutout|adswith|kamifx|simpleforex|johnavy|jonavy)[a-z0-9\-]{0,40}$/;
 const CHANNEL_ALIASES = new Set([
   "johnavy_1_month_1200", "kami_fx_8", "simpleforex_tools_12", "simpleforextool_11",
   "ads_1000_annaya_jan", "last_ads_teles", "facebook_ads_go_es", "new_ig_ads_en", "instagram",
 ]);
-if (!SOURCE || (!CHANNEL_SOURCE_RE.test(SOURCE) && !CHANNEL_ALIASES.has(SOURCE))) {
+if (!SOURCE || (!CHANNEL_SOURCE_RE.test(SOURCE) && !CHANNEL_ALIASES.has(SOURCE)
+    && !CHANNEL_FAMILY_RE.test(SOURCE.replace(/_/g, "")))) {
   document.body.innerHTML = `<div style="padding:40px;text-align:center;color:#888;font-family:Inter,sans-serif;">
     <h1 style="color:#ef4444;margin-bottom:12px;">Invalid source</h1>
     <p>This page requires a <code>?source=</code> query parameter with a tracked ad source.</p>

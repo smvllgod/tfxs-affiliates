@@ -358,7 +358,7 @@
         @page { margin:1.5cm; }
       }
 
-      /* Flatpickr dark-theme overrides to match the main dashboard pattern */
+      /* Date range control + the custom calendar panel (see picker below) */
       .ads-date-wrap {
         display:flex; align-items:center; gap:.55rem;
         padding:.5rem .85rem; background:rgba(255,255,255,0.04);
@@ -388,22 +388,128 @@
       .light-theme .ads-date-preset:hover { color:#18181b; border-color:rgba(0,0,0,0.2); }
       .light-theme .ads-date-preset.active { background:rgba(220,38,38,0.08); color:#dc2626; border-color:rgba(220,38,38,0.3); }
 
-      .flatpickr-calendar {
-        background:#0f0f10; border:1px solid rgba(255,255,255,0.1);
-        color:#fff; box-shadow:0 8px 28px rgba(0,0,0,0.5);
+      /* ── Custom range calendar ─────────────────────────────────────────
+         Self-contained: no CDN, no library. Replaces Flatpickr, whose CSS+JS
+         came from jsdelivr and simply never loaded on some networks (leaving
+         the field inert and the three preset chips as the only way to pick a
+         period). Class prefix is rng- on purpose: an "ads-" prefix gets hidden
+         outright by ad blockers. */
+      .rng-wrap { position: relative; }
+      /* border-box explicitly: the mobile width below is calc(100vw - …) and would
+         overflow the viewport by its own padding + border under content-box. */
+      .rng-pop, .rng-pop * { box-sizing: border-box; }
+      .rng-pop {
+        position: fixed; z-index: 90; display: none;
+        background: #0f0f10; border: 1px solid rgba(255,255,255,0.1);
+        border-radius: .75rem; padding: .9rem;
+        box-shadow: 0 24px 60px -12px rgba(0,0,0,0.75);
+        color: #fff; user-select: none;
+        animation: rngIn .13s ease-out;
       }
-      .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
-      .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange,
-      .flatpickr-day.focus, .flatpickr-day.nextMonthDay:hover, .flatpickr-day.prevMonthDay:hover {
-        background:#ef4444; border-color:#ef4444; color:white;
+      .rng-pop.open { display: block; }
+      @keyframes rngIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+      .light-theme .rng-pop {
+        background: #fff; border-color: rgba(0,0,0,0.1); color: #18181b;
+        box-shadow: 0 24px 60px -12px rgba(0,0,0,0.18);
       }
-      .flatpickr-day.inRange { background:rgba(239,68,68,0.16); border-color:transparent; color:white; }
-      .flatpickr-day:hover { background:rgba(255,255,255,0.08); }
-      .flatpickr-months .flatpickr-month, .flatpickr-current-month, .flatpickr-weekday { color:#fff; }
-      .flatpickr-next-month svg, .flatpickr-prev-month svg { fill:#a1a1aa; }
-      .flatpickr-next-month:hover svg, .flatpickr-prev-month:hover svg { fill:#ef4444; }
-      .flatpickr-current-month .flatpickr-monthDropdown-months,
-      .flatpickr-current-month input.cur-year { color:#fff; font-weight:600; }
+
+      /* Quick ranges */
+      .rng-quick { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .8rem; }
+      .rng-chip {
+        padding: .3rem .6rem; font-size: .6rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .07em;
+        color: #a1a1aa; background: transparent;
+        border: 1px solid rgba(255,255,255,0.08); border-radius: .35rem;
+        cursor: pointer; transition: all .12s; white-space: nowrap;
+      }
+      .rng-chip:hover { color: #fff; border-color: rgba(239,68,68,0.5); }
+      .light-theme .rng-chip { color: #52525b; border-color: rgba(0,0,0,0.1); }
+      .light-theme .rng-chip:hover { color: #18181b; border-color: rgba(220,38,38,0.5); }
+
+      /* Months */
+      .rng-months { display: flex; gap: 1.1rem; }
+      .rng-cal { width: 15.5rem; }
+      .rng-head {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: .55rem; height: 1.5rem;
+      }
+      .rng-title {
+        font-size: .7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .09em; color: #fff;
+      }
+      .light-theme .rng-title { color: #18181b; }
+      .rng-nav {
+        width: 1.5rem; height: 1.5rem; display: flex; align-items: center;
+        justify-content: center; border-radius: .35rem; cursor: pointer;
+        background: transparent; border: 1px solid rgba(255,255,255,0.08);
+        color: #a1a1aa; transition: all .12s; padding: 0;
+      }
+      .rng-nav:hover { color: #ef4444; border-color: rgba(239,68,68,0.5); }
+      .rng-nav[disabled] { opacity: .25; cursor: not-allowed; }
+      .rng-nav[disabled]:hover { color: #a1a1aa; border-color: rgba(255,255,255,0.08); }
+      .light-theme .rng-nav { color: #52525b; border-color: rgba(0,0,0,0.1); }
+      .rng-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+      .rng-dow {
+        font-size: .55rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .06em; color: #52525b; text-align: center;
+        padding-bottom: .3rem;
+      }
+      .rng-day {
+        height: 1.95rem; display: flex; align-items: center; justify-content: center;
+        font-size: .7rem; font-family: 'JetBrains Mono', monospace; font-weight: 600;
+        color: #d4d4d8; background: transparent; border: 0; cursor: pointer;
+        border-radius: .3rem; transition: background .1s, color .1s; padding: 0;
+      }
+      .light-theme .rng-day { color: #3f3f46; }
+      .rng-day:hover { background: rgba(255,255,255,0.09); color: #fff; }
+      .light-theme .rng-day:hover { background: rgba(0,0,0,0.06); color: #18181b; }
+      .rng-day.is-pad { visibility: hidden; }
+      .rng-day.is-off { color: #3f3f46; cursor: not-allowed; }
+      .rng-day.is-off:hover { background: transparent; color: #3f3f46; }
+      .light-theme .rng-day.is-off { color: #d4d4d8; }
+      .rng-day.is-today { box-shadow: inset 0 0 0 1px rgba(239,68,68,0.45); }
+      .rng-day.in-range {
+        background: rgba(239,68,68,0.16); color: #fff; border-radius: 0;
+      }
+      .light-theme .rng-day.in-range { background: rgba(220,38,38,0.1); color: #18181b; }
+      .rng-day.is-start, .rng-day.is-end {
+        background: #ef4444; color: #fff; box-shadow: none;
+      }
+      .rng-day.is-start:hover, .rng-day.is-end:hover { background: #ef4444; color: #fff; }
+      .rng-day.is-start { border-radius: .3rem 0 0 .3rem; }
+      .rng-day.is-end { border-radius: 0 .3rem .3rem 0; }
+      .rng-day.is-start.is-end { border-radius: .3rem; }
+
+      /* Footer */
+      .rng-foot {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; margin-top: .8rem; padding-top: .7rem;
+        border-top: 1px solid rgba(255,255,255,0.07);
+      }
+      .light-theme .rng-foot { border-top-color: rgba(0,0,0,0.07); }
+      .rng-sum {
+        font-size: .65rem; font-family: 'JetBrains Mono', monospace;
+        color: #a1a1aa; letter-spacing: .02em;
+      }
+      .rng-sum b { color: #ef4444; font-weight: 700; }
+      .rng-close {
+        padding: .3rem .7rem; font-size: .6rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .07em;
+        color: #a1a1aa; background: transparent;
+        border: 1px solid rgba(255,255,255,0.08); border-radius: .35rem; cursor: pointer;
+      }
+      .rng-close:hover { color: #fff; border-color: rgba(255,255,255,0.2); }
+      .light-theme .rng-close { color: #52525b; border-color: rgba(0,0,0,0.1); }
+
+      /* One month on narrow screens, panel pinned to the viewport width */
+      @media (max-width: 700px) {
+        .rng-months { gap: 0; }
+        .rng-cal.rng-second { display: none; }
+        .rng-cal { width: 100%; }
+        .rng-pop { width: calc(100vw - 1.5rem); }
+        .rng-day { height: 2.4rem; font-size: .78rem; }  /* comfortable tap target */
+        .rng-chip { padding: .38rem .65rem; }
+      }
 
       /* Dim the forecast section when the selected range is fully in the
          past (any range ending before today). The numbers still render so
@@ -414,53 +520,6 @@
       #forecast-section.is-historical { position:relative; }
     </style>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-    <style>
-      /* Flatpickr dark-theme overrides. These MUST come after the CDN
-         stylesheet so they win the cascade. The brand-red accent matches
-         the rest of the ads dashboard. */
-      .flatpickr-calendar {
-        background:#0f0f10 !important;
-        border:1px solid rgba(255,255,255,0.1) !important;
-        color:#fff !important;
-        box-shadow:0 8px 28px rgba(0,0,0,0.5) !important;
-      }
-      .flatpickr-calendar.arrowTop:before,
-      .flatpickr-calendar.arrowTop:after { border-bottom-color:#0f0f10 !important; }
-      .flatpickr-months .flatpickr-month,
-      .flatpickr-current-month,
-      .flatpickr-weekday,
-      .flatpickr-current-month .flatpickr-monthDropdown-months,
-      .flatpickr-current-month input.cur-year { color:#fff !important; }
-      .flatpickr-current-month .flatpickr-monthDropdown-months { background:#0f0f10 !important; }
-      .flatpickr-day { color:#e4e4e7 !important; }
-      .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color:#3f3f46 !important; }
-      .flatpickr-day:hover, .flatpickr-day.prevMonthDay:hover, .flatpickr-day.nextMonthDay:hover {
-        background:rgba(255,255,255,0.06) !important; border-color:transparent !important;
-      }
-      .flatpickr-day.today { border-color:#ef4444 !important; }
-      .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
-      .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange,
-      .flatpickr-day.focus, .flatpickr-day.selected:hover, .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover {
-        background:#ef4444 !important; border-color:#ef4444 !important; color:white !important;
-        box-shadow:none !important;
-      }
-      .flatpickr-day.inRange {
-        background:rgba(239,68,68,0.16) !important; border-color:transparent !important; color:white !important;
-        box-shadow:none !important;
-      }
-      .flatpickr-day.disabled, .flatpickr-day.disabled:hover {
-        color:#3f3f46 !important; background:transparent !important;
-      }
-      .flatpickr-next-month svg, .flatpickr-prev-month svg { fill:#a1a1aa !important; }
-      .flatpickr-next-month:hover svg, .flatpickr-prev-month:hover svg { fill:#ef4444 !important; }
-      .flatpickr-current-month .numInputWrapper span.arrowUp:after { border-bottom-color:#a1a1aa !important; }
-      .flatpickr-current-month .numInputWrapper span.arrowDown:after { border-top-color:#a1a1aa !important; }
-      .flatpickr-weekdays { background:transparent !important; }
-      .flatpickr-weekdaycontainer { background:transparent !important; }
-    </style>
 </head>
 <body class="antialiased font-sans min-h-screen relative overflow-x-hidden selection:bg-brand-500 selection:text-white pb-20">
 
@@ -516,9 +575,9 @@
             <button class="ads-date-preset" data-preset="lastMonth">Last month</button>
             <button class="ads-date-preset" data-preset="ytd">YTD</button>
           </div>
-          <div class="ads-date-wrap">
+          <div class="ads-date-wrap rng-wrap" id="ads-date-wrap">
             <svg class="ads-date-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <input type="text" id="ads-date-range" class="ads-date-input" placeholder="Pick a range" />
+            <input type="text" id="ads-date-range" class="ads-date-input" placeholder="Pick a range" readonly />
           </div>
           <div class="flex items-center gap-2">
             <button id="export-csv-btn" class="action-btn" title="Export per-source matrix as CSV">
@@ -1032,20 +1091,43 @@ function isMetaSource(src) {
 const CHANNEL_ALIASES = {
   meta: new Set(["facebook_ads_go_es", "new_ig_ads_en", "instagram"]),
   tg_ads: new Set(["last_ads_teles"]),
-  shoutout: new Set(["johnavy_1_month_1200", "kami_fx_8", "simpleforex_tools_12", "simpleforextool_11", "ads_1000_annaya_jan"]),
+  shoutout: new Set([]),
 };
+// Pre-tracking placements retired by Jordan on 2026-08-11: their Telegram
+// join counters showed 2-18x what our capture recorded, so their numbers are
+// noise. Hidden here AND in SQL ads_source_channel — keep both lists in sync.
+const RETIRED_SOURCES = new Set([
+  "johnavy_1_month_1200", "shoutout_jonavy_250_7_days", "shoutout_h-trading",
+  "shoutout_h-trading_500", "shoutout_forexforeach", "shoutout_with_areb7_support",
+  "kami_fx_8", "kami_fx_9", "kami_fx_10", "simpleforex_tools_12",
+  "simpleforextool_11", "ads_1000_annaya_jan", "ads_with_kappa_crypto",
+  "ads_with_kings_fortune_2",
+]);
 function channelOf(src) {
   if (typeof src !== "string") return null;
   const s = src.toLowerCase().trim();
+  if (RETIRED_SOURCES.has(s)) return null;
   if (s.startsWith("meta_") || CHANNEL_ALIASES.meta.has(s)) return "meta";
   if (s.startsWith("tg_ads_") || CHANNEL_ALIASES.tg_ads.has(s)) return "tg_ads";
-  if (s.startsWith("shoutout_") || s.startsWith("so_") || s.startsWith("ads_with_") || CHANNEL_ALIASES.shoutout.has(s)) return "shoutout";
+  // Shoutout families are matched underscore-insensitively: link names drift
+  // (simpleforex_tools_12 vs simple_forex_tool_13) and a drifted name must
+  // never fall out of the channel. Mirrors ads_source_channel() in SQL.
+  const ns = s.replace(/_/g, "");
+  if (s.startsWith("shoutout_") || s.startsWith("so_") || s.startsWith("ads_with_")
+      || s.startsWith("kami_fx_") || s.startsWith("simpleforex")
+      || s.startsWith("johnavy_") || s.startsWith("jonavy_")
+      || ns.startsWith("shoutout") || ns.startsWith("adswith") || ns.startsWith("kamifx")
+      || ns.startsWith("simpleforex") || ns.startsWith("johnavy") || ns.startsWith("jonavy")) return "shoutout";
   return null;
 }
 const CHANNEL_META = {
   meta:     { label: "Meta",         hasSpend: true,  hint: "Paid Meta campaigns · spend synced every 6h" },
-  tg_ads:   { label: "Telegram Ads", hasSpend: false, hint: "Telegram Ads · spend not tracked yet" },
-  shoutout: { label: "Shoutouts",    hasSpend: false, hint: "Paid shoutouts / influencer drops · spend not tracked yet" },
+  // hasSpend for tg_ads/shoutout is DYNAMIC: renderAll flips it on when the
+  // channel's rows actually carry spend. Shoutout spend now flows from the
+  // invite-link names ("SimpleforexTool 13 400$" -> ad_spend via the tracker),
+  // so the columns light up on their own — the banner's old promise, kept.
+  tg_ads:   { label: "Telegram Ads", hasSpend: false, hint: "Telegram Ads · name links with the amount (75$) to track spend" },
+  shoutout: { label: "Shoutouts",    hasSpend: false, hint: "Paid shoutouts · spend read from the invite-link name" },
 };
 // Active channel — persisted in the URL hash so refreshes & shared links keep the tab.
 let CHANNEL = (() => {
@@ -1121,9 +1203,11 @@ function renderKPIs(t) {
   const cards = ch.hasSpend ? [
     { label: "Spend",       cls: "kpi-spend", spark: "#a78bfa",
       value: fmt.money(t.spend),    sub: `${t.spendSpark.length}d data` },
-    { label: "Meta Joins",  cls: "kpi-joins",
+    // "Meta Joins"/"Meta Leads" only make sense on the Meta channel; the
+    // spend layout also serves Shoutouts/TG Ads once their spend lights up.
+    { label: CHANNEL === "meta" ? "Meta Joins" : "Joins",  cls: "kpi-joins",
       value: fmt.int(t.joins),
-      sub: joinsSub(`${fmt.int(t.pixel)} Meta Leads`) },
+      sub: joinsSub(CHANNEL === "meta" ? `${fmt.int(t.pixel)} Meta Leads` : "channel joins") },
     { label: "DMs",         cls: "kpi-dms",
       value: fmt.int(t.dms),        sub: t.joins ? fmt.pct(100*t.dms/t.joins) + " of joins" : "—" },
     { label: "Regs",        cls: "kpi-regs",
@@ -1304,9 +1388,11 @@ function renderMatrix(rows) {
 /* ── Render: Trend chart ─────────────────────────────────────── */
 function renderChart(dailyRaw, days) {
   const ctx = document.getElementById("trend-chart").getContext("2d");
-  // Spend chart = Meta only (paid sources). tg_ads/shoutout rows carry
-  // $0 spend and would just draw flat zero lines that clutter the legend.
-  const daily = (dailyRaw || []).filter(d => isMetaSource(d.source));
+  // Spend chart shows the CURRENT channel's paid sources. Shoutout spend is a
+  // lump sum on the placement's first-join date (parsed from the link name),
+  // so it draws as a spike; meta stays the usual daily curves.
+  const daily = (dailyRaw || []).filter(d =>
+    CHANNEL === "meta" ? isMetaSource(d.source) : channelOf(d.source) === CHANNEL);
   // Label reflects the actual selected range (since/until), not a rolling window.
   const sinceShort = new Date(currentRange.since + "T00:00:00Z")
     .toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -1897,6 +1983,12 @@ function applyChannelChrome() {
 /* ── Loader ─────────────────────────────────────────────────── */
 let lastLoadedData = null;
 function renderAll(data, days) {
+  // Light the money columns as soon as this channel has real spend (shoutout
+  // spend arrives from invite-link names; meta stays always-on).
+  for (const ch of ["tg_ads", "shoutout"]) {
+    CHANNEL_META[ch].hasSpend =
+      channelRows(data, ch).some(r => parseFloat(r.spend_usd || 0) > 0);
+  }
   applyChannelChrome();
   const rows = channelRows(data, CHANNEL);
   const chDaily = channelDailyRows(data, CHANNEL);
@@ -1952,28 +2044,240 @@ document.querySelectorAll(".channel-tab").forEach(btn => {
 });
 
 /* ── Wire up ─────────────────────────────────────────────────── */
-// Calendar picker (Flatpickr range mode) — replaces the rolling 7/14/30d toggle.
-// Default selected dates match currentRange so first paint matches first fetch.
-datePicker = flatpickr("#ads-date-range", {
-  mode: "range",
-  dateFormat: "Y-m-d",
-  defaultDate: [currentRange.since, currentRange.until],
-  maxDate: "today",
-  monthSelectorType: "static",
-  onChange: function (selectedDates) {
-    // Wait until user picks BOTH ends of the range before firing a fetch.
-    if (selectedDates.length !== 2) return;
-    const a = selectedDates[0], b = selectedDates[1];
-    // flatpickr dates are LOCAL midnight; toISOString would shift the picked
-    // date one day back in any UTC+ timezone (Dubai bug: 07-01 became 06-30
-    // and June commissions leaked into July).
-    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    currentRange = mkRange(fmt(a), fmt(b));
+// Calendar picker: custom range panel, no external library.
+/* ── Custom range calendar ─────────────────────────────────────────
+   Replaces Flatpickr with a self-contained picker: two months, hover
+   preview, quick ranges, both themes, no CDN.
+
+   Dates are handled as "YYYY-MM-DD" strings and LOCAL midnight Date
+   objects throughout. toISOString() is never used: it shifts the picked
+   day one back in any UTC+ timezone, which is the Dubai bug that once
+   leaked June commissions into July.
+
+   API kept compatible with the Flatpickr call site:
+     picker.setDate([since, until], fireChange)
+*/
+function createRangePicker({ input, wrap, onSelect, maxDate }) {
+  const MONTHS = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November", "December"];
+  const DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];  // Monday-first
+
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const parse = (s) => { const [y, m, d] = String(s).split("-").map(Number); return new Date(y, m - 1, d); };
+  const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const todayStr = ymd(new Date());
+  const maxStr = maxDate || todayStr;
+
+  let start = null, end = null;      // committed selection (strings)
+  let pickStart = null;              // in-progress first click
+  let hover = null;
+  let view = new Date();             // left-hand month
+  view = new Date(view.getFullYear(), view.getMonth(), 1);
+
+  const pop = document.createElement("div");
+  pop.className = "rng-pop";
+  pop.setAttribute("role", "dialog");
+  pop.setAttribute("aria-label", "Select a date range");
+  document.body.appendChild(pop);
+
+  const QUICK = [
+    ["7d", "7 days", () => rollingDays(7)],
+    ["14d", "14 days", () => rollingDays(14)],
+    ["30d", "30 days", () => rollingDays(30)],
+    ["90d", "90 days", () => rollingDays(90)],
+    ["mtd", "This month", () => { const n = new Date(); return [ymd(new Date(n.getFullYear(), n.getMonth(), 1)), todayStr]; }],
+    ["lastMonth", "Last month", () => {
+      const n = new Date();
+      const firstThis = new Date(n.getFullYear(), n.getMonth(), 1);
+      const lastPrev = new Date(firstThis.getTime() - 86400000);
+      return [ymd(new Date(lastPrev.getFullYear(), lastPrev.getMonth(), 1)), ymd(lastPrev)];
+    }],
+    ["ytd", "YTD", () => { const n = new Date(); return [ymd(new Date(n.getFullYear(), 0, 1)), todayStr]; }],
+  ];
+  function rollingDays(n) {
+    const until = new Date();
+    const since = new Date(until.getTime() - (n - 1) * 86400000);
+    return [ymd(since), ymd(until)];
+  }
+
+  function monthHTML(base, second, opts) {
+    // Which arrows this pane carries. Two panes: prev on the left, next on the
+    // right. One pane (mobile): both live here, or the next arrow would sit in
+    // the hidden pane and the user could only ever travel backwards.
+    const showPrev = opts && "showPrev" in opts ? opts.showPrev : !second;
+    const showNext = opts && "showNext" in opts ? opts.showNext : second;
+    const y = base.getFullYear(), m = base.getMonth();
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7;   // Monday-first offset
+    const dim = new Date(y, m + 1, 0).getDate();
+    // While picking, the second endpoint follows the cursor.
+    const a = pickStart || start;
+    const b = pickStart ? (hover || pickStart) : end;
+    const lo = a && b ? (a <= b ? a : b) : a;
+    const hi = a && b ? (a <= b ? b : a) : a;
+
+    let cells = "";
+    for (let i = 0; i < lead; i++) cells += '<button class="rng-day is-pad" tabindex="-1"></button>';
+    for (let d = 1; d <= dim; d++) {
+      const s = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const off = s > maxStr;
+      const cls = ["rng-day"];
+      if (off) cls.push("is-off");
+      if (s === todayStr) cls.push("is-today");
+      if (lo && hi && s > lo && s < hi) cls.push("in-range");
+      if (lo && s === lo) cls.push("is-start");
+      if (hi && s === hi) cls.push("is-end");
+      cells += `<button class="${cls.join(" ")}" data-d="${s}"${off ? " disabled" : ""}>${d}</button>`;
+    }
+    return `
+      <div class="rng-cal${second ? " rng-second" : ""}">
+        <div class="rng-head">
+          ${showPrev ? '<button class="rng-nav" data-nav="-1" aria-label="Previous month">‹</button>'
+                     : '<span style="width:1.5rem"></span>'}
+          <span class="rng-title">${MONTHS[m]} ${y}</span>
+          ${showNext ? `<button class="rng-nav" data-nav="1" aria-label="Next month"${nextDisabled(base) ? " disabled" : ""}>›</button>`
+                     : '<span style="width:1.5rem"></span>'}
+        </div>
+        <div class="rng-grid">
+          ${DOW.map(x => `<span class="rng-dow">${x}</span>`).join("")}
+          ${cells}
+        </div>
+      </div>`;
+  }
+
+  function nextDisabled(secondBase) {
+    // Never scroll past the month holding maxDate: the future has no data.
+    const max = parse(maxStr);
+    return secondBase.getFullYear() > max.getFullYear()
+      || (secondBase.getFullYear() === max.getFullYear() && secondBase.getMonth() >= max.getMonth());
+  }
+
+  function summary() {
+    const a = pickStart || start, b = pickStart ? (hover || null) : end;
+    if (!a) return "Pick a start date";
+    if (!b) return `${a} → …`;
+    const lo = a <= b ? a : b, hi = a <= b ? b : a;
+    const days = Math.round((parse(hi) - parse(lo)) / 86400000) + 1;
+    return `${lo} → ${hi} · <b>${days} day${days > 1 ? "s" : ""}</b>`;
+  }
+
+  function render() {
+    const single = singleMonth();
+    pop.innerHTML = `
+      <div class="rng-quick">
+        ${QUICK.map(([k, label]) => `<button class="rng-chip" data-q="${k}">${label}</button>`).join("")}
+      </div>
+      <div class="rng-months">
+        ${monthHTML(view, false, single ? { showPrev: true, showNext: true } : null)}
+        ${monthHTML(addMonths(view, 1), true, single ? { showPrev: false, showNext: false } : null)}
+      </div>
+      <div class="rng-foot">
+        <span class="rng-sum">${summary()}</span>
+        <button class="rng-close" data-close="1">Close</button>
+      </div>`;
+  }
+
+  function place() {
+    const r = (wrap || input).getBoundingClientRect();
+    pop.style.visibility = "hidden";
+    pop.style.left = "0px"; pop.style.top = "0px";
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    let left = r.left, top = r.bottom + 8;
+    if (left + w > window.innerWidth - 12) left = Math.max(12, window.innerWidth - w - 12);
+    if (top + h > window.innerHeight - 12) top = Math.max(12, r.top - h - 8);  // flip above
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    pop.style.visibility = "";
+  }
+
+  const singleMonth = () => window.matchMedia("(max-width: 700px)").matches;
+
+  function open() {
+    pickStart = null; hover = null;
+    // Land on the selection. Two panes: the end month sits on the RIGHT, so
+    // the view starts one month earlier. One pane (mobile): the view IS the
+    // end month, otherwise opening on a range in August showed July.
+    if (end) {
+      const e = parse(end);
+      view = new Date(e.getFullYear(), e.getMonth() - (singleMonth() ? 0 : 1), 1);
+    }
+    render();
+    pop.classList.add("open");
+    place();
+  }
+  function close() { pop.classList.remove("open"); pickStart = null; hover = null; }
+  const isOpen = () => pop.classList.contains("open");
+
+  function commit(a, b, fire = true) {
+    start = a; end = b;
+    input.value = `${a} to ${b}`;
+    if (fire && typeof onSelect === "function") onSelect(a, b);
+  }
+
+  pop.addEventListener("click", (e) => {
+    const nav = e.target.closest("[data-nav]");
+    if (nav && !nav.disabled) { view = addMonths(view, Number(nav.dataset.nav)); render(); place(); return; }
+    if (e.target.closest("[data-close]")) { close(); return; }
+    const q = e.target.closest("[data-q]");
+    if (q) {
+      const [a, b] = QUICK.find(x => x[0] === q.dataset.q)[2]();
+      commit(a, b); close(); return;
+    }
+    const day = e.target.closest(".rng-day");
+    if (!day || day.disabled || day.classList.contains("is-pad")) return;
+    const s = day.dataset.d;
+    if (!pickStart) { pickStart = s; hover = s; render(); return; }
+    const a = pickStart <= s ? pickStart : s;
+    const b = pickStart <= s ? s : pickStart;
+    pickStart = null; hover = null;
+    commit(a, b); close();
+  });
+
+  pop.addEventListener("mouseover", (e) => {
+    if (!pickStart) return;
+    const day = e.target.closest(".rng-day");
+    if (!day || day.disabled || day.classList.contains("is-pad")) return;
+    if (day.dataset.d === hover) return;
+    hover = day.dataset.d;
+    render();
+  });
+
+  input.addEventListener("click", () => (isOpen() ? close() : open()));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); isOpen() ? close() : open(); }
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && isOpen()) close(); });
+  document.addEventListener("mousedown", (e) => {
+    if (!isOpen()) return;
+    if (pop.contains(e.target) || (wrap || input).contains(e.target)) return;
+    close();
+  });
+  // Re-render on resize too: crossing the one/two-pane breakpoint moves the
+  // arrows, so a stale layout would strand them in the hidden pane.
+  window.addEventListener("resize", () => { if (isOpen()) { render(); place(); } });
+  window.addEventListener("scroll", () => { if (isOpen()) place(); }, true);
+
+  return {
+    setDate(range, fire = true) {
+      const [a, b] = range;
+      commit(a, b, fire);
+    },
+    open, close,
+  };
+}
+
+datePicker = createRangePicker({
+  input: document.getElementById("ads-date-range"),
+  wrap: document.getElementById("ads-date-wrap"),
+  maxDate: todayUTCStr(),
+  onSelect: function (since, until) {
+    currentRange = mkRange(since, until);
     // Custom range chosen -> de-activate every preset chip (not channel tabs).
     document.querySelectorAll(".ads-date-preset:not(.channel-tab)").forEach(p => p.classList.remove("active"));
     load(currentRange);
   },
 });
+// Paint the field with the range of the first fetch, without firing it twice.
+datePicker.setDate([currentRange.since, currentRange.until], false);
 
 // Preset chips: This month / Last month / YTD. Clicking one updates the
 // picker AND fires the load. Custom picks via the calendar clear them.
