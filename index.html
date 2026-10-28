@@ -648,7 +648,7 @@
                     </div>
                     <p class="text-[10px] font-bold text-orange-400 uppercase tracking-wider mb-1">Affiliate Cost</p>
                     <span id="kpi-aff-cost" class="text-xl font-mono font-bold text-white">$0.00</span>
-                    <p class="text-[9px] text-gray-500 mt-1">Owed to affiliates</p>
+                    <p class="text-[9px] text-gray-500 mt-1">Earned by affiliates (approved)</p>
                 </div>
                 <!-- Net Profit -->
                 <div class="glass-panel p-4 rounded-xl border-l-4 border-l-emerald-500 group cursor-pointer relative overflow-hidden">
@@ -1318,7 +1318,7 @@
                             const accruingLabel = document.getElementById('popup-accruing-label');
                             if (accruingLabel) accruingLabel.textContent = 'Affiliate Cost';
                             const accruingSub = document.getElementById('popup-accruing-sub');
-                            if (accruingSub) accruingSub.textContent = 'Owed to affiliates';
+                            if (accruingSub) accruingSub.textContent = 'Earned by affiliates (approved)';
                             const accruingEl = document.getElementById('popup-accruing');
                             if (accruingEl) { accruingEl.textContent = formatCurrency(_sd.affiliate_cost || 0); accruingEl.className = 'text-sm font-bold text-red-400 font-mono'; }
                             // Lifetime → Net Profit

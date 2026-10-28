@@ -1781,7 +1781,7 @@ async function submitPayout() {
       toast("Payout created");
     }
     closeModal("payout-modal");
-    loadPayouts(); loadStats();
+    loadPayouts(); loadStats(); loadAdminSelfBalance();
   } catch (_) {}
 }
 
@@ -1796,7 +1796,7 @@ async function payoutAction(id, action) {
   try {
     await api(`/admin/payouts/${id}/${action}`, { method: "PATCH", body: JSON.stringify({ admin_note: adminNote || undefined }) });
     toast(`Payout ${action === "mark-paid" ? "paid" : "cancelled"}`);
-    loadPayouts(); loadStats();
+    loadPayouts(); loadStats(); loadAdminSelfBalance();
   } catch (_) {}
 }
 
@@ -1805,7 +1805,7 @@ async function deletePayout(id) {
   try {
     await api(`/admin/payouts/${id}`, { method: "DELETE" });
     toast("Payout deleted");
-    loadPayouts(); loadStats();
+    loadPayouts(); loadStats(); loadAdminSelfBalance();
   } catch (_) {}
 }
 
@@ -1851,7 +1851,7 @@ async function bulkPayAction(action) {
   } catch (_) {}
   selectedPayIds.clear();
   updatePayBulkBar();
-  loadPayouts(payCurrentPage); loadStats();
+  loadPayouts(payCurrentPage); loadStats(); loadAdminSelfBalance();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1897,6 +1897,7 @@ async function loadAdminSelfBalance() {
     }
   } catch (_) {}
   paintSelfBalance($("admin-self-balance"));
+  paintSelfBalance($("sw-available")); // modal may already be open when a reload lands
   const wdEl = $("admin-self-withdrawn");
   if (wdEl) wdEl.textContent = fmtSelfUsd(_adminSelfWithdrawn);
   const capEl = $("admin-self-caption");
@@ -1937,12 +1938,14 @@ async function submitAdminSelfWithdraw() {
   if (_adminSelfBalance !== null && amount > _adminSelfBalance) return toast(`Insufficient balance. Available: ${fmtSelfUsd(_adminSelfBalance)}`, "warn");
 
   const today = selfWdToday();
-  const dateVal = ($("sw-date")?.value || today).trim();
-  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && new Date(dateVal + "T12:00:00Z").toISOString().slice(0, 10) === dateVal;
-  if (!validDate || dateVal < SELF_WD_MIN_DATE || dateVal > today) return toast(`Pick a date between ${SELF_WD_MIN_DATE} and today`, "warn");
+  // No fallback to today: flatpickr empties a typed date it cannot parse or that is out of range
+  const dateVal = ($("sw-date")?.value || "").trim();
+  const d = new Date(dateVal + "T12:00:00Z");
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && !isNaN(d) && d.toISOString().slice(0, 10) === dateVal;
+  if (!validDate || dateVal < SELF_WD_MIN_DATE || dateVal > today) return toast(`Pick a date between ${SELF_WD_MIN_DATE} and today (YYYY-MM-DD)`, "warn");
   const backdated = dateVal !== today;
 
-  if (!await tfxsConfirm(`Mark withdrawal of $${amount.toFixed(2)}${backdated ? ` dated ${dateVal}` : ""} from your commissions?`, {
+  if (!await tfxsConfirm(`Mark withdrawal of $${amount.toFixed(2)} dated ${dateVal}${backdated ? "" : " (today)"} from your commissions?`, {
     title: "Confirm Withdrawal",
     okText: "Confirm",
     variant: "warning"
