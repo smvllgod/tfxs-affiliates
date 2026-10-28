@@ -158,7 +158,7 @@
 
     // 4. Admin balance popup — customize labels
     const paidLabel = document.getElementById("popup-paid-label");
-    if (paidLabel) paidLabel.textContent = "Total Paid Out";
+    if (paidLabel) paidLabel.textContent = "Total Paid to Affiliates";
     const lastLabel = document.getElementById("popup-last-label");
     if (lastLabel) lastLabel.textContent = "Active Affiliates";
     const lastIcon = document.getElementById("popup-last-icon");

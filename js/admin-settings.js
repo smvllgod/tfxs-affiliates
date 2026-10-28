@@ -1858,45 +1858,74 @@ async function bulkPayAction(action) {
 // ADMIN SELF-WITHDRAWAL
 // ══════════════════════════════════════════════════════
 
-let _adminSelfBalance = 0;
-let _adminSelfWithdrawn = 0;
+let _adminSelfBalance = null;   // admin_balance from /api/payout/balance (null until loaded)
+let _adminSelfWithdrawn = null;
+let _adminSelfGross = null;
+let _adminSelfPendingWd = 0;
+const SELF_WD_MIN_DATE = "2026-02-01"; // first month of the WWA ledger
+
+// USD with sign — the CellXpert balance is never clamped, a negative value is a gap to look at
+function fmtSelfUsd(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function paintSelfBalance(el) {
+  if (!el) return;
+  const neg = _adminSelfBalance !== null && _adminSelfBalance < 0;
+  el.textContent = fmtSelfUsd(_adminSelfBalance);
+  el.classList.toggle("text-red-400", neg);
+  el.classList.toggle("text-emerald-400", !neg);
+}
+
+function selfWdToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 async function loadAdminSelfBalance() {
   try {
-    const afp = localStorage.getItem(BRAND._lsKey("affiliate_id"));
-    if (!afp) return;
-    // Global admin view (no affiliate_id) → get net_profit = raw_revenue - affiliate_cost
+    // Global admin view (no affiliate_id) → admin_balance = gross commissions (all brands) − own CellXpert withdrawals
     const res = await api(`/api/payout/balance`);
     if (res.ok) {
       const s = res.data || res;
-      const netProfit = parseFloat(s.net_profit || 0);
-      // Admin's own self-withdrawals — fetch payouts for admin AFP
-      let adminWithdrawn = 0;
-      try {
-        const payRes = await api(`/api/payout/history?affiliate_id=${encodeURIComponent(afp)}`);
-        if (payRes.ok) {
-          (payRes.data || []).forEach(p => {
-            if (p.status === 'paid') adminWithdrawn += parseFloat(p.amount || 0);
-          });
-        }
-      } catch (_) {}
-      _adminSelfWithdrawn = adminWithdrawn;
-      _adminSelfBalance = Math.max(0, netProfit - adminWithdrawn);
+      const num = v => (v === undefined || v === null || isNaN(parseFloat(v))) ? null : parseFloat(v);
+      _adminSelfBalance = num(s.admin_balance);
+      _adminSelfWithdrawn = num(s.admin_withdrawn);
+      _adminSelfGross = num(s.admin_gross);
+      _adminSelfPendingWd = num(s.admin_withdrawal_pending) || 0;
     }
   } catch (_) {}
-  const balEl = $("admin-self-balance");
+  paintSelfBalance($("admin-self-balance"));
   const wdEl = $("admin-self-withdrawn");
-  if (balEl) balEl.textContent = "$" + _adminSelfBalance.toFixed(2);
-  if (wdEl) wdEl.textContent = "$" + _adminSelfWithdrawn.toFixed(2);
+  if (wdEl) wdEl.textContent = fmtSelfUsd(_adminSelfWithdrawn);
+  const capEl = $("admin-self-caption");
+  if (capEl && _adminSelfGross !== null && _adminSelfWithdrawn !== null) {
+    capEl.textContent = `CellXpert balance (all brands) = gross commissions ${fmtSelfUsd(_adminSelfGross)} minus your withdrawals ${fmtSelfUsd(_adminSelfWithdrawn)}`
+      + (_adminSelfPendingWd > 0 ? ` and ${fmtSelfUsd(_adminSelfPendingWd)} pending` : "");
+  }
 }
 
 function openAdminSelfWithdrawModal() {
-  const avEl = $("sw-available");
-  if (avEl) avEl.textContent = "$" + _adminSelfBalance.toFixed(2);
+  paintSelfBalance($("sw-available"));
   const amtEl = $("sw-amount");
   if (amtEl) amtEl.value = "";
   const noteEl = $("sw-note");
   if (noteEl) noteEl.value = "";
+  // Withdrawal date — defaults to today, can be backdated to match the CellXpert ledger
+  const today = selfWdToday();
+  const dateEl = $("sw-date");
+  if (dateEl) {
+    if (!dateEl._flatpickr && typeof flatpickr === "function") {
+      flatpickr(dateEl, { dateFormat: "Y-m-d", theme: "dark", allowInput: true, disableMobile: true, minDate: SELF_WD_MIN_DATE, maxDate: today });
+    }
+    if (dateEl._flatpickr) {
+      dateEl._flatpickr.set("maxDate", today);
+      dateEl._flatpickr.setDate(today, true);
+    } else {
+      dateEl.value = today;
+    }
+  }
   setCustomSelectValue("sw-method", "CellXpert Withdrawal");
   openModal("self-withdraw-modal");
 }
@@ -1904,9 +1933,16 @@ function openAdminSelfWithdrawModal() {
 async function submitAdminSelfWithdraw() {
   const amount = parseFloat($("sw-amount")?.value);
   if (!amount || amount <= 0) return toast("Enter a valid amount", "warn");
-  if (amount > _adminSelfBalance) return toast(`Insufficient balance. Available: $${_adminSelfBalance.toFixed(2)}`, "warn");
+  // Client-side hint only — the server re-checks against admin_balance
+  if (_adminSelfBalance !== null && amount > _adminSelfBalance) return toast(`Insufficient balance. Available: ${fmtSelfUsd(_adminSelfBalance)}`, "warn");
 
-  if (!await tfxsConfirm(`Mark withdrawal of $${amount.toFixed(2)} from your commissions?`, {
+  const today = selfWdToday();
+  const dateVal = ($("sw-date")?.value || today).trim();
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(dateVal) && new Date(dateVal + "T12:00:00Z").toISOString().slice(0, 10) === dateVal;
+  if (!validDate || dateVal < SELF_WD_MIN_DATE || dateVal > today) return toast(`Pick a date between ${SELF_WD_MIN_DATE} and today`, "warn");
+  const backdated = dateVal !== today;
+
+  if (!await tfxsConfirm(`Mark withdrawal of $${amount.toFixed(2)}${backdated ? ` dated ${dateVal}` : ""} from your commissions?`, {
     title: "Confirm Withdrawal",
     okText: "Confirm",
     variant: "warning"
@@ -1918,6 +1954,8 @@ async function submitAdminSelfWithdraw() {
       payment_method: $("sw-method")?.value || "CellXpert Withdrawal",
       note: $("sw-note")?.value?.trim() || null
     };
+    // Today → let the server stamp the real time; a past date is recorded at 12:00 UTC that day
+    if (backdated) body.payout_date = dateVal;
     const res = await api("/admin/self-withdrawal", {
       method: "POST",
       body: JSON.stringify(body)
@@ -1925,12 +1963,7 @@ async function submitAdminSelfWithdraw() {
     if (res.ok) {
       toast("✅ Withdrawal recorded — balance updated", "ok");
       closeModal("self-withdraw-modal");
-      _adminSelfBalance = parseFloat(res.available || 0);
-      _adminSelfWithdrawn += amount;
-      const balEl = $("admin-self-balance");
-      const wdEl = $("admin-self-withdrawn");
-      if (balEl) balEl.textContent = "$" + _adminSelfBalance.toFixed(2);
-      if (wdEl) wdEl.textContent = "$" + _adminSelfWithdrawn.toFixed(2);
+      loadAdminSelfBalance();
       loadPayouts();
       loadStats();
     }

@@ -396,6 +396,24 @@
                                     <p class="text-[8px] text-gray-600" id="popup-paid-aff-sub">Completed payouts</p>
                                 </div>
                             </div>
+                            <div class="h-[1px] bg-white/5" id="popup-self-wd-divider" style="display:none"></div>
+                            <div class="flex items-center gap-3" id="popup-self-wd-row" style="display:none">
+                                <div class="w-7 h-7 rounded-lg bg-sky-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></div>
+                                <div class="flex-1">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">Your CellXpert withdrawals</p>
+                                    <p class="text-sm font-bold text-sky-400 font-mono" id="popup-self-wd">$0.00</p>
+                                    <p class="text-[8px] text-gray-600">Marked in Admin → Payouts</p>
+                                </div>
+                            </div>
+                            <div class="h-[1px] bg-white/5" id="popup-cx-bal-divider" style="display:none"></div>
+                            <div class="flex items-center gap-3" id="popup-cx-bal-row" style="display:none">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg></div>
+                                <div class="flex-1">
+                                    <p class="text-[10px] text-gray-500 uppercase tracking-wider">CellXpert balance</p>
+                                    <p class="text-sm font-bold text-emerald-400 font-mono" id="popup-cx-bal">$0.00</p>
+                                    <p class="text-[8px] text-gray-600">All brands · gross commissions minus your withdrawals</p>
+                                </div>
+                            </div>
                             <div class="h-[1px] bg-white/5" id="popup-lt-rev-divider" style="display:none"></div>
                             <div class="flex items-center gap-3" id="popup-lt-rev-row" style="display:none">
                                 <div class="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
@@ -938,6 +956,9 @@
                         balanceInfoPopup.style.right = '';
                         balanceInfoPopup.style.width = '';
                     }
+                    // Admin popup has up to 10 rows — scroll inside rather than run off a short viewport
+                    balanceInfoPopup.style.maxHeight = Math.max(200, window.innerHeight - rect.bottom - 16) + 'px';
+                    balanceInfoPopup.style.overflowY = 'auto';
                 }
 
                 function closeBalancePopup() {
@@ -1316,11 +1337,26 @@
                             const paidAffEl = document.getElementById('popup-paid-aff');
                             if (paidAffRow) paidAffRow.style.display = '';
                             if (paidAffDivider) paidAffDivider.style.display = '';
-                            if (paidAffEl) paidAffEl.textContent = formatCurrency(paid || 0);
+                            if (paidAffEl) paidAffEl.textContent = formatCurrency(b.total_paid_affiliates ?? paid);
                         } else {
                             document.getElementById('popup-available').textContent = formatCurrency(available);
                             document.getElementById('popup-lifetime').textContent = formatCurrency(lifetime);
                             document.getElementById('popup-paid').textContent = formatCurrency(paid);
+                        }
+
+                        // Admin: own CellXpert withdrawals + CellXpert balance (all brands) — never clamped, a negative is a gap to look at
+                        if (isAdminView && b.admin_balance !== undefined) {
+                            ['popup-self-wd-row', 'popup-self-wd-divider', 'popup-cx-bal-row', 'popup-cx-bal-divider'].forEach(id => {
+                                const el = document.getElementById(id);
+                                if (el) el.style.display = '';
+                            });
+                            const selfWdEl = document.getElementById('popup-self-wd');
+                            if (selfWdEl) selfWdEl.textContent = formatCurrency(b.admin_withdrawn || 0);
+                            const cxBalEl = document.getElementById('popup-cx-bal');
+                            if (cxBalEl) {
+                                cxBalEl.textContent = formatCurrency(b.admin_balance || 0);
+                                cxBalEl.className = (b.admin_balance || 0) >= 0 ? 'text-sm font-bold text-emerald-400 font-mono' : 'text-sm font-bold text-red-400 font-mono';
+                            }
                         }
 
                         // Dynamic labels based on schedule mode (affiliates only — admin uses business metrics above)

@@ -284,8 +284,8 @@
         <!-- Secondary stats row -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             <div class="stat-card glass-panel rounded-xl p-3 text-center border border-transparent"><p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Affiliates</p><p id="stat-affiliates" class="text-lg font-bold text-white font-mono">—</p></div>
-            <div class="stat-card glass-panel rounded-xl p-3 text-center border border-transparent"><p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Unpaid</p><p id="stat-unpaid" class="text-lg font-bold text-red-400 font-mono">—</p></div>
-            <div class="stat-card glass-panel rounded-xl p-3 text-center border border-transparent"><p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Paid Out</p><p id="stat-paid" class="text-lg font-bold text-brand-500 font-mono">—</p></div>
+            <div class="stat-card glass-panel rounded-xl p-3 text-center border border-transparent" title="Approved affiliate commissions not yet paid or requested (your own traffic excluded)"><p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Owed to Affiliates</p><p id="stat-unpaid" class="text-lg font-bold text-red-400 font-mono">—</p></div>
+            <div class="stat-card glass-panel rounded-xl p-3 text-center border border-transparent" title="Payouts marked paid to affiliates (your CellXpert withdrawals excluded)"><p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Paid to Affiliates</p><p id="stat-paid" class="text-lg font-bold text-brand-500 font-mono">—</p></div>
             <div class="stat-card glass-panel rounded-xl p-3 text-center border border-transparent"><p class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Pending</p><p id="stat-pending" class="text-lg font-bold text-amber-400 font-mono">—</p></div>
         </div>
 
@@ -861,6 +861,7 @@
                                 <p class="text-xl font-bold font-mono text-gray-400" id="admin-self-withdrawn">$0.00</p>
                             </div>
                         </div>
+                        <p class="text-[9px] text-gray-600" id="admin-self-caption">CellXpert balance (all brands) = gross commissions minus your withdrawals</p>
                     </div>
                     <button onclick="openAdminSelfWithdrawModal()" class="px-5 py-2.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center gap-2 shadow-lg shadow-emerald-600/20">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -2211,6 +2212,10 @@
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-mono">$</span>
                         <input type="number" id="sw-amount" class="form-input w-full pl-7 pr-3 py-2.5 rounded-lg text-sm font-mono" step="0.01" min="1" placeholder="0.00">
                     </div>
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Withdrawal Date <span class="text-gray-600">(as in CellXpert — defaults to today)</span></label>
+                    <input type="text" id="sw-date" class="form-input w-full px-3 py-2.5 rounded-lg text-sm font-mono" placeholder="YYYY-MM-DD" autocomplete="off">
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Payment Method</label>
