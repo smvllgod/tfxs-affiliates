@@ -442,6 +442,7 @@
                     </div>
                 </div>
                 <div class="text-4xl font-bold font-mono text-white tracking-tight" id="balance-display">$0.00</div>
+                <div class="hidden text-[11px] text-gray-400 font-mono mt-1" id="balance-cellxpert-line"></div>
                 <div class="flex items-center gap-2 mt-4" id="balance-change-row">
                     <span class="text-xs font-bold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 inline-flex items-center gap-0.5" id="balance-change-badge"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17l9.2-9.2M17 17V7H7"/></svg> 0%</span>
                 </div>
@@ -1301,6 +1302,19 @@
                         }
 
                         document.getElementById('balance-display').textContent = formatCurrency(myBalance);
+
+                        // Admin: the card is TFXS only, the WWA CellXpert panel pays both
+                        // brands. Show the all-brands total and the RFFX share under it.
+                        const cxLine = document.getElementById('balance-cellxpert-line');
+                        if (cxLine) {
+                            const rffx = (isAdminView && _summaryData) ? (_summaryData.rffx_revenue || 0) : 0;
+                            if (rffx) {
+                                cxLine.textContent = `All brands (TFXS + RFFX): ${formatCurrency(_summaryData.cellxpert_revenue)} · RFFX ${formatCurrency(rffx)}`;
+                                cxLine.classList.remove('hidden');
+                            } else {
+                                cxLine.classList.add('hidden');
+                            }
+                        }
 
                         // Admin: override popup with business metrics (use date-filtered summary data)
                         const _sd = (isAdminView && _summaryData) ? _summaryData : null;
